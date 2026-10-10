@@ -47,11 +47,14 @@ jobs:
           git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml android/app/src/main/kotlin android/app/src/main/res/xml
       - run: flutter pub get --enforce-lockfile
       - name: Check Dart formatting
+        id: format
         run: |
           dart format lib test
           git diff --exit-code -- lib test
       - run: flutter analyze --fatal-infos
+        if: ${{ !cancelled() }}
       - run: flutter test --coverage --timeout 2m
+        if: ${{ !cancelled() }}
       - name: Build installable debug APK with persistent test signing
         env:
           MESHSCOUT_TEST_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_BASE64 }}

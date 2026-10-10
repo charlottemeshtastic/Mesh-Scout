@@ -111,12 +111,56 @@ class OfflineControls extends ConsumerWidget {
                     },
               icon: const Icon(Icons.delete_outline))
       ]),
-      Wrap(children:[
-        TextButton(onPressed:offline.busy?null:()async{try{await actions.resume();}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}},child:const Text('Resume download')),
-        TextButton(onPressed:offline.busy || offline.area==null?null:()async{final name=await showDialog<String>(context:context,builder:(_)=>const _AreaNameDialog());if(name!=null){try{await actions.rename(name);}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}}},child:const Text('Rename area')),
-        TextButton(onPressed:offline.busy?null:()async{try{await const MethodChannel('org.meshscout/files').invokeMethod<bool>('importMap');await actions.initialize();}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Map import failed: $e')));}},child:const Text('Import raster MBTiles')),
+      Wrap(children: [
+        TextButton(
+            onPressed: offline.busy
+                ? null
+                : () async {
+                    try {
+                      await actions.resume();
+                    } catch (e) {
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                    }
+                  },
+            child: const Text('Resume download')),
+        TextButton(
+            onPressed: offline.busy || offline.area == null
+                ? null
+                : () async {
+                    final name = await showDialog<String>(
+                        context: context,
+                        builder: (_) => const _AreaNameDialog());
+                    if (name != null) {
+                      try {
+                        await actions.rename(name);
+                      } catch (e) {
+                        if (context.mounted)
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    }
+                  },
+            child: const Text('Rename area')),
+        TextButton(
+            onPressed: offline.busy
+                ? null
+                : () async {
+                    try {
+                      await const MethodChannel('org.meshscout/files')
+                          .invokeMethod<bool>('importMap');
+                      await actions.initialize();
+                    } catch (e) {
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Map import failed: $e')));
+                    }
+                  },
+            child: const Text('Import raster MBTiles')),
       ]),
-      const Text('Raster MBTiles supports larger regions worldwide: PNG/JPEG, up to 500 MB and 50,000 tiles. Use a map pack you have permission to download. Vector MBTiles is unsupported.'),
+      const Text(
+          'Raster MBTiles supports larger regions worldwide: PNG/JPEG, up to 500 MB and 50,000 tiles. Use a map pack you have permission to download. Vector MBTiles is unsupported.'),
       if (offline.message != null)
         Text(offline.message!, style: Theme.of(context).textTheme.bodySmall),
       if (offline.enabled)

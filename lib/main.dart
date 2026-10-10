@@ -14,8 +14,10 @@ import 'features/mapping/mapping_notifier.dart';
 void main() => runApp(
       ProviderScope(
         overrides: [
-          mapDirectoryProvider.overrideWithValue(() async => (await const MethodChannel('org.meshscout/files').invokeMethod<String>('mapDirectory'))!),
-      dataDirectoryProvider.overrideWithValue(() async =>
+          mapDirectoryProvider.overrideWithValue(() async =>
+              (await const MethodChannel('org.meshscout/files')
+                  .invokeMethod<String>('mapDirectory'))!),
+          dataDirectoryProvider.overrideWithValue(() async =>
               (await const MethodChannel('org.meshscout/files')
                   .invokeMethod<String>('dataDirectory'))!),
           alertServiceProvider.overrideWithValue(AndroidAlertService()),

@@ -71,10 +71,13 @@ void main() {
     expect(signed['body'], 'forwarded');
     expect(signed['status'], contains('unverified'));
   });
-  test('malformed and unsupported incoming data is rejected; CLI is labeled', () {
+  test('malformed and unsupported incoming data is rejected; CLI is labeled',
+      () {
     expect(() => incomingMessage([7]), throwsFormatException);
     expect(() => incomingMessage([27, 0]), throwsFormatException);
-    expect(incomingMessage([7, 1, 2, 3, 4, 5, 6, 0, 1, 1, 0, 0, 0, 65])['status'], contains('CLI'));
+    expect(
+        incomingMessage([7, 1, 2, 3, 4, 5, 6, 0, 1, 1, 0, 0, 0, 65])['status'],
+        contains('CLI'));
     expect(() => incomingMessage([7, 1, 2, 3, 4, 5, 6, 0, 0, 1, 0, 0, 0, 255]),
         throwsFormatException);
   });

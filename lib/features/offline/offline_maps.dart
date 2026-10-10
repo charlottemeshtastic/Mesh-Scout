@@ -65,7 +65,8 @@ final offlineDirectoryProvider = Provider<Future<String> Function()>((ref) =>
         .invokeMethod<String>('directory'))!);
 final dataDirectoryProvider = Provider<Future<String> Function()>(
     (ref) => ref.read(offlineDirectoryProvider));
-final mapDirectoryProvider = Provider<Future<String> Function()>((ref) => () async => "${await ref.read(offlineDirectoryProvider)()}/offline");
+final mapDirectoryProvider = Provider<Future<String> Function()>((ref) =>
+    () async => "${await ref.read(offlineDirectoryProvider)()}/offline");
 final offlineTileUrlProvider = Provider<
     String Function(
         MapTile)>((ref) => (tile) =>
@@ -136,7 +137,9 @@ class OfflineMaps extends Notifier<OfflineState> {
               data['tiles'] as int,
               data['bytes'] as int,
               sideKm: data['sideKm'] as int? ?? 4,
-              name: data['name'] as String?, minZoom: data['minZoom'] as int? ?? 12, maxZoom: data['maxZoom'] as int? ?? 16));
+              name: data['name'] as String?,
+              minZoom: data['minZoom'] as int? ?? 12,
+              maxZoom: data['maxZoom'] as int? ?? 16));
         }
       }
       areas.sort((a, b) => b.path.compareTo(a.path));
@@ -195,10 +198,13 @@ class OfflineMaps extends Notifier<OfflineState> {
       await root.create(recursive: true);
       staging = Directory('${root.path}/pending');
       final resume = File('${staging.path}/resume.json');
-      final identity = jsonEncode({'lat':lat,'lon':lon,'sideKm':sideKm,'name':name});
-      if (staging.existsSync() && (!resume.existsSync() || await resume.readAsString() != identity)) await staging.delete(recursive: true);
+      final identity =
+          jsonEncode({'lat': lat, 'lon': lon, 'sideKm': sideKm, 'name': name});
+      if (staging.existsSync() &&
+          (!resume.existsSync() || await resume.readAsString() != identity))
+        await staging.delete(recursive: true);
       await staging.create(recursive: true);
-      await resume.writeAsString(identity, flush:true);
+      await resume.writeAsString(identity, flush: true);
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15);
       _client = client;
@@ -206,13 +212,24 @@ class OfflineMaps extends Notifier<OfflineState> {
       var count = 0;
       for (final tile in tiles) {
         if (generation != _generation) return;
-        final existing = File('${staging.path}/${tile.z}/${tile.x}/${tile.y}.tile');
+        final existing =
+            File('${staging.path}/${tile.z}/${tile.x}/${tile.y}.tile');
         if (existing.existsSync()) {
           final image = await existing.readAsBytes();
-          if (image.length >= 8 && image.length <= 1024*1024 && (image[0]==137 && image[1]==80 || image[0]==255 && image[1]==216)) {
-            bytes += image.length; count++;
-            if(bytes>150*1024*1024)throw const FormatException('Download exceeds 150 MB.');
-            state=OfflineState(area:previous,areas:saved,busy:true,progress:count,total:tiles.length);
+          if (image.length >= 8 &&
+              image.length <= 1024 * 1024 &&
+              (image[0] == 137 && image[1] == 80 ||
+                  image[0] == 255 && image[1] == 216)) {
+            bytes += image.length;
+            count++;
+            if (bytes > 150 * 1024 * 1024)
+              throw const FormatException('Download exceeds 150 MB.');
+            state = OfflineState(
+                area: previous,
+                areas: saved,
+                busy: true,
+                progress: count,
+                total: tiles.length);
             continue;
           }
           await existing.delete();
@@ -265,7 +282,8 @@ class OfflineMaps extends Notifier<OfflineState> {
             'tiles': count,
             'bytes': bytes,
             'sideKm': sideKm,
-            'minZoom':sideKm>12?10:12,'maxZoom':sideKm>12?14:16,
+            'minZoom': sideKm > 12 ? 10 : 12,
+            'maxZoom': sideKm > 12 ? 14 : 16,
             if (name != null && name.trim().isNotEmpty) 'name': name.trim()
           }),
           flush: true);
@@ -277,7 +295,10 @@ class OfflineMaps extends Notifier<OfflineState> {
       await staging.rename(active.path);
       if (!ref.mounted) return;
       final area = OfflineArea(active.path, lat, lon, count, bytes,
-          sideKm: sideKm, name: name?.trim(),minZoom:sideKm>12?10:12,maxZoom:sideKm>12?14:16);
+          sideKm: sideKm,
+          name: name?.trim(),
+          minZoom: sideKm > 12 ? 10 : 12,
+          maxZoom: sideKm > 12 ? 14 : 16);
       state = OfflineState(
           area: area,
           areas: List.unmodifiable([area, ...saved]),
@@ -292,26 +313,38 @@ class OfflineMaps extends Notifier<OfflineState> {
       _committing = false;
       _client?.close(force: true);
       _client = null;
-
     }
   }
 
   Future<void> resume() async {
     final metadata = File('${(await _root()).path}/pending/resume.json');
-    if(!metadata.existsSync())throw const FormatException('No paused download.');
-    final data=jsonDecode(await metadata.readAsString()) as Map<String,dynamic>;
-    await download((data['lat'] as num).toDouble(),(data['lon'] as num).toDouble(),sideKm:data['sideKm'] as int,name:data['name'] as String?);
+    if (!metadata.existsSync())
+      throw const FormatException('No paused download.');
+    final data =
+        jsonDecode(await metadata.readAsString()) as Map<String, dynamic>;
+    await download(
+        (data['lat'] as num).toDouble(), (data['lon'] as num).toDouble(),
+        sideKm: data['sideKm'] as int, name: data['name'] as String?);
   }
+
   Future<void> rename(String name) async {
-    if(state.busy || state.area==null)return;
-    if(name.trim().isEmpty || name.length>60 || name.contains(RegExp(r'[\x00-\x1f]')))throw const FormatException('Use a name of 1–60 characters.');
-    final selected=state.area!;
-    final file=File('${selected.path}/area.json');
-    final data=jsonDecode(await file.readAsString()) as Map<String,dynamic>;data['name']=name.trim();
-    final temp=File('${file.path}.tmp');await temp.writeAsString(jsonEncode(data),flush:true);await temp.rename(file.path);
+    if (state.busy || state.area == null) return;
+    if (name.trim().isEmpty ||
+        name.length > 60 ||
+        name.contains(RegExp(r'[\x00-\x1f]')))
+      throw const FormatException('Use a name of 1–60 characters.');
+    final selected = state.area!;
+    final file = File('${selected.path}/area.json');
+    final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    data['name'] = name.trim();
+    final temp = File('${file.path}.tmp');
+    await temp.writeAsString(jsonEncode(data), flush: true);
+    await temp.rename(file.path);
     await initialize();
-    final updated=state.areas.firstWhere((a)=>a.path==selected.path);select(updated);
+    final updated = state.areas.firstWhere((a) => a.path == selected.path);
+    select(updated);
   }
+
   void select(OfflineArea area) {
     if (_running || state.busy || !state.areas.contains(area)) return;
     state =

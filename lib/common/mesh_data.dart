@@ -8,7 +8,8 @@ class MeshContact {
       required this.type,
       required this.lastAdvert,
       required this.latitude,
-      required this.longitude, this.frame = const []});
+      required this.longitude,
+      this.frame = const []});
   final List<int> frame;
   final String key;
   final String name;

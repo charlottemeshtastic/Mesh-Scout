@@ -80,7 +80,9 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
     'time': data.getUint32(typeOffset + 1, Endian.little),
     'status': type == 2
         ? 'Received forwarded message · origin unverified'
-        : type == 1 ? 'Received repeater CLI response' : 'Received',
+        : type == 1
+            ? 'Received repeater CLI response'
+            : 'Received',
     'outgoing': false
   };
 }

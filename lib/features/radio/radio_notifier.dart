@@ -52,7 +52,9 @@ class RadioState {
       this.messageEvent,
       this.channels = const [],
       this.channelsLoading = false,
-      this.controlsBusy = false, this.heard = const [], this.remoteEvent});
+      this.controlsBusy = false,
+      this.heard = const [],
+      this.remoteEvent});
   final List<MeshContact> heard;
   final List<int>? remoteEvent;
   final RadioPhase phase;
@@ -72,7 +74,9 @@ class RadioState {
   final List<int>? messageEvent;
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
   RadioState copyWith(
-          {List<MeshContact>? heard, List<int>? remoteEvent, RadioPhase? phase,
+          {List<MeshContact>? heard,
+          List<int>? remoteEvent,
+          RadioPhase? phase,
           List<RadioDevice>? devices,
           List<MeshContact>? contacts,
           bool? syncing,
@@ -486,10 +490,12 @@ class RadioNotifier extends Notifier<RadioState> {
     if (bytes.first == 0x8a) {
       try {
         final contact = MeshContact.parse(bytes);
-        state = state.copyWith(heard: List.unmodifiable([
-          contact, ...state.heard.where((c) => c.key != contact.key).take(99)
+        state = state.copyWith(
+            heard: List.unmodifiable([
+          contact,
+          ...state.heard.where((c) => c.key != contact.key).take(99)
         ]));
-      } on FormatException { /* Ignore malformed discovery frames. */ }
+      } on FormatException {/* Ignore malformed discovery frames. */}
     }
     if ([0x85, 0x86, 0x87, 0x8b, 0x8d].contains(bytes.first)) {
       state = state.copyWith(remoteEvent: List<int>.unmodifiable(bytes));

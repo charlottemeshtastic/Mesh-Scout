@@ -307,7 +307,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         urlTemplate:
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'org.meshscout.mesh_scout'),
-                  MarkerLayer(markers:[for(final note in ref.watch(fieldNotesProvider).value ?? <Map<String,dynamic>>[])Marker(width:44,height:44,point:LatLng((note['lat'] as num).toDouble(),(note['lon'] as num).toDouble()),child:IconButton(tooltip:note['name'] as String,icon:const Icon(Icons.flag,color:Colors.cyan),onPressed:()=>showDialog<void>(context:context,builder:(c)=>AlertDialog(title:Text(note['name'] as String),content:Text(note['note'] as String),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Close'))]))))]),
+                  MarkerLayer(markers: [
+                    for (final note in ref.watch(fieldNotesProvider).value ??
+                        <Map<String, dynamic>>[])
+                      Marker(
+                          width: 44,
+                          height: 44,
+                          point: LatLng((note['lat'] as num).toDouble(),
+                              (note['lon'] as num).toDouble()),
+                          child: IconButton(
+                              tooltip: note['name'] as String,
+                              icon: const Icon(Icons.flag, color: Colors.cyan),
+                              onPressed: () => showDialog<void>(
+                                  context: context,
+                                  builder: (c) => AlertDialog(
+                                          title: Text(note['name'] as String),
+                                          content: Text(note['note'] as String),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(c),
+                                                child: const Text('Close'))
+                                          ]))))
+                  ]),
                   if (_showNodes)
                     MarkerLayer(markers: [
                       for (final node in nodes)
@@ -618,7 +640,13 @@ class CoverageScreen extends ConsumerWidget {
     final observations = mapping.displayedObservations;
     return ListView(padding: const EdgeInsets.all(16), children: [
       Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
-      OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const FieldToolsScreen())), child: const Text('Summaries, comparisons, waypoints and route import')),
+      OutlinedButton(
+          onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                  builder: (_) => const FieldToolsScreen())),
+          child:
+              const Text('Summaries, comparisons, waypoints and route import')),
       const Text(
           'Received LoRa signal observations at your GPS location. These are last-hop reception metrics, not proof of sender reachability or two-way coverage.'),
       const SizedBox(height: 12),
@@ -703,7 +731,8 @@ class SettingsScreen extends ConsumerWidget {
                       ref.read(backgroundGpsProvider.notifier).set(value)),
           const BackupControls(),
           const FullBackupControls(),
-          if(ref.watch(preferencesProvider)!=null)Text(ref.watch(preferencesProvider)!),
+          if (ref.watch(preferencesProvider) != null)
+            Text(ref.watch(preferencesProvider)!),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),

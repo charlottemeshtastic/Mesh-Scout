@@ -171,8 +171,8 @@ void main() {
       expect(container.read(offlineProvider).area!.latitude, 35.2);
       expect(container.read(offlineProvider).message, contains('failed'));
       expect(File('${active.path}/area.json').existsSync(), isTrue);
-      expect(
-          File('${directory.path}/offline/pending/resume.json').existsSync(), isTrue);
+      expect(File('${directory.path}/offline/pending/resume.json').existsSync(),
+          isTrue);
     } finally {
       container.dispose();
       await server.close(force: true);
@@ -203,8 +203,8 @@ void main() {
       expect(container.read(offlineProvider).message, contains('paused'));
       expect(
           Directory('${directory.path}/offline/active').existsSync(), isFalse);
-      expect(
-          File('${directory.path}/offline/pending/resume.json').existsSync(), isTrue);
+      expect(File('${directory.path}/offline/pending/resume.json').existsSync(),
+          isTrue);
     } finally {
       container.dispose();
       await server.close(force: true);
