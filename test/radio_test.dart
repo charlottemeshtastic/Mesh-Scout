@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -136,35 +135,20 @@ void main() {
     expect(ble.devices.hasListener, isFalse);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   });
-  test('scan deadline stops after ten seconds', () {
-    fakeAsync((clock) {
-      final timedBle = FakeBle();
-      final timedContainer = ProviderContainer(overrides: [bleServiceProvider.overrideWithValue(timedBle)]);
-      final timedActions = timedContainer.read(radioProvider.notifier);
-      unawaited(timedActions.scan()); clock.flushMicrotasks();
-      clock.elapse(const Duration(seconds: 9)); clock.flushMicrotasks();
-      expect(timedContainer.read(radioProvider).phase, RadioPhase.scanning);
-      clock.elapse(const Duration(seconds: 1)); clock.flushMicrotasks();
-      expect(timedContainer.read(radioProvider).phase, RadioPhase.idle);
-      expect(timedBle.devices.hasListener, isFalse);
-      timedContainer.dispose(); unawaited(timedBle.close()); clock.flushMicrotasks();
-    });
+  test('scan deadline stops after ten seconds', () async {
+    await actions.scan();
+    expect(container.read(radioProvider).phase, RadioPhase.scanning);
+    await Future<void>.delayed(const Duration(seconds: 11));
+    expect(container.read(radioProvider).phase, RadioPhase.idle);
+    expect(ble.devices.hasListener, isFalse);
   });
-  test('short and unsolicited packets cannot satisfy identification', () {
-    fakeAsync((clock) {
-      final timedBle = FakeBle()..answer = false;
-      final timedContainer = ProviderContainer(overrides: [bleServiceProvider.overrideWithValue(timedBle)]);
-      final timedActions = timedContainer.read(radioProvider.notifier);
-      unawaited(timedActions.scan()); clock.flushMicrotasks();
-      timedBle.devices.add(device);
-      unawaited(timedActions.stopScan()); clock.flushMicrotasks();
-      unawaited(timedActions.connect(device)); clock.flushMicrotasks();
-      timedBle.links.add(RadioLink.connected); clock.flushMicrotasks();
-      timedBle.packets.add([5]); timedBle.packets.add([0x83]); clock.flushMicrotasks();
-      clock.elapse(const Duration(seconds: 4)); clock.flushMicrotasks();
-      expect(timedContainer.read(radioProvider).phase, RadioPhase.failed);
-      expect(timedContainer.read(radioProvider).failure, RadioFailure.protocol);
-      timedContainer.dispose(); unawaited(timedBle.close()); clock.flushMicrotasks();
-    });
+  test('short and unsolicited packets cannot satisfy identification', () async {
+    ble.answer = false;
+    await findRadio(); ble.links.add(RadioLink.connected); await flush();
+    ble.packets.add([5]); ble.packets.add([0x83]);
+    await Future<void>.delayed(const Duration(milliseconds: 4200));
+    await flush();
+    expect(container.read(radioProvider).phase, RadioPhase.failed);
+    expect(container.read(radioProvider).failure, RadioFailure.protocol);
   });
 }

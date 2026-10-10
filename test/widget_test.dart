@@ -45,7 +45,25 @@ void main() {
 
   Future<void> select(WidgetTester tester, int tab) async {
     await tester.tap(find.byType(NavigationDestination).at(tab));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
+  }
+
+  Future<void> identify(WidgetTester tester) async {
+    // Stream cancellation may complete in the root async zone. Drive the
+    // service there, then pump the rendered state in the widget-test zone.
+    await tester.runAsync(() async {
+      final actions = container.read(radioProvider.notifier);
+      await actions.scan();
+      const device = RadioDevice('radio', 'Companion', -55);
+      ble.devices.add(device);
+      await actions.stopScan();
+      await actions.connect(device);
+      ble.links.add(RadioLink.connected);
+      for (var i = 0; i < 10; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    });
   }
 
   testWidgets('all six tabs navigate without requesting Bluetooth permissions',
@@ -73,13 +91,7 @@ void main() {
   testWidgets('mapping remains disabled even after MeshCore identification',
       (tester) async {
     await launch(tester);
-    final actions = container.read(radioProvider.notifier);
-    await actions.scan();
-    const device = RadioDevice('radio', 'Companion', -55);
-    ble.devices.add(device);
-    await actions.stopScan();
-    await actions.connect(device);
-    ble.links.add(RadioLink.connected);
+    await identify(tester);
     await tester.pumpAndSettle();
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(find.text('MeshCore companion connected'), findsOneWidget);
@@ -102,19 +114,14 @@ void main() {
     await select(tester, 2);
     expect(ble.devices.hasListener, isFalse);
     expect(container.read(radioProvider).phase, RadioPhase.idle);
-    final actions = container.read(radioProvider.notifier);
-    await actions.scan();
-    const device = RadioDevice('radio', 'Companion', -55);
-    ble.devices.add(device);
-    await actions.stopScan();
-    await actions.connect(device);
-    ble.links.add(RadioLink.connected);
+    await identify(tester);
     await tester.pumpAndSettle();
     await select(tester, 1);
     await select(tester, 0);
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(ble.links.hasListener, isTrue);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
     expect(ble.links.hasListener, isFalse);
     expect(find.text('Radio disconnected'), findsOneWidget);
