@@ -557,7 +557,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                       final before = state.items.length;
                       await actions.send(_key ?? '', body,
                           channel: _channelMode ? _channel : null);
-                      if (!mounted) {
+                      if (!context.mounted) {
                         return;
                       }
                       final latest = ref.read(messagesProvider);
