@@ -64,7 +64,13 @@ class MappingSession {
       this.name});
   final String id;
   final String? name;
-  MappingSession renamed(String? name) => MappingSession(id: id, started: started, ended: ended, points: points, observations: observations, name: name);
+  MappingSession renamed(String? name) => MappingSession(
+      id: id,
+      started: started,
+      ended: ended,
+      points: points,
+      observations: observations,
+      name: name);
   final DateTime started;
   final DateTime ended;
   final List<GpsPoint> points;

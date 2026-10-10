@@ -16,6 +16,7 @@ List<int> directMessage(String key, String text, int timestamp, int mtu) {
   return [2, 0, 0, ...stamp.buffer.asUint8List(), for (var i = 0; i < 12; i += 2) int.parse(key.substring(i, i + 2), radix: 16), ...body];
 }
 Map<String, dynamic> incomingMessage(List<int> bytes) {
+  if (bytes.isEmpty) { throw const FormatException('Empty message frame.'); }
   final v3 = bytes.first == 16 || bytes.first == 17;
   final channel = bytes.first == 8 || bytes.first == 17;
   if (![7, 8, 16, 17].contains(bytes.first)) { throw const FormatException('Unsupported queued message.'); }
@@ -66,7 +67,7 @@ class Messages extends Notifier<MessageState> {
     try {
       final file = await _file();
       final items = file.existsSync() ? (jsonDecode(await file.readAsString()) as List<dynamic>).map((m) => Map<String, dynamic>.from(m as Map<String, dynamic>)).toList() : <Map<String, dynamic>>[];
-      if (items.length > 1000) { throw const FormatException(); }
+      if (items.length > 1000 || items.any((m) => m['body'] is! String || m['peer'] is! String || m['status'] is! String || m['radio'] is! String || m['time'] is! int || m['outgoing'] is! bool)) { throw const FormatException(); }
       // Stored acceptance is not a fresh delivery acknowledgement.
       if (ref.mounted) { state = MessageState(items: items, loaded: true); }
     } catch (_) {
@@ -97,7 +98,12 @@ class Messages extends Notifier<MessageState> {
   void unawaitedSave(List<Map<String, dynamic>> items) async {
     state = MessageState(items: state.items, loaded: true, busy: true);
     try { await _save(items); } catch (_) { /* Retain pending data for explicit retry. */ }
-    if (ref.mounted) { state = MessageState(items: _unsaved ?? state.items, loaded: true, notice: _unsaved == null ? null : 'Save failed. Retry saving before fetching or sending.'); }
+    if (ref.mounted) { state = MessageState(items: _unsaved ?? state.items, loaded: true, notice: _unsaved == null ? null : 'Save failed. Retry saving before fetching or sending.'); _confirm(); }
+  }
+  Future<void> clearHistory() async {
+    if (!state.loaded || state.busy || _unsaved != null) { return; }
+    _live.clear(); _acks.clear();
+    unawaitedSave([]);
   }
   Future<void> retrySave() async {
     if (_unsaved == null || state.busy) { return; }
@@ -107,6 +113,7 @@ class Messages extends Notifier<MessageState> {
   Future<void> send(String key, String text) async {
     if (!available) { return; }
     final radio = ref.read(radioProvider.notifier);
+    final token = radio.sessionToken;
     final contacts = ref.read(radioProvider).contacts;
     if (contacts.where((c) => c.key.startsWith(key.length >= 12 ? key.substring(0, 12) : key)).length != 1 || !contacts.any((c) => c.key == key && c.type == 1)) { return; }
     state = MessageState(items: state.items, loaded: true, busy: true);
@@ -117,6 +124,7 @@ class Messages extends Notifier<MessageState> {
       final command = directMessage(key, text, stamp, radio.mtu);
       final record = <String, dynamic>{'peer': key.substring(0, 12), 'body': text, 'time': stamp, 'radio': radio.companionId, 'outgoing': true, 'status': 'Send outcome unknown · never automatically retried'};
       await _save([...state.items, record]);
+      if (radio.sessionToken != token) { throw StateError('Radio changed before send.'); }
       final reply = await radio.messageCommand(command, {6});
       if (reply.length != 10) { throw const FormatException('Invalid radio acceptance.'); }
       final tag = ByteData.sublistView(Uint8List.fromList(reply)).getUint32(2, Endian.little);
@@ -131,10 +139,12 @@ class Messages extends Notifier<MessageState> {
   Future<void> fetch() async {
     if (!available) { return; }
     final radio = ref.read(radioProvider.notifier);
+    final token = radio.sessionToken;
     if (radio.mtu < 175) { state = MessageState(items: state.items, loaded: true, notice: 'Reconnect with a larger Bluetooth MTU before fetching.'); return; }
     state = MessageState(items: state.items, loaded: true, busy: true);
     try {
       for (var i = 0; i < 100 && state.items.length < 1000; i++) {
+        if (radio.sessionToken != token) { throw StateError('Radio changed during retrieval.'); }
         final reply = await radio.messageCommand([10], {10, 7, 8, 16, 17, 27});
         if (reply.length == 1 && reply.first == 10) { break; }
         final record = incomingMessage(reply)..['radio'] = radio.companionId;
@@ -171,6 +181,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       const Text('Direct messages to chat contacts. Fetch removes messages from the radio queue and saves them privately on this phone. A phone shutdown during retrieval can lose a message. History is limited to 1,000 messages.'),
       if (state.busy) const LinearProgressIndicator(),
       if (state.notice != null) Text(state.notice!),
+      if (state.items.length >= 1000) const Text('History is full. Clear history before fetching more.'),
+      TextButton(onPressed: !state.loaded || state.busy ? null : () async {
+        final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(title: const Text('Clear message history?'), content: const Text('This deletes all messages saved on this phone.'), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Clear'))]));
+        if (yes == true) { await actions.clearHistory(); }
+      }, child: const Text('Clear history')),
       OutlinedButton(onPressed: state.busy ? null : actions.retrySave, child: const Text('Retry saving')),
       FilledButton(onPressed: ready ? actions.fetch : null, child: const Text('Fetch messages')),
       DropdownButtonFormField<String>(initialValue: contacts.any((c) => c.key == _key) ? _key : null, isExpanded: true, decoration: const InputDecoration(labelText: 'Chat contact'), items: [for (final c in contacts) DropdownMenuItem(value: c.key, child: Text(c.name.isEmpty ? c.key.substring(0,12) : c.name, overflow: TextOverflow.ellipsis))], onChanged: (value) => setState(() => _key = value)),

@@ -29,15 +29,17 @@ class OfflineControls extends ConsumerWidget {
                                         'Save an area around ${point.lat.toStringAsFixed(4)}, ${point.lon.toStringAsFixed(4)} at zoom 12–16. Contiguous U.S. only; up to 150 MB. This replaces the previous offline area after a complete download.'),
                                     actions: [
                                       TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c),
+                                          onPressed: () => Navigator.pop(c),
                                           child: const Text('Cancel')),
                                       for (final side in [4, 8, 12])
-                                        TextButton(onPressed: () => Navigator.pop(c, side),
-                                          child: Text('${side} × ${side} km'))
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(c, side),
+                                            child: Text('${side} × ${side} km'))
                                     ]));
                         if (side != null) {
-                          await actions.download(point.lat, point.lon, sideKm: side);
+                          await actions.download(point.lat, point.lon,
+                              sideKm: side);
                         }
                       },
                 icon: Icon(offline.busy
@@ -63,8 +65,7 @@ class OfflineControls extends ConsumerWidget {
                                   title: const Text('Delete offline area?'),
                                   actions: [
                                     TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(c),
+                                        onPressed: () => Navigator.pop(c),
                                         child: const Text('Cancel')),
                                     FilledButton(
                                         onPressed: () => Navigator.pop(c, true),

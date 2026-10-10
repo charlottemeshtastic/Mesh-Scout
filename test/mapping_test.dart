@@ -64,13 +64,17 @@ void main() {
     expect(reopened.read(mappingProvider).sessions.single.id, saved.single.id);
     reopened.dispose();
   });
-  test('rename saves atomically and storage failure retains the old name', () async {
-    await actions.start(); service.updates.add(point()); await actions.stop();
+  test('rename saves atomically and storage failure retains the old name',
+      () async {
+    await actions.start();
+    service.updates.add(point());
+    await actions.stop();
     final session = container.read(mappingProvider).sessions.single;
     await actions.rename(session, '  Ridge walk  ');
     expect(decodeSessions(service.stored).single.name, 'Ridge walk');
     service.saveFails = true;
-    await actions.rename(container.read(mappingProvider).sessions.single, 'Changed');
+    await actions.rename(
+        container.read(mappingProvider).sessions.single, 'Changed');
     expect(container.read(mappingProvider).sessions.single.name, 'Ridge walk');
   });
   test('permission denial leaves recording off', () async {

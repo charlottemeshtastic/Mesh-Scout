@@ -15,7 +15,8 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
     throw const FormatException(
         'Offline topo currently supports the contiguous U.S.');
   }
-  if (![4, 8, 12].contains(sideKm)) throw const FormatException('Choose a 4, 8 or 12 km area.');
+  if (![4, 8, 12].contains(sideKm))
+    throw const FormatException('Choose a 4, 8 or 12 km area.');
   final latDelta = sideKm / 2 / 111.32;
   final lonDelta = latDelta / math.cos(latitude * math.pi / 180);
   int x(double lon, int n) => ((lon + 180) / 360 * n).floor();
@@ -49,7 +50,8 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
 
 class OfflineArea {
   const OfflineArea(
-      this.path, this.latitude, this.longitude, this.tiles, this.bytes, {this.sideKm = 4});
+      this.path, this.latitude, this.longitude, this.tiles, this.bytes,
+      {this.sideKm = 4});
   final String path;
   final double latitude, longitude;
   final int tiles, bytes, sideKm;
@@ -116,7 +118,8 @@ class OfflineMaps extends Notifier<OfflineState> {
               (data['lat'] as num).toDouble(),
               (data['lon'] as num).toDouble(),
               data['tiles'] as int,
-              data['bytes'] as int, sideKm: data['sideKm'] as int? ?? 4));
+              data['bytes'] as int,
+              sideKm: data['sideKm'] as int? ?? 4));
     } catch (_) {
       if (!ref.mounted) return;
       state = const OfflineState(
@@ -201,7 +204,13 @@ class OfflineMaps extends Notifier<OfflineState> {
         await Future<void>.delayed(ref.read(offlineThrottleProvider));
       }
       await File('${staging.path}/area.json').writeAsString(
-          jsonEncode({'lat': lat, 'lon': lon, 'tiles': count, 'bytes': bytes, 'sideKm': sideKm}),
+          jsonEncode({
+            'lat': lat,
+            'lon': lon,
+            'tiles': count,
+            'bytes': bytes,
+            'sideKm': sideKm
+          }),
           flush: true);
       if (generation != _generation) return;
       _committing = true;
@@ -217,7 +226,8 @@ class OfflineMaps extends Notifier<OfflineState> {
       }
       if (!ref.mounted) return;
       state = OfflineState(
-          area: OfflineArea(active.path, lat, lon, count, bytes, sideKm: sideKm),
+          area:
+              OfflineArea(active.path, lat, lon, count, bytes, sideKm: sideKm),
           message:
               'Area saved. Enable Offline map to use it without internet.');
       try {

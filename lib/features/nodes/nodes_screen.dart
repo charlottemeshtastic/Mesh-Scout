@@ -26,9 +26,15 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
       const Text(
           'Contacts stored on your companion radio. A saved contact does not prove current reachability.'),
       const SizedBox(height: 12),
-      OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const MessagesScreen())), icon: const Icon(Icons.message_outlined), label: const Text('Messages')),
+      OutlinedButton.icon(
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const MessagesScreen())),
+          icon: const Icon(Icons.message_outlined),
+          label: const Text('Messages')),
       FilledButton.icon(
-          onPressed: radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy
+          onPressed: radio.phase == RadioPhase.ready &&
+                  !radio.syncing &&
+                  !radio.messagingBusy
               ? () async => ref.read(radioProvider.notifier).refreshContacts()
               : null,
           icon: const Icon(Icons.sync),

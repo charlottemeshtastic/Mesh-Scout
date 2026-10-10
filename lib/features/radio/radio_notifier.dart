@@ -90,6 +90,7 @@ class RadioNotifier extends Notifier<RadioState> {
   Set<int> _messageTypes = {};
   String? get companionId => _target?.id;
   int get mtu => _mtu;
+  int get sessionToken => _generation;
   int? _expected;
   int _generation = 0;
   bool _disposed = false;
@@ -326,6 +327,7 @@ class RadioNotifier extends Notifier<RadioState> {
       await _withTimeout(_service.write(_target!.id, command), const Duration(seconds: 3));
       final bytes = await response;
       if (bytes.first == 1) { throw StateError('Radio rejected the request.'); }
+      if (bytes.first == 6 && bytes.length != 10) { throw const FormatException('Invalid radio acceptance.'); }
       return bytes;
     } catch (_) {
       // Never retry a transmission or let a late reply match another command.
@@ -445,6 +447,7 @@ class RadioNotifier extends Notifier<RadioState> {
       state = state.copyWith(
           phase: RadioPhase.reconnecting,
           syncing: false,
+          messagingBusy: false,
           retryAttempt: _attempt,
           contactMessage:
               'Radio disconnected; previously loaded contacts may be stale.');
@@ -525,6 +528,8 @@ class RadioNotifier extends Notifier<RadioState> {
     _notifications = null;
     _expected = null;
     _response = null;
+    _messageReply = null;
+    _messageTypes = {};
     _incoming = null;
     _contactCount = null;
     RadioFailure? failure;
