@@ -556,7 +556,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           for (final item in visible.reversed)
             ListTile(
                 title: Text(item['body'] as String),
-                subtitle: Text('${item['outgoing'] == true ? 'Sent' : 'Received'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}')),
+                subtitle: Text('${item['outgoing'] == true ? 'Outgoing' : 'Incoming'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}')),
         ]));
   }  Future<void> _export(List<Map<String, dynamic>> items) async {
     setState(() => _exporting = true);

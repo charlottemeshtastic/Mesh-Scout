@@ -18,7 +18,7 @@ String exportMessages(List<Map<String, dynamic>> items, MessageExportFormat form
   String cell(String value) {
     // Quoting alone does not neutralize spreadsheet formulas from received text.
     final trimmed = value.trimLeft();
-    final safe = trimmed.isNotEmpty && '=+-@'.contains(trimmed[0]) ? "'$value" : value;
+    final safe = trimmed.isNotEmpty && ('=+-@'.contains(trimmed[0]) || trimmed.codeUnitAt(0) < 32) ? "'$value" : value;
     return '"${safe.replaceAll('"', '""')}"';
   }
   return [columns.map(cell).join(','), for (final item in messages) columns.map((key) => cell(item[key]!)).join(',')].join('\r\n');

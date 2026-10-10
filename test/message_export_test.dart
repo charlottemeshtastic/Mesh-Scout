@@ -18,7 +18,7 @@ void main() {
     expect(csv,contains('"hello, ""friend""\nnext"')); expect(csv,contains('\r\n'));
   });
   test('CSV neutralizes formula prefixes including leading whitespace', () {
-    for(final body in ['=1+1',' +SUM(A1)','-42','@test','\t=1']) {
+    for(final body in ['=1+1',' +SUM(A1)','-42','@test','\t=1','\u0000=1']) {
       final csv = exportMessages([item(body)],MessageExportFormat.csv);
       expect(csv,contains('"\'$body"'));
     }
