@@ -15,6 +15,8 @@ class FakeBle implements BleService {
   bool validServices = true;
   Completer<void>? discoveryGate;
   int scanCalls = 0;
+  int mtu = requestedCompanionMtu;
+  int mtuCalls = 0;
   final writes = <List<int>>[];
   @override
   Future<void> authorize() async {
@@ -29,6 +31,8 @@ class FakeBle implements BleService {
     await discoveryGate?.future;
     if (!validServices) throw const RadioException(RadioFailure.protocol);
   }
+  @override
+  Future<int> negotiateMtu(String id) async { mtuCalls++; return mtu; }
   @override
   Stream<List<int>> notifications(String id) => packets.stream;
   @override
@@ -79,11 +83,18 @@ void main() {
   });
   test('serial handshake precedes ready and disconnect releases subscriptions', () async {
     await findRadio(); ble.links.add(RadioLink.connected); await flush();
+    expect(ble.mtuCalls, 1);
     expect(ble.writes, [appStart, deviceQuery]);
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     await actions.disconnect();
     expect(ble.links.hasListener, isFalse); expect(ble.packets.hasListener, isFalse);
     expect(container.read(radioProvider).phase, RadioPhase.idle);
+  });
+  test('insufficient MTU prevents truncated identification and releases GATT', () async {
+    ble.mtu = 23; await findRadio(); ble.links.add(RadioLink.connected); await flush();
+    expect(container.read(radioProvider).failure, RadioFailure.protocol);
+    expect(ble.mtuCalls, 1); expect(ble.writes, isEmpty);
+    expect(ble.links.hasListener, isFalse);
   });
   test('wrong GATT characteristics cannot be ready', () async {
     ble.validServices = false; await findRadio(); ble.links.add(RadioLink.connected); await flush();
@@ -108,6 +119,7 @@ void main() {
   });
   test('duplicate connected events initialize only once', () async {
     await findRadio(); ble.links.add(RadioLink.connected); ble.links.add(RadioLink.connected); await flush();
+    expect(ble.mtuCalls, 1);
     expect(ble.writes, [appStart, deviceQuery]);
   });
   testWidgets('permission failure renders recovery and background cancels scan', (tester) async {

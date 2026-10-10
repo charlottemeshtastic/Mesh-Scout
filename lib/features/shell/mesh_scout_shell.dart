@@ -110,7 +110,10 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab.index,
         onDestinationSelected: _select,
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: WidgetStatePropertyAll(
+          Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10),
+        ),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
           NavigationDestination(icon: Icon(Icons.bluetooth), label: 'Radios'),

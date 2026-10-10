@@ -20,6 +20,7 @@ abstract interface class BleService {
   Stream<RadioDevice> scan();
   Stream<RadioLink> connect(String id);
   Future<void> discover(String id);
+  Future<int> negotiateMtu(String id);
   Stream<List<int>> notifications(String id);
   Future<void> write(String id, List<int> bytes);
   Future<void> openSettings();
@@ -38,3 +39,8 @@ enum BluetoothAccess { scan, connect, location }
 List<BluetoothAccess> permissionPlan(int sdk) => sdk >= 31
     ? const [BluetoothAccess.scan, BluetoothAccess.connect]
     : const [BluetoothAccess.location];
+
+/// SELF_INFO includes a variable node name and DEVICE_INFO exceeds 20 bytes.
+/// Reserve capacity for the identification replies plus ATT overhead.
+const minimumIdentificationMtu = 93;
+const requestedCompanionMtu = 185;

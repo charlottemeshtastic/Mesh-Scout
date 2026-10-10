@@ -69,6 +69,10 @@ class AndroidBleService implements BleService {
     }
   }
 
+  @override
+  Future<int> negotiateMtu(String id) =>
+      _ble.requestMtu(deviceId: id, mtu: requestedCompanionMtu);
+
   QualifiedCharacteristic _characteristic(String id, String uuid) =>
       QualifiedCharacteristic(deviceId: id, serviceId: _service, characteristicId: Uuid.parse(uuid));
 

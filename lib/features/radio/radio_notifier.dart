@@ -90,6 +90,11 @@ class RadioNotifier extends Notifier<RadioState> {
     try {
       await _service.discover(id).timeout(const Duration(seconds: 5));
       if (!_current(generation)) return;
+      final mtu = await _service.negotiateMtu(id).timeout(const Duration(seconds: 5));
+      if (!_current(generation)) return;
+      if (mtu < minimumIdentificationMtu) {
+        throw const RadioException(RadioFailure.protocol);
+      }
       _notifications = _service.notifications(id).listen((bytes) {
         if (!_current(generation) || bytes.isEmpty) return;
         final minimum = _expected == 5 ? 58 : 80;
