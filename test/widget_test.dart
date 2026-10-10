@@ -138,8 +138,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(radioProvider).phase, RadioPhase.idle);
     expect(ble.links.hasListener, isFalse);
-    expect(find.text('Radio disconnected'), findsOneWidget);
+    // Paused apps do not redraw; verify the status after foreground resume.
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text('Radio disconnected'), findsOneWidget);
   });
 
   testWidgets('connection status opens Radios and reports permission failures',

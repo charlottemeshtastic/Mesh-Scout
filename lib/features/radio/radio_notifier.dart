@@ -79,9 +79,14 @@ class RadioNotifier extends Notifier<RadioState> {
     if (state.phase != RadioPhase.scanning) return;
     final generation = ++_generation;
     _deadline?.cancel();
-    await _scan?.cancel();
-    _scan = null;
-    if (_current(generation)) state = RadioState(devices: state.devices);
+    try {
+      await _scan?.cancel();
+      if (!_current(generation)) return;
+      _scan = null;
+      state = RadioState(devices: state.devices);
+    } catch (error) {
+      await _fail(generation, error);
+    }
   }
 
   Future<void> connect(RadioDevice device) async {

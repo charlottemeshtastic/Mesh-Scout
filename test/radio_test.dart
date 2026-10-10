@@ -66,6 +66,21 @@ class FakeBle implements BleService {
   }
 }
 
+class CancelErrorBle extends FakeBle {
+  final scanner = StreamController<RadioDevice>(
+    onCancel: () => throw const RadioException(RadioFailure.transport),
+  );
+
+  @override
+  Stream<RadioDevice> scan() => scanner.stream;
+
+  @override
+  Future<void> close() async {
+    await scanner.close();
+    await super.close();
+  }
+}
+
 void main() {
   test('Android permission split occurs exactly at API 31', () {
     expect(permissionPlan(30), [BluetoothAccess.location]);
@@ -205,6 +220,24 @@ void main() {
     await tester.pump();
     expect(ble.devices.hasListener, isFalse);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  });
+  test('scan cancellation failure releases busy state', () async {
+    final failingBle = CancelErrorBle();
+    final failingContainer = ProviderContainer(
+      overrides: [bleServiceProvider.overrideWithValue(failingBle)],
+    );
+    final failingActions = failingContainer.read(radioProvider.notifier);
+    try {
+      await failingActions.scan();
+      await failingActions.stopScan();
+      final state = failingContainer.read(radioProvider);
+      expect(state.phase, RadioPhase.failed);
+      expect(state.failure, RadioFailure.transport);
+      expect(state.busy, isFalse);
+    } finally {
+      failingContainer.dispose();
+      await failingBle.close();
+    }
   });
   test('scan deadline stops after ten seconds', () async {
     await actions.scan();
