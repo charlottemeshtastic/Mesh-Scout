@@ -405,7 +405,9 @@ class RadioNotifier extends Notifier<RadioState> {
         state.messagingBusy ||
         state.channelsLoading ||
         state.controlsBusy ||
-        _syncFailed) return false;
+        _syncFailed) {
+      return false;
+    }
     state = state.copyWith(controlsBusy: true);
     return true;
   }

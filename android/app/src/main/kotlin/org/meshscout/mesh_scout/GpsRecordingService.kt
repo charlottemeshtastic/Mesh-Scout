@@ -40,7 +40,9 @@ class GpsRecordingService : Service(), LocationListener {
             val session = JSONObject(journal.readText())
             val points = session.getJSONArray("points")
             if (points.length() == 0) { journal.delete(); return }
-            session.put("ended", points.getJSONObject(points.length() - 1).getString("time"))
+            val last = points.getJSONObject(points.length() - 1).getString("time")
+            val started = session.getString("started")
+            session.put("ended", if (last < started) started else last)
                 .put("name", "Recovered interrupted recording").put("observations", JSONArray())
             val root = ScoutStorage.directory(context)
             val history = File(root, "mapping-sessions.json")
