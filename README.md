@@ -1,4 +1,4 @@
-# MeshScout 0.3
+# MeshScout 0.4
 
 Independent Android-first MeshCore field-mapping application. No BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
@@ -16,6 +16,20 @@ Refresh from radio fetches the companion's stored contacts via GET_CONTACTS. The
 
 A stored contact or advertised location does not prove current presence, reachability or signal strength. This phase does not transmit discovery probes, modify the contact table, or automatically import newly heard advertisements. Refresh is explicit; the list is kept in memory. Partial/failed sync preserves the prior complete list and requires reconnect before retrying. Contact frames require negotiated MTU of at least 151.
 
+The map can show stored contacts with advertised coordinates as purple markers. Tap a marker for name/type/key and advertisement time; hide them with the Advertised nodes checkbox. Contacts without coordinates are omitted, and neither a marker nor its location establishes current reachability.
+
+## Export and sharing
+
+History's Export session button offers Save or Share in GeoJSON or CSV. Android's document picker chooses a save destination; the share chooser grants temporary read access to the selected receiving application. Opening the chooser does not prove delivery. Exports include precise locations and UTC times; GPS accuracy and LoRa RSSI/SNR are preserved. GeoJSON uses longitude/latitude ordering and includes route geometry plus measurement features; a single GPS point never becomes an invalid one-point LineString. Export does not delete the local session. Temporary shared files are limited to 20 cached exports.
+
+## Offline topo maps
+
+Map's Download area saves a roughly 4 × 4 km square centered on the current map view. No provider account is needed. Downloads use the public-domain USGS Topo tile service, restricted in this release to the contiguous U.S. and zoom levels 12–16, with at most 1,000 tiles / 50 MB. This is one replaceable area, not a whole-state or global download.
+
+Downloads show progress and support cancellation. A complete new area is published only after all tile responses are saved; failure/cancellation retains the prior complete area. Interrupted publication can recover the backup on next launch. The Offline switch uses only local files with no online tile fallback. Outside saved bounds, the basemap is unavailable; GPS, route and node overlays still operate. The area persists, but Offline mode is selected manually each fresh app launch. Delete offline area removes only the map pack. Zooming beyond 12–16 scales saved tiles.
+
+Online mode continues to use OpenStreetMap. Its standard tile server is never bulk-downloaded. Map services and data available from U.S. Geological Survey, National Geospatial Program.
+
 ## GPS routes and LoRa observations
 
 Start Mapping requests precise foreground location and requires enabled GPS. Accepted fixes have valid coordinates, accuracy no worse than 100 m, and non-stale/non-duplicate timestamps. The GPS listener requests updates at 5 seconds / 5 metres. The map draws the route and current accepted position. No GPS is collected on launch.
@@ -26,7 +40,7 @@ Coverage lists recent measured observations. Map shows individual measured dots,
 
 Stop and save writes a session atomically to private app files. History reopens the GPS route and its measurements and offers confirmed deletion. Older GPS-only sessions still load. Failed saves retain points/observations for Retry save and block starting another route over them. Each session is limited to 10,000 GPS fixes and 10,000 observations.
 
-GPS recording stops and saves on background; radio connection/retry can continue independently. There is no background GPS permission or automatic GPS restart. Data remains local unencrypted app storage; backup is disabled. Uninstalling or clearing app data removes sessions. Map tiles require internet and are requested from OpenStreetMap; offline maps and route export are not implemented.
+GPS recording stops and saves on background; radio connection/retry can continue independently. There is no background GPS permission or automatic GPS restart. Data remains local unencrypted app storage; backup is disabled. Uninstalling or clearing app data removes sessions. Online map tiles require internet; a previously downloaded topo area can be used in Offline mode. Session export is available from History.
 
 ## Build and validation
 
@@ -44,6 +58,9 @@ Tests verify parsing, sequencing, state transitions, contact-stream integrity, r
 - Record outdoors with recent GPS while real LoRa traffic is received. Verify observed RSSI/SNR and map dots; silence must produce no fake observations.
 - Stop/save, restart/reopen History, and verify older routes still load. Test background auto-save and confirmed deletion.
 - Turn off or move the radio out of range, bring it back during retry, verify re-identification and continued recording where GPS is fresh. Test manual cancellation and disabled reconnect. Five failed attempts must stop the service/retry sequence.
+- Export an older GPS-only route and a route with measurements to GeoJSON/CSV. Save through Android, reopen in a GIS/spreadsheet, and verify timestamps, longitude/latitude, RSSI/SNR and accuracy. Share to another app; verify the attachment arrives.
+- Refresh contacts and locate purple advertised markers; tap details and hide/show markers.
+- Pan to your contiguous-U.S. test area, download it and enable Offline. Disable internet while keeping Bluetooth active, pan/zoom within the saved area, and restart/toggle Offline again. Verify outside-area missing basemap, cancellation, failure retaining old area, replacement and deletion.
 - Repeat across Android/OEM and firmware/hardware variants. Do not share PINs, private keys or sensitive location data when reporting results.
 
 ## Sources
@@ -54,3 +71,7 @@ Tests verify parsing, sequencing, state transitions, contact-stream integrity, r
 - [Android background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background)
 - [Android Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
 - [Flutter reactive BLE](https://pub.dev/packages/flutter_reactive_ble)
+
+- [USGS map-service usage terms](https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map)
+- [USGS Topo tile service](https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer)
+- [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/)

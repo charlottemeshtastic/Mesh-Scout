@@ -218,12 +218,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         Checkbox(
             value: _showNodes,
             onChanged: (v) => setState(() => _showNodes = v ?? false)),
-        ]))),
-      Expanded(
+        Expanded(
             child: Text(
                 'Advertised nodes: ${nodes.length} · locations may be stale',
                 style: Theme.of(context).textTheme.bodySmall)),
       ]),
+      ]))),
       Expanded(
           child: widget.mapContent ??
               FlutterMap(
