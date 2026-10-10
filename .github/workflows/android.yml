@@ -2,21 +2,43 @@ name: MeshScout Android CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.47.7'
           channel: stable
-      - name: Generate Android scaffolding
-        run: flutter create --platforms=android --org org.meshscout .
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+          cache: true
+      - name: Generate Android scaffolding while preserving owned sources
+        run: |
+          cp android/app/build.gradle.kts /tmp/meshscout-build.gradle.kts
+          cp pubspec.lock /tmp/meshscout-pubspec.lock
+          cp android/app/src/main/AndroidManifest.xml /tmp/meshscout-manifest.xml
+          flutter create --platforms=android --org org.meshscout --project-name mesh_scout --no-pub .
+          cp /tmp/meshscout-manifest.xml android/app/src/main/AndroidManifest.xml
+          cp /tmp/meshscout-pubspec.lock pubspec.lock
+          cp /tmp/meshscout-build.gradle.kts android/app/build.gradle.kts
+          git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --coverage --timeout 30s
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
           name: meshscout-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meshscout-test-coverage
+          path: coverage/lcov.info
