@@ -20,7 +20,7 @@ class ScoutFiles(private val activity: Activity) {
             val name = call.argument<String>("name") ?: throw Exception("Missing name")
             val text = call.argument<String>("content") ?: throw Exception("Missing content")
             val mime = call.argument<String>("mime") ?: throw Exception("Missing type")
-            require(Regex("MeshScout-[0-9]+\\.(csv|geojson)").matches(name))
+            require(Regex("MeshScout-(?:Messages-)?[0-9]+\\.(csv|geojson|json)").matches(name))
             require(text.toByteArray().size <= 20 * 1024 * 1024)
             if (call.method == "save") {
                 if (pending != null) throw Exception("A save dialog is already open")
@@ -41,10 +41,10 @@ class ScoutFiles(private val activity: Activity) {
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = mime
                     putExtra(Intent.EXTRA_STREAM, uri)
-                    clipData = android.content.ClipData.newRawUri("MeshScout session", uri)
+                    clipData = android.content.ClipData.newRawUri("MeshScout export", uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                activity.startActivity(Intent.createChooser(send, "Share MeshScout session"))
+                activity.startActivity(Intent.createChooser(send, "Share MeshScout export"))
                 result.success(true) // Chooser opened; delivery is controlled by the user/receiving app.
             }
         } catch (e: Exception) {

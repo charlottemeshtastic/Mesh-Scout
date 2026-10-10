@@ -28,7 +28,7 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
       const SizedBox(height: 12),
       OutlinedButton.icon(
           onPressed: () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const MessagesScreen())),
+              MaterialPageRoute<void>(settings: const RouteSettings(name: '/messages'), builder: (_) => const MessagesScreen())),
           icon: const Icon(Icons.message_outlined),
           label: const Text('Messages')),
       FilledButton.icon(

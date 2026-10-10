@@ -7,6 +7,7 @@ abstract interface class AlertService {
   Future<bool> configure(bool enabled);
   Future<void> waiting();
   Future<void> clear();
+  Future<bool> consumeOpen();
 }
 
 class SilentAlerts implements AlertService {
@@ -18,6 +19,8 @@ class SilentAlerts implements AlertService {
   Future<void> waiting() async {}
   @override
   Future<void> clear() async {}
+  @override
+  Future<bool> consumeOpen() async => false;
 }
 
 final alertServiceProvider = Provider<AlertService>((ref) => SilentAlerts());

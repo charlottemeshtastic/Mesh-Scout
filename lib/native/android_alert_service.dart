@@ -19,5 +19,7 @@ class AndroidAlertService implements AlertService {
   @override
   Future<void> waiting() => _channel.invokeMethod<void>('waiting');
   @override
+  Future<bool> consumeOpen() async => await _channel.invokeMethod<bool>('consumeOpen') ?? false;
+  @override
   Future<void> clear() => _channel.invokeMethod<void>('clear');
 }

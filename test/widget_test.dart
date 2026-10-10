@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:mesh_scout/features/alerts/message_alerts.dart';
+import 'package:mesh_scout/features/messages/messages.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,17 +24,24 @@ class CountingBle extends FakeBle {
   }
 }
 
+class OpenMessageAlerts extends SilentAlerts {
+  bool open = true;
+  @override
+  Future<bool> consumeOpen() async { final value = open; open = false; return value; }
+}
+
 void main() {
   late CountingBle ble;
   late ProviderContainer container;
   late FakeMapping mapping;
 
-  Future<void> launch(WidgetTester tester) async {
+  Future<void> launch(WidgetTester tester, {AlertService? alerts}) async {
     // Create stream controllers in the widget test's fake-async zone.
     ble = CountingBle();
     mapping = FakeMapping();
     container = ProviderContainer(
       overrides: [
+        if (alerts != null) alertServiceProvider.overrideWithValue(alerts),
         bleServiceProvider.overrideWithValue(ble),
         mappingServiceProvider.overrideWithValue(mapping)
       ],
@@ -76,6 +85,18 @@ void main() {
     });
   }
 
+  testWidgets('notification opens Messages once and preserves an existing draft', (tester) async {
+    final alerts = OpenMessageAlerts();
+    await launch(tester, alerts: alerts); await tester.pumpAndSettle();
+    expect(find.byType(MessagesScreen), findsOneWidget);
+    final composer = find.byWidgetPredicate((w) => w is TextField && (w.decoration?.labelText?.startsWith('Direct message') ?? false));
+    await tester.enterText(composer, 'draft stays');
+    alerts.open = true;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.byType(MessagesScreen), findsOneWidget); expect(find.text('draft stays'), findsOneWidget);
+  });
   testWidgets('all six tabs navigate without requesting Bluetooth permissions',
       (tester) async {
     await launch(tester);

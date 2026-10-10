@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../offline/offline_maps.dart';
 import '../radio/radio_notifier.dart';
+import '../export/message_export.dart';
 
 List<int> directMessage(String key, String text, int timestamp, int mtu) {
   final body = utf8.encode(text);
@@ -384,6 +385,10 @@ class Messages extends Notifier<MessageState> {
   }
 }
 
+List<Map<String, dynamic>> filterMessages(List<Map<String, dynamic>> items, String query, String direction) => items.where((item) =>
+  (direction == 'all' || (direction == 'outgoing') == (item['outgoing'] == true)) &&
+  '${item['peer']} ${item['body']} ${item['status']} ${item['radio']}'.toLowerCase().contains(query.toLowerCase())).toList();
+
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
   @override
@@ -395,6 +400,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   String? _key;
   int? _channel;
   bool _channelMode = false;
+  String _query = '';
+  String _direction = 'all';
+  bool _exporting = false;
   @override
   void initState() {
     super.initState();
@@ -417,7 +425,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final radio = ref.watch(radioProvider);
     final actions = ref.read(messagesProvider.notifier);
     final contacts = radio.contacts.where((c) => c.type == 1).toList();
-    final ready = radio.phase == RadioPhase.ready &&
+    final visible = filterMessages(state.items, _query, _direction);
+    final ready = !_exporting && radio.phase == RadioPhase.ready &&
         !radio.syncing &&
         !radio.messagingBusy &&
         !radio.channelsLoading &&
@@ -427,12 +436,13 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         body: ListView(padding: const EdgeInsets.all(16), children: [
           const Text(
               'Direct and configured-channel messages. Fetch removes messages from the radio queue and saves them privately on this phone. A phone shutdown during retrieval can lose a message. History is limited to 1,000 messages.'),
-          if (state.busy) const LinearProgressIndicator(),
+          if (state.busy || _exporting) const LinearProgressIndicator(),
+          OutlinedButton.icon(onPressed: !state.loaded || state.busy || _exporting || state.items.isEmpty ? null : () => _export(state.items), icon: const Icon(Icons.ios_share), label: const Text('Export message history')),
           if (state.notice != null) Text(state.notice!),
           if (state.items.length >= 1000)
             const Text('History is full. Clear history before fetching more.'),
           TextButton(
-              onPressed: !state.loaded || state.busy
+              onPressed: !state.loaded || state.busy || _exporting
                   ? null
                   : () async {
                       final yes = await showDialog<bool>(
@@ -501,6 +511,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           ],
           if (!_channelMode)
             DropdownButtonFormField<String>(
+                key: ValueKey(radio.contacts),
                 initialValue: contacts.any((c) => c.key == _key) ? _key : null,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Chat contact'),
@@ -515,26 +526,53 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                 onChanged: (value) => setState(() => _key = value)),
           TextField(
               controller: _text,
-              maxLength: 133,
-              decoration: const InputDecoration(
-                  labelText: 'Message (up to 133 UTF-8 bytes)')),
+              maxLength: _channelMode ? 99 : 133,
+              decoration: InputDecoration(
+                  labelText: _channelMode ? 'Channel message (up to 99 UTF-8 bytes)' : 'Direct message (up to 133 UTF-8 bytes)')),
           FilledButton(
               onPressed: ready &&
                       (_channelMode
                           ? radio.channels.any((c) => c.index == _channel)
                           : contacts.any((c) => c.key == _key))
                   ? () async {
-                      await actions.send(_key ?? '', _text.text,
+                      final body = _text.text;
+                      final before = state.items.length;
+                      await actions.send(_key ?? '', body,
                           channel: _channelMode ? _channel : null);
+                      if (!mounted) { return; }
+                      final latest = ref.read(messagesProvider);
+                      final accepted = latest.items.length > before && latest.items.last['body'] == body && (latest.items.last['status'] == 'Delivery confirmed' || (latest.items.last['status'] as String).startsWith('Accepted by radio'));
+                      if (accepted && _text.text == body) { _text.clear(); }
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(accepted ? 'Radio accepted the message. Check delivery status below.' : latest.notice ?? 'Message was not accepted. Check connection and recipient.')));
                     }
                   : null,
               child: Text(_channelMode
                   ? 'Send channel message'
                   : 'Send direct message')),
-          for (final item in state.items.reversed)
+          TextField(decoration: const InputDecoration(labelText: 'Search message history'), onChanged: (value) => setState(() => _query = value)),
+          DropdownButtonFormField<String>(initialValue: 'all', decoration: const InputDecoration(labelText: 'Show messages'), items: const [DropdownMenuItem(value: 'all', child: Text('All messages')), DropdownMenuItem(value: 'incoming', child: Text('Incoming only')), DropdownMenuItem(value: 'outgoing', child: Text('Outgoing only'))], onChanged: (value) => setState(() => _direction = value ?? 'all')),
+          Text('${visible.length} of ${state.items.length} messages · export includes all saved history'),
+          if (visible.isEmpty) const Text('No matching messages.'),
+          for (final item in visible.reversed)
             ListTile(
                 title: Text(item['body'] as String),
-                subtitle: Text('${item['peer']} · ${item['status']}')),
+                subtitle: Text('${item['outgoing'] == true ? 'Sent' : 'Received'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}')),
         ]));
+  }  Future<void> _export(List<Map<String, dynamic>> items) async {
+    setState(() => _exporting = true);
+    try {
+      final choice = await showDialog<({MessageExportFormat format, bool share})>(context: context, builder: (c) => SimpleDialog(title: const Text('Export message history'), children: [
+        const Padding(padding: EdgeInsets.all(16), child: Text('Includes all saved message text, times, radio identifiers, recipients and delivery status. Choose where to save or share it. JSON preserves original text; CSV makes formula-like text safe for spreadsheets. Export does not delete history and cannot yet be imported into MeshScout.')),
+        for (final format in MessageExportFormat.values) for (final share in [false, true]) SimpleDialogOption(onPressed: () => Navigator.pop(c, (format: format, share: share)), child: Text('${share ? "Share" : "Save"} ${format.name.toUpperCase()}')),
+      ]));
+      if (choice == null) { return; }
+      final done = await MessageExportService().send(items, choice.format, share: choice.share);
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done ? (choice.share ? 'Share menu opened' : 'Message history saved') : 'Save cancelled'))); }
+    } catch (_) {
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Message export failed. Try another destination.'))); }
+    } finally {
+      if (mounted) { setState(() => _exporting = false); }
+    }
   }
+
 }

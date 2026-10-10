@@ -109,6 +109,11 @@ class MainActivity : FlutterActivity() {
             super.onActivityResult(requestCode, resultCode, data)
         }
     }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        messageAlerts.openMessages = intent.getBooleanExtra("open_messages", false)
+    }
     override fun onResume() {
         super.onResume()
         messageAlerts.background = false

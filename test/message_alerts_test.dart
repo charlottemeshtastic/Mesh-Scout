@@ -42,6 +42,8 @@ class FakeAlerts implements AlertService {
   }
 
   @override
+  Future<bool> consumeOpen() async => false;
+  @override
   Future<void> clear() async {
     clears++;
   }

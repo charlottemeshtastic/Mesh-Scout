@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../alerts/message_alerts.dart';
+import '../messages/messages.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -27,6 +28,7 @@ class MeshScoutShell extends ConsumerStatefulWidget {
 class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
     with WidgetsBindingObserver {
   ScoutTab _tab = ScoutTab.map;
+  bool _openingMessages = false;
 
   @override
   void initState() {
@@ -35,6 +37,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
     Future<void>.microtask(() {
       if (mounted) {
         unawaited(ref.read(messageAlertsProvider.notifier).initialize());
+        unawaited(_openMessages());
         unawaited(ref.read(mappingProvider.notifier).initialize());
         unawaited(ref.read(offlineProvider.notifier).initialize());
       }
@@ -43,6 +46,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) { unawaited(_openMessages()); }
     if (state == AppLifecycleState.paused) {
       unawaited(ref.read(radioProvider.notifier).background());
       unawaited(ref.read(mappingProvider.notifier).background());
@@ -50,6 +54,23 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
       unawaited(ref.read(radioProvider.notifier).disconnect());
       unawaited(ref.read(mappingProvider.notifier).background());
     }
+  }
+
+  Future<void> _openMessages() async {
+    if (_openingMessages) { return; }
+    _openingMessages = true;
+    try {
+      final open = await ref.read(alertServiceProvider).consumeOpen();
+      if (!open || !mounted) { return; }
+      var existing = false;
+      Navigator.of(context).popUntil((route) {
+        if (route.settings.name == '/messages') { existing = true; return true; }
+        return route.isFirst;
+      });
+      if (!existing) { unawaited(Navigator.of(context).push<void>(MaterialPageRoute<void>(settings: const RouteSettings(name: '/messages'), builder: (_) => const MessagesScreen()))); }
+    } catch (_) {
+      // Opening the app remains usable if the platform intent is unavailable.
+    } finally { _openingMessages = false; }
   }
 
   @override
@@ -657,7 +678,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 0.7'),
+            title: Text('MeshScout 0.8'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),

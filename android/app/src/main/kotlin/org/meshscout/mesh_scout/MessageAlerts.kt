@@ -15,6 +15,7 @@ class MessageAlerts(private val activity: Activity) {
     private val manager = activity.getSystemService(Activity.NOTIFICATION_SERVICE) as NotificationManager
     private val preferences = activity.getSharedPreferences("message-alerts", Activity.MODE_PRIVATE)
     private val channelId = "meshscout_messages"
+    var openMessages = activity.intent.getBooleanExtra("open_messages", false)
     var background = false
     private var posted = false
     private fun permitted(): Boolean {
@@ -26,6 +27,7 @@ class MessageAlerts(private val activity: Activity) {
     fun handle(call: MethodCall, result: MethodChannel.Result) {
         try {
             when (call.method) {
+                "consumeOpen" -> { val open = openMessages; openMessages = false; activity.intent.removeExtra("open_messages"); result.success(open) }
                 "load" -> result.success(preferences.getBoolean("enabled", false) && permitted())
                 "configure" -> {
                     val requested = call.arguments as? Boolean ?: false
@@ -39,7 +41,7 @@ class MessageAlerts(private val activity: Activity) {
                 }
                 "waiting" -> {
                     if (background && !posted && preferences.getBoolean("enabled", false) && permitted()) {
-                        val intent = Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        val intent = Intent(activity, MainActivity::class.java).putExtra("open_messages", true).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         val pending = PendingIntent.getActivity(activity, 43, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(activity, channelId) else Notification.Builder(activity)
                         manager.notify(43, builder.setSmallIcon(android.R.drawable.stat_notify_chat)
