@@ -420,12 +420,14 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                           'Frequency MHz',
                           'Bandwidth kHz',
                           'Spreading factor',
-                          'Coding rate'
+                          'Coding rate',
+                          'Client repeat: 0 off / 1 on (firmware 9+)'
                         ], initial: const [
                           '',
                           '',
                           '7',
-                          '5'
+                          '5',
+                          '0'
                         ]);
                         if (values == null) return;
                         final command = parametersCommand(
