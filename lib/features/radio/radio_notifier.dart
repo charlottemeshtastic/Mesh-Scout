@@ -490,10 +490,12 @@ class RadioNotifier extends Notifier<RadioState> {
         } else {
           reply.complete(List<int>.unmodifiable(bytes.take(34)));
         }
-      } else if (bytes.first == 13 && bytes.length >= 80) {
+      } else if (bytes.first == 13) {
         // DEVICE_INFO includes the Bluetooth PIN; never pass it to controls.
         final safe = [...bytes];
-        safe.fillRange(4, 8, 0);
+        for (var i = 4; i < safe.length && i < 8; i++) {
+          safe[i] = 0;
+        }
         reply.complete(List<int>.unmodifiable(safe));
       } else {
         reply.complete(List<int>.unmodifiable(bytes));

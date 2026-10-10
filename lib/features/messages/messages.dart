@@ -242,7 +242,8 @@ class Messages extends Notifier<MessageState> {
       state.loaded &&
       !state.busy &&
       _unsaved == null &&
-      state.items.length < 1000;
+      state.items.length < 1000 &&
+      !ref.read(radioProvider).controlsBusy;
   Future<void> send(String key, String text, {int? channel}) async {
     if (!available) {
       return;
