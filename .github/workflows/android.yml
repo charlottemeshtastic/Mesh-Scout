@@ -22,8 +22,14 @@ jobs:
       - name: Generate Android scaffolding while preserving owned sources
         run: |
           cp android/app/src/main/AndroidManifest.xml /tmp/meshscout-manifest.xml
+          cp pubspec.yaml /tmp/meshscout-pubspec.yaml
+          cp pubspec.lock /tmp/meshscout-pubspec.lock
+          cp analysis_options.yaml /tmp/meshscout-analysis.yaml
           flutter create --platforms=android --org org.meshscout --project-name mesh_scout --no-pub .
           cp /tmp/meshscout-manifest.xml android/app/src/main/AndroidManifest.xml
+          cp /tmp/meshscout-pubspec.yaml pubspec.yaml
+          cp /tmp/meshscout-pubspec.lock pubspec.lock
+          cp /tmp/meshscout-analysis.yaml analysis_options.yaml
       - run: flutter pub get --enforce-lockfile
       - run: dart format lib test
       - run: flutter analyze --fatal-infos

@@ -5,14 +5,15 @@ import 'ble_service.dart';
 import 'radio_notifier.dart';
 
 class RadioScreen extends ConsumerStatefulWidget {
-  const RadioScreen({super.key});
+  const RadioScreen({super.key, this.embedded = false});
+  final bool embedded;
   @override
   ConsumerState<RadioScreen> createState() => _RadioScreenState();
 }
 
 class _RadioScreenState extends ConsumerState<RadioScreen> with WidgetsBindingObserver {
   @override
-  void initState() { super.initState(); WidgetsBinding.instance.addObserver(this); }
+  void initState() { super.initState(); if (!widget.embedded) { WidgetsBinding.instance.addObserver(this); } }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Foreground-only foundation: always release scan/GATT on background.
@@ -27,16 +28,16 @@ class _RadioScreenState extends ConsumerState<RadioScreen> with WidgetsBindingOb
     final state = ref.watch(radioProvider);
     final actions = ref.read(radioProvider.notifier);
     return PopScope(
-      onPopInvokedWithResult: (didPop, result) { if (didPop) unawaited(actions.disconnect()); },
+      onPopInvokedWithResult: (didPop, result) { if (didPop) { unawaited(actions.disconnect()); } },
       child: Scaffold(
-        appBar: AppBar(title: const Text('MeshCore radio')),
+        appBar: widget.embedded ? null : AppBar(title: const Text('MeshCore radio')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           const Text('Connect a MeshCore companion radio. Nearby devices permission is used to find your radio. Android 11 and earlier also require location permission and location services for scanning.'),
           const SizedBox(height: 16),
           Text(switch (state.phase) {
             RadioPhase.idle => 'Ready to scan',
             RadioPhase.authorizing => 'Checking Bluetooth permissions…',
-            RadioPhase.scanning => 'Scanning for UART candidates…',
+            RadioPhase.scanning => 'Scanning for nearby radios…',
             RadioPhase.connecting => 'Connecting…',
             RadioPhase.identifying => 'Checking MeshCore companion protocol…',
             RadioPhase.ready => 'MeshCore companion connected',
@@ -55,12 +56,12 @@ class _RadioScreenState extends ConsumerState<RadioScreen> with WidgetsBindingOb
           if (state.failure == RadioFailure.permanentlyDenied) TextButton(onPressed: () async => actions.openSettings(), child: const Text('Open app settings')),
           if (state.phase == RadioPhase.idle && state.devices.isEmpty) const Text('Scan lasts 10 seconds. Keep the companion radio nearby and advertising.'),
           for (final device in state.devices) ListTile(
-            title: Text(device.name.isEmpty ? 'UART candidate' : device.name),
+            title: Text(device.name.isEmpty ? 'Nearby Bluetooth device' : device.name),
             subtitle: Text('${device.id} · BLE signal ${device.rssi} dBm'),
             trailing: TextButton(onPressed: state.phase == RadioPhase.idle ? () async => actions.connect(device) : null, child: const Text('Connect')),
           ),
           const SizedBox(height: 16),
-          const Text('Bluetooth signal strength describes the phone-to-radio link. LoRa coverage recording and GPS capture are not available yet.'),
+          const Text('Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. LoRa coverage recording and GPS capture are not available yet.'),
         ]),
       ),
     );

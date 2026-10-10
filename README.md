@@ -2,15 +2,23 @@
 
 Independent Android-first MeshCore coverage mapping application. This repository has no BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
+## Version 0.2 interface
+
+The bottom navigation opens Map, Radios, Nodes, Coverage, History, and Settings. A connection status bar is visible on every tab and opens Radios. Start Mapping is deliberately disabled: GPS and coverage recording do not exist yet. Nodes, Coverage, and History explain their current limitations instead of presenting sample observations as real data. Settings links to Radios and Android app permissions and explains map/network and recording behavior.
+
+Switching away from Radios stops an active scan or cancels a pending connection/permission request. An identified companion stays connected across tabs while the app is in the foreground; backgrounding disconnects it on every tab. Scanning and connecting require an explicit user action, never app launch or tab selection. Map position/zoom survive tab changes. Map tiles require internet; no offline map cache is implemented.
+
+Interface tests navigate all six tabs, verify no launch-time Bluetooth authorization, confirm mapping stays disabled after identification, exercise scan cancellation and connected/background state across tabs, and check narrow-screen navigation with enlarged text.
+
 ## Phase 2 Bluetooth foundation
 
-Open the Bluetooth button on the map. Scan requests Nearby Devices on Android 12+; Android 11 and earlier request foreground location access and require location services. Permanent denial offers app settings. Enable Bluetooth before retrying.
+Open the Radios tab or tap the connection status bar. Scan requests Nearby Devices on Android 12+; Android 11 and earlier request foreground location access and require location services. Permanent denial offers app settings. Enable Bluetooth before retrying.
 
 A scan is bounded to ten seconds and filters the Nordic UART service. Results are deduplicated by device ID and update BLE RSSI. Stop scanning before selecting a candidate. This UUID is shared by unrelated products: candidates are **not** identified as MeshCore by their name or UUID alone.
 
 Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands are short enough for the default 20-byte ATT payload. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
 
-Cancellation, errors, connection loss, route exit, backgrounding, and disposal release owned streams and timers. Reconnection is explicit: scan and select again. Background BLE and automatic reconnect are deferred until hardware behavior is measured.
+Cancellation, errors, connection loss, standalone radio route exit, backgrounding, and disposal release owned streams and timers. Reconnection is explicit: scan and select again. Background BLE and automatic reconnect are deferred until hardware behavior is measured.
 
 BLE RSSI measures the phone-to-companion link, **not LoRa coverage**. GPS collection, radio observations, storage, coverage overlays, message sync, protocol version feature negotiation and public sharing remain future work.
 
