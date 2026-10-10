@@ -4,6 +4,9 @@ import 'ble_service.dart';
 
 final bleServiceProvider =
     Provider<BleService>((ref) => throw UnimplementedError());
+final radioTimerProvider = Provider<Timer Function(Duration, void Function())>(
+  (ref) => Timer.new,
+);
 final radioProvider =
     NotifierProvider<RadioNotifier, RadioState>(RadioNotifier.new);
 
@@ -36,6 +39,7 @@ class RadioNotifier extends Notifier<RadioState> {
   int? _expected;
   int _generation = 0;
   bool _disposed = false;
+  final _cancelOperations = <void Function()>{};
 
   @override
   RadioState build() {
@@ -94,7 +98,7 @@ class RadioNotifier extends Notifier<RadioState> {
     try {
       await _service.authorize();
       if (!_current(generation)) return;
-      _deadline = Timer(
+      _deadline = ref.read(radioTimerProvider)(
           const Duration(seconds: 20),
           () => unawaited(
               _fail(generation, const RadioException(RadioFailure.transport))));
@@ -119,7 +123,7 @@ class RadioNotifier extends Notifier<RadioState> {
 
   Future<void> _identify(int generation, String id) async {
     try {
-      await _service.discover(id).timeout(const Duration(seconds: 5));
+      await _withTimeout(_service.discover(id), const Duration(seconds: 5));
       if (!_current(generation)) return;
       _notifications = _service.notifications(id).listen((bytes) {
         if (!_current(generation) || bytes.isEmpty) return;
@@ -156,9 +160,9 @@ class RadioNotifier extends Notifier<RadioState> {
       if (!_current(generation)) {
         throw const RadioException(RadioFailure.transport);
       }
-      await _service.write(id, command).timeout(const Duration(seconds: 3));
+      await _withTimeout(_service.write(id, command), const Duration(seconds: 3));
       try {
-        return await response.future.timeout(const Duration(seconds: 2));
+        return await _withTimeout(response.future, const Duration(seconds: 2));
       } on TimeoutException {
         if (attempt == 1) {
           throw const RadioException(RadioFailure.protocol);
@@ -166,6 +170,28 @@ class RadioNotifier extends Notifier<RadioState> {
       }
     }
     throw const RadioException(RadioFailure.protocol);
+  }
+
+  /// Bounded operations share the injected scheduler and can be cancelled.
+  Future<T> _withTimeout<T>(Future<T> operation, Duration duration) {
+    final result = Completer<T>();
+    final timer = ref.read(radioTimerProvider)(duration, () {
+      if (!result.isCompleted) result.completeError(TimeoutException('Bluetooth operation timed out'));
+    });
+    void cancel() {
+      timer.cancel();
+      if (!result.isCompleted) result.completeError(const RadioException(RadioFailure.transport));
+    }
+    _cancelOperations.add(cancel);
+    void finish() { timer.cancel(); _cancelOperations.remove(cancel); }
+    operation.then((value) {
+      finish();
+      if (!result.isCompleted) result.complete(value);
+    }, onError: (Object error, StackTrace stack) {
+      finish();
+      if (!result.isCompleted) result.completeError(error, stack);
+    });
+    return result.future;
   }
 
   Future<void> _fail(int generation, Object error) async {
@@ -192,6 +218,9 @@ class RadioNotifier extends Notifier<RadioState> {
 
   Future<RadioFailure?> _cleanup() async {
     _deadline?.cancel();
+    final cancellations = _cancelOperations.toList();
+    _cancelOperations.clear();
+    for (final cancel in cancellations) { cancel(); }
     final scan = _scan;
     final link = _link;
     final notifications = _notifications;
