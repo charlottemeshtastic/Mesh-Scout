@@ -267,7 +267,9 @@ void main() {
     expect(ble.writes, [appStart, appStart]);
     expect(scheduler.timers.any((t) => t.isActive), isFalse);
   });
-  test('collection is opt-in after handshake, metadata is bounded and timestamped', () async {
+  test(
+      'collection is opt-in after handshake, metadata is bounded and timestamped',
+      () async {
     final now = DateTime.utc(2026, 10, 10, 12);
     container.dispose();
     container = ProviderContainer(overrides: [
@@ -310,7 +312,9 @@ void main() {
     expect(container.read(radioProvider).malformedCount, 0);
   });
 
-  test('link failure stops collection, preserves results; a new scan clears them', () async {
+  test(
+      'link failure stops collection, preserves results; a new scan clears them',
+      () async {
     await findRadio();
     ble.links.add(RadioLink.connected);
     await flush();
@@ -327,10 +331,14 @@ void main() {
     expect(container.read(radioProvider).observations, isEmpty);
   });
 
-  testWidgets('live RF view starts, stops and clears; background stops collection', (tester) async {
-    await findRadio();
-    ble.links.add(RadioLink.connected);
-    await flush();
+  testWidgets(
+      'live RF view starts, stops and clears; background stops collection',
+      (tester) async {
+    await tester.runAsync(() async {
+      await findRadio();
+      ble.links.add(RadioLink.connected);
+      await flush();
+    });
     await tester.pumpWidget(UncontrolledProviderScope(
         container: container, child: const MaterialApp(home: RadioScreen())));
     await tester.ensureVisible(find.text('Start collecting'));
@@ -355,5 +363,4 @@ void main() {
     expect(ble.packets.hasListener, isFalse);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   });
-
 }

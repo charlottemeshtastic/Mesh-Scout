@@ -47,7 +47,8 @@ class RadioState {
     List<RadioObservation>? observations,
     int? receivedCount,
     int? malformedCount,
-  }) => RadioState(
+  }) =>
+      RadioState(
         phase: phase,
         devices: devices,
         failure: failure,

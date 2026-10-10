@@ -21,9 +21,24 @@ void main() {
 
   test('transport routes skip four codes before multi-byte path hashes', () {
     for (final route in [0, 3]) {
-      final observation = parseRadioObservation(
-          [0x88, 12, 0x80, 0x94 | route, 1, 2, 3, 4, 0x82,
-            10, 11, 12, 13, 14, 15, 0xaa], time)!;
+      final observation = parseRadioObservation([
+        0x88,
+        12,
+        0x80,
+        0x94 | route,
+        1,
+        2,
+        3,
+        4,
+        0x82,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        0xaa
+      ], time)!;
       expect(observation.routeType, route);
       expect(observation.payloadType, 5);
       expect(observation.payloadVersion, 2);
@@ -44,9 +59,13 @@ void main() {
     expect(observation.payloadType, 2);
   });
 
-  test('rejects truncated headers and paths, reserved sizes, oversize and nonbytes', () {
+  test(
+      'rejects truncated headers and paths, reserved sizes, oversize and nonbytes',
+      () {
     for (final frame in <List<int>>[
-      [], [0x88], [0x88, 0, 0, 0x11, 0],
+      [],
+      [0x88],
+      [0x88, 0, 0, 0x11, 0],
       [0x88, 0, 0, 0x10, 1, 2, 3, 4],
       [0x88, 0, 0, 0x11, 2, 1, 2],
       [0x88, 0, 0, 0x11, 0xc0, 1],

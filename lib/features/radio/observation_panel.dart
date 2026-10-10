@@ -3,7 +3,8 @@ import 'radio_notifier.dart';
 
 /// A bounded live view: receptions are evidence of local RF activity, not a map.
 class ObservationPanel extends StatelessWidget {
-  const ObservationPanel({required this.state, required this.actions, super.key});
+  const ObservationPanel(
+      {required this.state, required this.actions, super.key});
   final RadioState state;
   final RadioNotifier actions;
 
@@ -21,9 +22,11 @@ class ObservationPanel extends StatelessWidget {
               onPressed: state.collecting
                   ? actions.stopCollection
                   : actions.startCollection,
-              child: Text(state.collecting ? 'Stop collecting' : 'Start collecting'),
+              child: Text(
+                  state.collecting ? 'Stop collecting' : 'Start collecting'),
             ),
-          Text('${state.receivedCount} receptions · ${state.observations.length} kept · ${state.malformedCount} malformed reports skipped'),
+          Text(
+              '${state.receivedCount} receptions · ${state.observations.length} kept · ${state.malformedCount} malformed reports skipped'),
           if (state.receivedCount > 0 || state.malformedCount > 0)
             TextButton(
               onPressed: actions.clearObservations,
@@ -38,9 +41,28 @@ class ObservationPanel extends StatelessWidget {
           for (final observation in state.observations.take(20))
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('LoRa RSSI ${observation.rssiDbm} dBm · SNR ${observation.snrDb.toStringAsFixed(2)} dB'),
-              subtitle: Text('${observation.receivedAt.toIso8601String()} · ${observation.isFlood ? "Flood" : "Direct"} · packet type ${observation.payloadType} · path hashes ${observation.pathHashCount} · ${observation.packetBytes} bytes'),
+              title: Text(
+                  'LoRa RSSI ${observation.rssiDbm} dBm · SNR ${observation.snrDb.toStringAsFixed(2)} dB'),
+              subtitle: Text(
+                  '${observation.receivedAt.toIso8601String()} · ${observation.isFlood ? "Flood" : "Direct"} · ${_packetLabel(observation.payloadType)}'),
             ),
         ],
       );
 }
+
+String _packetLabel(int type) => switch (type) {
+      0 => 'Request',
+      1 => 'Response',
+      2 => 'Message',
+      3 => 'Acknowledgment',
+      4 => 'Advertisement',
+      5 => 'Channel message',
+      6 => 'Channel data',
+      7 => 'Anonymous request',
+      8 => 'Route update',
+      9 => 'Trace',
+      10 => 'Multipart packet',
+      11 => 'Control packet',
+      15 => 'Custom packet',
+      _ => 'Unknown packet',
+    };

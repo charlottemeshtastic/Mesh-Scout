@@ -30,14 +30,14 @@ jobs:
           cp /tmp/meshscout-build.gradle.kts android/app/build.gradle.kts
           git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml
       - run: flutter pub get --enforce-lockfile
-      - name: Format observation sources for validation bootstrap
-        run: dart format lib test
-      - uses: actions/upload-artifact@v4
-        with:
-          name: meshscout-formatted-sources
-          path: |
-            lib/
-            test/
+      - name: Verify independent application dependencies
+        run: |
+          flutter pub deps --style=compact --no-dev > /tmp/meshscout-dependencies.txt
+          if grep -Eiq 'meshtastic|backcountry|bastion' /tmp/meshscout-dependencies.txt; then
+            echo "Unexpected dependency in MeshScout"
+            exit 1
+          fi
+      - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --timeout 30s
       - run: flutter build apk --debug
