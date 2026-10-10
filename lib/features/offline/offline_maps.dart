@@ -119,7 +119,8 @@ class OfflineMaps extends Notifier<OfflineState> {
       final areas = <OfflineArea>[];
       if (root.existsSync()) {
         for (final entry in root.listSync().whereType<Directory>()) {
-          if (entry.path.endsWith('/pending') || entry.path.endsWith('/backup')) {
+          if (entry.path.endsWith('/pending') ||
+              entry.path.endsWith('/backup')) {
             continue;
           }
           final metadata = File('${entry.path}/area.json');

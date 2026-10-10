@@ -62,7 +62,10 @@ void main() {
       },
       {
         ...fixture(),
-        'sessions': [...(fixture()['sessions'] as List), ...(fixture()['sessions'] as List)]
+        'sessions': [
+          ...(fixture()['sessions'] as List),
+          ...(fixture()['sessions'] as List)
+        ]
       }
     ]) {
       expect(

@@ -208,8 +208,7 @@ class RadioControlsPanel extends ConsumerWidget {
                       final value = int.tryParse(power);
                       if (value != null) {
                         await actions.setPower(value);
-                      }
-                      else if (context.mounted) {
+                      } else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content:
