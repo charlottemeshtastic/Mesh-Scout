@@ -54,14 +54,18 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
   }
 
   Future<void> perform(String method) async {
-    if (busy || !available) { return; }
+    if (busy || !available) {
+      return;
+    }
     String secret = '';
     if (encrypted && method != 'cloudTarget' ||
         method == 'openBundle' ||
         method == 'cloudRestore' ||
         method == 'scheduleBackup') {
       final value = await password();
-      if (value == null) { return; }
+      if (value == null) {
+        return;
+      }
       secret = value;
       if ((method == 'saveBundle' ||
               method == 'cloudBackup' ||
@@ -71,7 +75,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
         return;
       }
     }
-    if (!mounted) { return; }
+    if (!mounted) {
+      return;
+    }
     setState(() => busy = true);
     ref.read(maintenanceProvider.notifier).set(true);
     try {
@@ -86,7 +92,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
       if (method == 'openBundle' || method == 'cloudRestore') {
         final preview = jsonDecode(result as String) as Map<String, dynamic>;
         final incoming = ScoutBackup.decode(preview['data'] as String);
-        if (!mounted) { return; }
+        if (!mounted) {
+          return;
+        }
         final mode = await showDialog<String>(
             context: context,
             builder: (c) => AlertDialog(
@@ -104,7 +112,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
                           onPressed: () => Navigator.pop(c, 'replace'),
                           child: const Text('Replace'))
                     ]));
-        if (mode == null) { return; }
+        if (mode == null) {
+          return;
+        }
         final data = mode == 'merge'
             ? mergeBackups(
                 ScoutBackup.decode(
@@ -136,7 +146,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
     } finally {
       secret = '';
       ref.read(maintenanceProvider.notifier).set(false);
-      if (mounted) { setState(() => busy = false); }
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -154,7 +166,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await refresh();
-        if (mounted) { setState(() {}); }
+        if (mounted) {
+          setState(() {});
+        }
       } catch (_) {}
     });
   }
@@ -219,7 +233,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
                     await files.invokeMethod<bool>(
                         'scheduleBackup', {'enabled': false});
                     await refresh();
-                    if (mounted) { setState(() {}); }
+                    if (mounted) {
+                      setState(() {});
+                    }
                   }
                 }),
       if (status['status'] != null) Text(status['status'] as String),

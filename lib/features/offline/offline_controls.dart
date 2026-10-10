@@ -57,7 +57,9 @@ class OfflineControls extends ConsumerWidget {
                                             child: Text('$side × $side km'))
                                     ]));
                         if (side != null) {
-                          if (!context.mounted) { return; }
+                          if (!context.mounted) {
+                            return;
+                          }
                           final name = await showDialog<String>(
                               context: context,
                               builder: (_) => const _AreaNameDialog());
@@ -121,7 +123,8 @@ class OfflineControls extends ConsumerWidget {
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e'))); }
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                      }
                     }
                   },
             child: const Text('Resume download')),
@@ -138,7 +141,8 @@ class OfflineControls extends ConsumerWidget {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e'))); }
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
                       }
                     }
                   },
@@ -154,7 +158,8 @@ class OfflineControls extends ConsumerWidget {
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Map import failed: $e'))); }
+                            SnackBar(content: Text('Map import failed: $e')));
+                      }
                     }
                   },
             child: const Text('Import raster MBTiles')),

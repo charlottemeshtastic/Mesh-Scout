@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.BitmapFactory
 import android.net.Uri
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -145,6 +146,7 @@ class ScoutBundles(private val activity: Activity) {
                 db.rawQuery("SELECT zoom_level,tile_column,tile_row,tile_data FROM tiles",null).use{c->while(c.moveToNext()){
                     require(++count<=50000);val z=c.getInt(0);require(z in 0..22);val n=1 shl z;val x=c.getInt(1);val row=c.getInt(2);require(x in 0 until n && row in 0 until n)
                     val image=c.getBlob(3);require(image.size in 8..1024*1024 && ((image[0].toInt()and 255)==137 && image[1]==80.toByte() || (image[0].toInt()and 255)==255 && (image[1].toInt()and 255)==216)) { "Invalid raster image" }
+                    validateImage(image)
                     bytes+=image.size;require(bytes<=500L*1024*1024)
                     val y=n-1-row;val target=File(stage,"$z/$x/$y.tile");require(!target.exists());target.parentFile!!.mkdirs();target.writeBytes(image)
                     min=kotlin.math.min(min,z);max=kotlin.math.max(max,z)
@@ -183,11 +185,17 @@ class ScoutBundles(private val activity: Activity) {
                 BackupCrypto.transform(plain,encrypted,password,true);plain.delete();return encrypted
             }catch(e:Exception){plain.delete();throw e}
         }
+        private fun validateImage(image:ByteArray) {
+            require(image.size in 8..1024*1024)
+            val options=BitmapFactory.Options().apply{inJustDecodeBounds=true}
+            BitmapFactory.decodeByteArray(image,0,image.size,options)
+            require(options.outWidth in 1..4096 && options.outHeight in 1..4096) { "Invalid or oversized raster tile" }
+        }
         private fun validateExtras(stage:File) {
             val notes=File(stage,"field-notes.json")
             if(notes.exists()){val rows=JSONArray(notes.readText());require(rows.length()<=1000);for(i in 0 until rows.length()){val n=rows.getJSONObject(i);require(n.getString("id").length in 1..120 && n.getString("name").length in 1..80 && n.getString("note").length<=2000 && n.getDouble("lat").isFinite() && kotlin.math.abs(n.getDouble("lat"))<=90 && n.getDouble("lon").isFinite() && kotlin.math.abs(n.getDouble("lon"))<=180)}}
             val settings=File(stage,"settings.json");if(settings.exists()){require(settings.length()<10000);JSONObject(settings.readText())}
-            val maps=File(stage,"offline");if(maps.exists()){val areas=maps.listFiles()?:emptyArray();require(areas.size<=5);for(a in areas){val m=JSONObject(File(a,"area.json").readText());require(m.getDouble("lat").isFinite() && kotlin.math.abs(m.getDouble("lat"))<=90 && m.getDouble("lon").isFinite() && kotlin.math.abs(m.getDouble("lon"))<=180);require(m.optInt("minZoom",12) in 0..22 && m.optInt("maxZoom",16) in m.optInt("minZoom",12)..22);require(m.optString("name").length<=60);for(f in a.walkTopDown().filter{it.extension=="tile"}){val parts=f.relativeTo(a).path.split('/');val z=parts[0].toInt();val x=parts[1].toInt();val y=parts[2].removeSuffix(".tile").toInt();require(z in 0..22 && x in 0 until (1 shl z) && y in 0 until (1 shl z) && f.length() in 8..1024*1024L)}}}
+            val maps=File(stage,"offline");if(maps.exists()){val areas=maps.listFiles()?:emptyArray();require(areas.size<=5);for(a in areas){val m=JSONObject(File(a,"area.json").readText());require(m.getDouble("lat").isFinite() && kotlin.math.abs(m.getDouble("lat"))<=90 && m.getDouble("lon").isFinite() && kotlin.math.abs(m.getDouble("lon"))<=180);require(m.optInt("minZoom",12) in 0..22 && m.optInt("maxZoom",16) in m.optInt("minZoom",12)..22);require(m.optString("name").length<=60);for(f in a.walkTopDown().filter{it.extension=="tile"}){val parts=f.relativeTo(a).path.split('/');val z=parts[0].toInt();val x=parts[1].toInt();val y=parts[2].removeSuffix(".tile").toInt();require(z in 0..22 && x in 0 until (1 shl z) && y in 0 until (1 shl z) && f.length() in 8..1024*1024L);validateImage(f.readBytes())}}}
         }
         fun restore(context:Context,source:File,text:String,merge:Boolean) {
             val old=ScoutStorage.directory(context);val oldmaps=ScoutStorage.mapDirectory(context)

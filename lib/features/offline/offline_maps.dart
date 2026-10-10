@@ -143,12 +143,16 @@ class OfflineMaps extends Notifier<OfflineState> {
         }
       }
       areas.sort((a, b) => b.path.compareTo(a.path));
-      if (!ref.mounted) { return; }
+      if (!ref.mounted) {
+        return;
+      }
       state = OfflineState(
           area: areas.isEmpty ? null : areas.first,
           areas: List.unmodifiable(areas));
     } catch (_) {
-      if (!ref.mounted) { return; }
+      if (!ref.mounted) {
+        return;
+      }
       state = const OfflineState(
           message: 'Could not load offline area. Download again.');
     }
@@ -163,7 +167,9 @@ class OfflineMaps extends Notifier<OfflineState> {
   }
 
   void cancel() {
-    if (_committing) { return; }
+    if (_committing) {
+      return;
+    }
     _generation++;
     _client?.close(force: true);
     state = OfflineState(
@@ -175,7 +181,9 @@ class OfflineMaps extends Notifier<OfflineState> {
 
   Future<void> download(double lat, double lon,
       {int sideKm = 4, String? name}) async {
-    if (_running || state.busy) { return; }
+    if (_running || state.busy) {
+      return;
+    }
     _running = true;
     final generation = ++_generation;
     final previous = state.area;
@@ -194,7 +202,9 @@ class OfflineMaps extends Notifier<OfflineState> {
       state = OfflineState(
           area: previous, areas: saved, busy: true, total: tiles.length);
       final root = await _root();
-      if (generation != _generation) { return; }
+      if (generation != _generation) {
+        return;
+      }
       await root.create(recursive: true);
       staging = Directory('${root.path}/pending');
       final resume = File('${staging.path}/resume.json');
@@ -202,7 +212,8 @@ class OfflineMaps extends Notifier<OfflineState> {
           jsonEncode({'lat': lat, 'lon': lon, 'sideKm': sideKm, 'name': name});
       if (staging.existsSync() &&
           (!resume.existsSync() || await resume.readAsString() != identity)) {
-        await staging.delete(recursive: true); }
+        await staging.delete(recursive: true);
+      }
       await staging.create(recursive: true);
       await resume.writeAsString(identity, flush: true);
       final client = HttpClient()
@@ -211,7 +222,9 @@ class OfflineMaps extends Notifier<OfflineState> {
       var bytes = 0;
       var count = 0;
       for (final tile in tiles) {
-        if (generation != _generation) { return; }
+        if (generation != _generation) {
+          return;
+        }
         final existing =
             File('${staging.path}/${tile.z}/${tile.x}/${tile.y}.tile');
         if (existing.existsSync()) {
@@ -223,7 +236,8 @@ class OfflineMaps extends Notifier<OfflineState> {
             bytes += image.length;
             count++;
             if (bytes > 150 * 1024 * 1024) {
-              throw const FormatException('Download exceeds 150 MB.'); }
+              throw const FormatException('Download exceeds 150 MB.');
+            }
             state = OfflineState(
                 area: previous,
                 areas: saved,
@@ -266,7 +280,9 @@ class OfflineMaps extends Notifier<OfflineState> {
         await file.writeAsBytes(data, flush: true);
         bytes += data.length;
         count++;
-        if (generation != _generation) { return; }
+        if (generation != _generation) {
+          return;
+        }
         state = OfflineState(
             area: previous,
             areas: saved,
@@ -287,13 +303,17 @@ class OfflineMaps extends Notifier<OfflineState> {
             if (name != null && name.trim().isNotEmpty) 'name': name.trim()
           }),
           flush: true);
-      if (generation != _generation) { return; }
+      if (generation != _generation) {
+        return;
+      }
       await resume.delete();
       _committing = true;
       final active = Directory(
           '${root.path}/area-${DateTime.now().microsecondsSinceEpoch}');
       await staging.rename(active.path);
-      if (!ref.mounted) { return; }
+      if (!ref.mounted) {
+        return;
+      }
       final area = OfflineArea(active.path, lat, lon, count, bytes,
           sideKm: sideKm,
           name: name?.trim(),
@@ -319,7 +339,8 @@ class OfflineMaps extends Notifier<OfflineState> {
   Future<void> resume() async {
     final metadata = File('${(await _root()).path}/pending/resume.json');
     if (!metadata.existsSync()) {
-      throw const FormatException('No paused download.'); }
+      throw const FormatException('No paused download.');
+    }
     final data =
         jsonDecode(await metadata.readAsString()) as Map<String, dynamic>;
     await download(
@@ -328,11 +349,14 @@ class OfflineMaps extends Notifier<OfflineState> {
   }
 
   Future<void> rename(String name) async {
-    if (state.busy || state.area == null) { return; }
+    if (state.busy || state.area == null) {
+      return;
+    }
     if (name.trim().isEmpty ||
         name.length > 60 ||
         name.contains(RegExp(r'[\x00-\x1f]'))) {
-      throw const FormatException('Use a name of 1–60 characters.'); }
+      throw const FormatException('Use a name of 1–60 characters.');
+    }
     final selected = state.area!;
     final file = File('${selected.path}/area.json');
     final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
@@ -346,16 +370,22 @@ class OfflineMaps extends Notifier<OfflineState> {
   }
 
   void select(OfflineArea area) {
-    if (_running || state.busy || !state.areas.contains(area)) { return; }
+    if (_running || state.busy || !state.areas.contains(area)) {
+      return;
+    }
     state =
         OfflineState(area: area, areas: state.areas, enabled: state.enabled);
   }
 
   Future<void> delete() async {
-    if (_running || state.busy || state.area == null) { return; }
+    if (_running || state.busy || state.area == null) {
+      return;
+    }
     final selected = state.area!;
     final directory = Directory(selected.path);
-    if (directory.existsSync()) { await directory.delete(recursive: true); }
+    if (directory.existsSync()) {
+      await directory.delete(recursive: true);
+    }
     final areas = state.areas.where((a) => a.path != selected.path).toList();
     state = OfflineState(
         area: areas.isEmpty ? null : areas.first,

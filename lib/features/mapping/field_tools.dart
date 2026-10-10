@@ -44,36 +44,45 @@ class CoverageSummary {
 
 MappingSession importRoute(String text) {
   if (utf8.encode(text).length > 20 * 1024 * 1024) {
-    throw const FormatException('Route exceeds 20 MB.'); }
+    throw const FormatException('Route exceeds 20 MB.');
+  }
   final data = jsonDecode(text) as Map<String, dynamic>;
   if (data.containsKey('crs')) {
     throw const FormatException(
-        'Use WGS84 GeoJSON without a custom coordinate reference system.'); }
+        'Use WGS84 GeoJSON without a custom coordinate reference system.');
+  }
   Map<String, dynamic> geometry = data;
-  if (data['type'] == 'Feature')
+  if (data['type'] == 'Feature') {
     geometry = data['geometry'] as Map<String, dynamic>;
+  }
   if (data['type'] == 'FeatureCollection') {
     final lines = (data['features'] as List)
         .where((f) => f['geometry']?['type'] == 'LineString')
         .toList();
     if (lines.length != 1) {
       throw const FormatException(
-          'Choose a GeoJSON file with exactly one LineString route.'); }
+          'Choose a GeoJSON file with exactly one LineString route.');
+    }
     geometry = lines.single['geometry'] as Map<String, dynamic>;
   }
   if (geometry['type'] != 'LineString') {
-    throw const FormatException('Use a GeoJSON LineString route.'); }
+    throw const FormatException('Use a GeoJSON LineString route.');
+  }
   final coordinates = geometry['coordinates'] as List;
   if (coordinates.length < 2 || coordinates.length > 10000) {
-    throw const FormatException('Use 2–10,000 route points.'); }
+    throw const FormatException('Use 2–10,000 route points.');
+  }
   final now = DateTime.now().toUtc();
   final points = <GpsPoint>[];
   for (final row in coordinates) {
     if (row is! List || row.length < 2 || row[0] is! num || row[1] is! num) {
-      throw const FormatException('Invalid route coordinate.'); }
+      throw const FormatException('Invalid route coordinate.');
+    }
     final p = GpsPoint(
         (row[1] as num).toDouble(), (row[0] as num).toDouble(), 0, now);
-    if (!p.valid) { throw const FormatException('Invalid WGS84 coordinates.'); }
+    if (!p.valid) {
+      throw const FormatException('Invalid WGS84 coordinates.');
+    }
     points.add(p);
   }
   return MappingSession(
@@ -118,10 +127,12 @@ class FieldNotes extends AsyncNotifier<List<Map<String, dynamic>>> {
         lat.abs() > 90 ||
         lon.abs() > 180) {
       throw const FormatException(
-          'Use a name up to 80 characters, note up to 2000 characters and valid coordinates.'); }
+          'Use a name up to 80 characters, note up to 2000 characters and valid coordinates.');
+    }
     final notes = state.requireValue;
     if (notes.length >= 1000) {
-      throw const FormatException('Waypoint limit is 1,000.'); }
+      throw const FormatException('Waypoint limit is 1,000.');
+    }
     await save([
       ...notes,
       {
@@ -146,14 +157,18 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
   String? first, second;
   bool busy = false;
   Future<void> action(Future<void> Function() task) async {
-    if (busy) { return; }
+    if (busy) {
+      return;
+    }
     setState(() => busy = true);
     try {
       await task();
     } catch (e) {
       notice = 'Could not complete action: $e';
     } finally {
-      if (mounted) { setState(() => busy = false); }
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -222,7 +237,9 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                         final text =
                             await const MethodChannel('org.meshscout/files')
                                 .invokeMethod<String>('openBackup');
-                        if (text == null) { return; }
+                        if (text == null) {
+                          return;
+                        }
                         final route = importRoute(text);
                         await ref
                             .read(mappingProvider.notifier)
@@ -237,7 +254,9 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                         final values = await showDialog<List<String>>(
                             context: context,
                             builder: (_) => const _WaypointDialog());
-                        if (values == null) { return; }
+                        if (values == null) {
+                          return;
+                        }
                         await ref.read(fieldNotesProvider.notifier).add(
                             values[0],
                             values[1],
@@ -276,7 +295,8 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                                     .read(fieldNotesProvider.notifier)
                                     .save(notes.requireValue
                                         .where((v) => v['id'] != n['id'])
-                                        .toList()); }
+                                        .toList());
+                              }
                             }))),
         ]));
   }

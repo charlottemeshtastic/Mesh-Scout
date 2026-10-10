@@ -165,7 +165,8 @@ void main() {
     final container = ProviderContainer(overrides: [
       offlineDirectoryProvider.overrideWithValue(() async => directory.path),
       offlineThrottleProvider.overrideWithValue(Duration.zero),
-      offlineTileUrlProvider.overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
+      offlineTileUrlProvider
+          .overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
     ]);
     try {
       final actions = container.read(offlineProvider.notifier);
@@ -178,7 +179,8 @@ void main() {
       await actions.rename('Renamed');
       await actions.initialize();
       expect(container.read(offlineProvider).area!.name, 'Renamed');
-      expect(File('${directory.path}/offline/pending/resume.json').existsSync(), isFalse);
+      expect(File('${directory.path}/offline/pending/resume.json').existsSync(),
+          isFalse);
     } finally {
       container.dispose();
       await server.close(force: true);
