@@ -5,7 +5,8 @@ import '../features/alerts/message_alerts.dart';
 class AndroidAlertService implements AlertService {
   static const _channel = MethodChannel('org.meshscout/message_alerts');
   @override
-  Future<bool> load() async => await _channel.invokeMethod<bool>('load') ?? false;
+  Future<bool> load() async =>
+      await _channel.invokeMethod<bool>('load') ?? false;
   @override
   Future<bool> configure(bool enabled) async {
     if (enabled && !(await Permission.notification.request()).isGranted) {
@@ -14,6 +15,7 @@ class AndroidAlertService implements AlertService {
     }
     return await _channel.invokeMethod<bool>('configure', enabled) ?? false;
   }
+
   @override
   Future<void> waiting() => _channel.invokeMethod<void>('waiting');
   @override

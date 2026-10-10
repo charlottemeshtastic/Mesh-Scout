@@ -629,8 +629,18 @@ class SettingsScreen extends ConsumerWidget {
               value: ref.watch(radioProvider).autoReconnect,
               onChanged: (enabled) async =>
                   ref.read(radioProvider.notifier).setAutoReconnect(enabled)),
-          SwitchListTile(title: const Text('Background message alerts'), subtitle: const Text('Notify when the connected radio reports waiting messages. Fetch them manually in Nodes → Messages.'), value: ref.watch(messageAlertsProvider).enabled, onChanged: ref.watch(messageAlertsProvider).busy ? null : (enabled) async => ref.read(messageAlertsProvider.notifier).configure(enabled)),
-          if (ref.watch(messageAlertsProvider).notice != null) Text(ref.watch(messageAlertsProvider).notice!),
+          SwitchListTile(
+              title: const Text('Background message alerts'),
+              subtitle: const Text(
+                  'Notify when the connected radio reports waiting messages. Fetch them manually in Nodes → Messages.'),
+              value: ref.watch(messageAlertsProvider).enabled,
+              onChanged: ref.watch(messageAlertsProvider).busy
+                  ? null
+                  : (enabled) async => ref
+                      .read(messageAlertsProvider.notifier)
+                      .configure(enabled)),
+          if (ref.watch(messageAlertsProvider).notice != null)
+            Text(ref.watch(messageAlertsProvider).notice!),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),
