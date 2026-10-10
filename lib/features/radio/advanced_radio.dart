@@ -118,18 +118,19 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
     });
     try {
       await radio.messageCommand(command, replies, control: true);
-      if (mounted && token == radio.sessionToken)
+      if (mounted && token == radio.sessionToken && notice == 'Waiting for companion…') {
         setState(() => notice =
             'Companion accepted request. Remote requests need a reply to confirm success.');
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => notice =
-            'Request failed or outcome uncertain. Reconnect before retrying.');
+            'Request failed or outcome uncertain. Reconnect before retrying.'); }
     } finally {
       radio.endControls(token);
-      if (mounted) setState(() => busy = false);
+      if (mounted) { setState(() => busy = false); }
     }
-    if (refresh && token == radio.sessionToken) await radio.refreshContacts();
+    if (refresh && token == radio.sessionToken) { await radio.refreshContacts(); }
   }
 
   Future<List<String>?> form(String title, List<String> labels,
@@ -142,9 +143,9 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
     try {
       await operation();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() => notice =
-            e is FormatException ? e.message.toString() : 'Operation failed.');
+            e is FormatException ? e.message.toString() : 'Operation failed.'); }
     }
   }
 
@@ -158,7 +159,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           c?.name ?? '',
           '${c?.type ?? 1}'
         ]);
-        if (values == null) return;
+        if (values == null) { return; }
         await run(
             contactCommand(values[0], values[1], int.parse(values[2]),
                 original: c?.frame ?? const []),
@@ -171,22 +172,22 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           final values = await form(
               'Log in to ${c.name}', ['Repeater password (never saved)'],
               secret: true);
-          if (values == null) return;
+          if (values == null) { return; }
           final password = utf8.encode(values.first);
           if (password.isEmpty ||
               password.length > 64 ||
-              values.first.contains('\u0000'))
-            throw const FormatException('Use a password of 1–64 UTF-8 bytes.');
+              values.first.contains('\u0000')) {
+            throw const FormatException('Use a password of 1–64 UTF-8 bytes.'); }
           frame = [26, ...key, ...password];
         } else if (command == 2) {
           final values = await form('Repeater CLI command',
               ['Command (may change remote configuration)']);
-          if (values == null) return;
+          if (values == null) { return; }
           final body = utf8.encode(values.first);
           if (body.isEmpty ||
               body.length > 133 ||
-              values.first.contains('\u0000'))
-            throw const FormatException('Use a command of 1–133 UTF-8 bytes.');
+              values.first.contains('\u0000')) {
+            throw const FormatException('Use a command of 1–133 UTF-8 bytes.'); }
           final time = ByteData(4)
             ..setUint32(0, DateTime.now().millisecondsSinceEpoch ~/ 1000,
                 Endian.little);
@@ -211,12 +212,12 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
         await run(frame, replies: const {6});
       });
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext buildContext) {
     final state = ref.watch(radioProvider);
     ref.listen(radioProvider.select((s) => s.remoteEvent), (_, next) {
       if (next == null ||
           next.length < 8 ||
-          pendingToken != ref.read(radioProvider.notifier).sessionToken) return;
+          pendingToken != ref.read(radioProvider.notifier).sessionToken) { return; }
       final prefix = next
           .sublist(2, 8)
           .map((b) => b.toRadixString(16).padLeft(2, '0'))
@@ -224,7 +225,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
       if (prefix != pendingKey ||
           state.phase != RadioPhase.ready ||
           requestedAt == null ||
-          DateTime.now().difference(requestedAt!).inSeconds > 60) return;
+          DateTime.now().difference(requestedAt!).inSeconds > 60) { return; }
       String details;
       try {
         details = next.first == 0x8b
@@ -246,7 +247,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
             0x8b => "Telemetry response received",
             0x8d => "Path response received",
             _ => "Response"
-          }} at ${DateTime.now().toLocal()}. Payload (firmware format): ${details}');
+          }} at ${DateTime.now().toLocal()}. Payload (firmware format): $details');
     });
     final ready = !busy &&
         state.phase == RadioPhase.ready &&
@@ -294,14 +295,14 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                         final text =
                             await const MethodChannel('org.meshscout/files')
                                 .invokeMethod<String>('openBackup');
-                        if (text == null) return;
+                        if (text == null) { return; }
                         final data = jsonDecode(text) as Map<String, dynamic>;
                         if (data['format'] != 'meshscout-contacts' ||
                             data['version'] != 1 ||
                             data['contacts'] is! List ||
-                            (data['contacts'] as List).length > 100)
+                            (data['contacts'] as List).length > 100) {
                           throw const FormatException(
-                              'Choose a MeshScout contact export with up to 100 contacts.');
+                              'Choose a MeshScout contact export with up to 100 contacts.'); }
                         final commands = <List<int>>[];
                         for (final value in data['contacts'] as List) {
                           final row = value as Map<String, dynamic>;
@@ -311,14 +312,14 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                               (raw.length != 148 ||
                                   raw.any((v) => v < 0 || v > 255) ||
                                   MeshContact.parse([3, ...raw.skip(1)]).key !=
-                                      row['key']))
+                                      row['key'])) {
                             throw const FormatException(
-                                'Invalid contact data.');
+                                'Invalid contact data.'); }
                           commands.add(contactCommand(row['key'] as String,
                               row['name'] as String, row['type'] as int,
                               original: raw));
                         }
-                        if (!mounted) return;
+                        if (!mounted) { return; }
                         final yes = await showDialog<bool>(
                             context: context,
                             builder: (c) => AlertDialog(
@@ -335,7 +336,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                                               Navigator.pop(c, true),
                                           child: const Text('Import'))
                                     ]));
-                        if (yes != true) return;
+                        if (yes != true) { return; }
                         for (final command in commands) {
                           await run(command);
                           if (!notice.startsWith('Companion accepted')) break;
@@ -370,7 +371,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                           'Name',
                           '128-bit key: 32 hex characters (leave empty to generate)'
                         ]);
-                        if (values == null) return;
+                        if (values == null) { return; }
                         final generated = List.generate(
                                 16, (_) => Random.secure().nextInt(256))
                             .map((b) => b.toRadixString(16).padLeft(2, '0'))
@@ -382,7 +383,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                             ref.read(radioProvider.notifier).channelCapacity,
                             values[1],
                             secret);
-                        if (!mounted) return;
+                        if (!mounted) { return; }
                         final yes = await showDialog<bool>(
                             context: context,
                             builder: (c) => AlertDialog(
@@ -429,13 +430,16 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                           '5',
                           '0'
                         ]);
-                        if (values == null) return;
+                        if (values == null) { return; }
+                        if (!['0', '1'].contains(values[4])) {
+                          throw const FormatException('Client repeat must be 0 or 1.');
+                        }
                         final command = parametersCommand(
                             double.parse(values[0]),
                             double.parse(values[1]),
                             int.parse(values[2]),
                             int.parse(values[3]), repeat: values[4] == '1');
-                        if (!mounted) return;
+                        if (!mounted) { return; }
                         final yes = await showDialog<bool>(
                             context: context,
                             builder: (c) => AlertDialog(
@@ -452,7 +456,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                                               Navigator.pop(c, true),
                                           child: const Text('Apply'))
                                     ]));
-                        if (yes == true) await run(command);
+                        if (yes == true) { await run(command); }
                       })
                   : null,
               child: const Text('Frequency, bandwidth, SF and CR')),
@@ -484,9 +488,9 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                                                         Navigator.pop(d, true),
                                                     child: const Text('Delete'))
                                               ]));
-                                  if (yes == true)
+                                  if (yes == true) {
                                     await run([15, ...publicKey(c.key)],
-                                        refresh: true);
+                                        refresh: true); }
                                 })
                             : null,
                         child: const Text('Delete')),

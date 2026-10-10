@@ -3,12 +3,12 @@ import 'dart:typed_data';
 String pathDescription(List<int> bytes) {
   var offset = 8;
   String path(String direction) {
-    if (offset >= bytes.length) throw const FormatException('Truncated path.');
+    if (offset >= bytes.length) { throw const FormatException('Truncated path.'); }
     final encoded = bytes[offset++],
         count = encoded & 63,
         width = (encoded >> 6) + 1;
-    if (count > 64 || width > 3 || offset + count * width > bytes.length)
-      throw const FormatException('Invalid path.');
+    if (count > 64 || width > 3 || offset + count * width > bytes.length) {
+      throw const FormatException('Invalid path.'); }
     final hops = <String>[];
     for (var i = 0; i < count; i++) {
       hops.add(bytes
@@ -21,8 +21,8 @@ String pathDescription(List<int> bytes) {
   }
 
   final out = path('Outbound'), back = path('Return');
-  if (offset != bytes.length)
-    throw const FormatException('Unexpected path data.');
+  if (offset != bytes.length) {
+    throw const FormatException('Unexpected path data.'); }
   return '$out\n$back';
 }
 
@@ -57,8 +57,8 @@ String telemetryDescription(List<int> payload) {
     136: 9
   };
   while (offset < payload.length) {
-    if (offset + 2 > payload.length)
-      throw const FormatException('Truncated telemetry.');
+    if (offset + 2 > payload.length) {
+      throw const FormatException('Truncated telemetry.'); }
     final channel = payload[offset++],
         type = payload[offset++],
         length = lengths[type];
@@ -67,8 +67,8 @@ String telemetryDescription(List<int> payload) {
           'Channel $channel: unsupported type $type; remaining raw ${payload.skip(offset).map((b) => b.toRadixString(16).padLeft(2, "0")).join(" ")}');
       break;
     }
-    if (offset + length > payload.length)
-      throw const FormatException('Truncated telemetry.');
+    if (offset + length > payload.length) {
+      throw const FormatException('Truncated telemetry.'); }
     final value = switch (type) {
       2 || 3 => 'Analog ${(data.getInt16(offset) / 100).toStringAsFixed(2)}',
       101 => 'Light ${data.getUint16(offset)} lux',

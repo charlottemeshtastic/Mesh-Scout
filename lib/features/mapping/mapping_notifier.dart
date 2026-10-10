@@ -64,15 +64,15 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> initialize() async {
-    if (!state.loading) return;
+    if (!state.loading) { return; }
     try {
       final sessions = decodeSessions(await _service.load());
-      if (_disposed) return;
+      if (_disposed) { return; }
       _loadFailed = false;
       state =
           MappingState(loading: false, sessions: List.unmodifiable(sessions));
     } catch (_) {
-      if (_disposed) return;
+      if (_disposed) { return; }
       _loadFailed = true;
       state = const MappingState(
           loading: false,
@@ -86,16 +86,16 @@ class MappingNotifier extends Notifier<MappingState> {
         state.busy ||
         state.recording ||
         state.points.isNotEmpty ||
-        _loadFailed) return;
-    if (state.sessions.length >= 1000)
-      throw const FormatException('Session limit reached.');
+        _loadFailed) { return; }
+    if (state.sessions.length >= 1000) {
+      throw const FormatException('Session limit reached.'); }
     final sessions = [session, ...state.sessions];
     await _service.save(encodeSessions(sessions));
-    if (ref.mounted)
+    if (ref.mounted) {
       state = MappingState(
           loading: false,
           sessions: List.unmodifiable(sessions),
-          selected: session);
+          selected: session); }
   }
 
   Future<void> start({bool background = false}) async {
@@ -105,14 +105,14 @@ class MappingNotifier extends Notifier<MappingState> {
         state.points.isNotEmpty) {
       return;
     }
-    if (_loadFailed) return;
+    if (_loadFailed) { return; }
     final generation = ++_generation;
     _started = null;
     _starting = true;
     state = MappingState(loading: false, busy: true, sessions: state.sessions);
     try {
       await _service.authorize();
-      if (_disposed || generation != _generation) return;
+      if (_disposed || generation != _generation) { return; }
       _started = DateTime.now();
       _keepBackground = background;
       final service = _service;
@@ -122,7 +122,7 @@ class MappingNotifier extends Notifier<MappingState> {
       } else if (background) {
         throw StateError('Background GPS is unavailable on this platform.');
       }
-      if (_disposed || generation != _generation) return;
+      if (_disposed || generation != _generation) { return; }
       _starting = false;
       state = MappingState(
           loading: false,
@@ -130,7 +130,7 @@ class MappingNotifier extends Notifier<MappingState> {
           sessions: state.sessions,
           message: 'Waiting for a GPS fix…');
       _positions = _service.positions().listen((point) {
-        if (_disposed || generation != _generation || !state.recording) return;
+        if (_disposed || generation != _generation || !state.recording) { return; }
         if (!point.valid ||
             point.time
                 .isBefore(_started!.subtract(const Duration(seconds: 5)))) {
@@ -159,15 +159,15 @@ class MappingNotifier extends Notifier<MappingState> {
       });
     } catch (error) {
       _starting = false;
-      if (_disposed || generation != _generation) return;
+      if (_disposed || generation != _generation) { return; }
       state = MappingState(
           loading: false, sessions: state.sessions, message: error.toString());
     }
   }
 
   Future<void> stop({String? reason}) async {
-    if (state.busy) return;
-    if (!state.recording && state.points.isEmpty) return;
+    if (state.busy) { return; }
+    if (!state.recording && state.points.isEmpty) { return; }
     ++_generation;
     final points = state.points;
     final observations = state.observations;
@@ -200,14 +200,14 @@ class MappingNotifier extends Notifier<MappingState> {
           observations: observations);
       final updated = [session, ...sessions];
       await _service.save(encodeSessions(updated));
-      if (_disposed) return;
+      if (_disposed) { return; }
       state = MappingState(
           loading: false,
           sessions: List.unmodifiable(updated),
           selected: session,
           message: reason ?? 'Session saved on this phone.');
     } catch (_) {
-      if (_disposed) return;
+      if (_disposed) { return; }
       state = MappingState(
           loading: false,
           sessions: sessions,
@@ -226,7 +226,7 @@ class MappingNotifier extends Notifier<MappingState> {
     }
     final point = state.points.last;
     final age = rx.time.difference(point.time);
-    if (age.isNegative || age > const Duration(seconds: 15)) return;
+    if (age.isNegative || age > const Duration(seconds: 15)) { return; }
     final observation = CoverageObservation(
         point: point, rssi: rx.rssi, snr: rx.snr, time: rx.time);
     state = MappingState(
@@ -254,7 +254,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   void select(MappingSession session) {
-    if (state.recording || state.busy || state.points.isNotEmpty) return;
+    if (state.recording || state.busy || state.points.isNotEmpty) { return; }
     state = MappingState(
         loading: false, sessions: state.sessions, selected: session);
   }
@@ -276,7 +276,7 @@ class MappingNotifier extends Notifier<MappingState> {
               'Use a name of up to 80 characters without control characters.');
       return;
     }
-    if (!state.sessions.any((s) => s.id == session.id)) return;
+    if (!state.sessions.any((s) => s.id == session.id)) { return; }
     final previous = state;
     final updated = previous.sessions
         .map((s) =>
@@ -289,7 +289,7 @@ class MappingNotifier extends Notifier<MappingState> {
         selected: previous.selected);
     try {
       await _service.save(encodeSessions(updated));
-      if (_disposed) return;
+      if (_disposed) { return; }
       state = MappingState(
           loading: false,
           sessions: List.unmodifiable(updated),
@@ -298,7 +298,7 @@ class MappingNotifier extends Notifier<MappingState> {
               : previous.selected,
           message: 'Session name saved.');
     } catch (_) {
-      if (_disposed) return;
+      if (_disposed) { return; }
       state = MappingState(
           loading: false,
           sessions: previous.sessions,
@@ -324,7 +324,7 @@ class MappingNotifier extends Notifier<MappingState> {
       final updated =
           previous.sessions.where((s) => s.id != session.id).toList();
       await _service.save(encodeSessions(updated));
-      if (_disposed) return;
+      if (_disposed) { return; }
       state = MappingState(
           loading: false,
           sessions: List.unmodifiable(updated),

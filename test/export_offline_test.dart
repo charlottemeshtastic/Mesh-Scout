@@ -147,6 +147,44 @@ void main() {
       await directory.delete(recursive: true);
     }
   });
+  test('resume reuses completed tiles and rename persists', () async {
+    final directory = await Directory.systemTemp.createTemp('meshscout-resume');
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    var requests = 0;
+    var fail = true;
+    server.listen((request) async {
+      requests++;
+      if (fail && requests == 2) {
+        request.response.statusCode = 503;
+      } else {
+        request.response.headers.contentType = ContentType('image', 'png');
+        request.response.add([137, 80, 78, 71, 13, 10, 26, 10]);
+      }
+      await request.response.close();
+    });
+    final container = ProviderContainer(overrides: [
+      offlineDirectoryProvider.overrideWithValue(() async => directory.path),
+      offlineThrottleProvider.overrideWithValue(Duration.zero),
+      offlineTileUrlProvider.overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
+    ]);
+    try {
+      final actions = container.read(offlineProvider.notifier);
+      await actions.download(35.2, -80.8, name: 'Original');
+      expect(container.read(offlineProvider).area, isNull);
+      fail = false;
+      await actions.resume();
+      expect(requests, areaTiles(35.2, -80.8).length + 1);
+      expect(container.read(offlineProvider).area!.name, 'Original');
+      await actions.rename('Renamed');
+      await actions.initialize();
+      expect(container.read(offlineProvider).area!.name, 'Renamed');
+      expect(File('${directory.path}/offline/pending/resume.json').existsSync(), isFalse);
+    } finally {
+      container.dispose();
+      await server.close(force: true);
+      await directory.delete(recursive: true);
+    }
+  });
   test('failed replacement preserves previous complete area', () async {
     final directory =
         await Directory.systemTemp.createTemp('meshscout-map-failure');
