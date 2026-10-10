@@ -72,8 +72,8 @@ class RadioNotifier extends Notifier<RadioState> {
             phase: RadioPhase.scanning,
             devices: List.unmodifiable(devices.values));
       }, onError: (Object e) => unawaited(_fail(generation, e)));
-      _deadline =
-          ref.read(radioTimerProvider)(const Duration(seconds: 10), () => unawaited(stopScan()));
+      _deadline = ref.read(radioTimerProvider)(
+          const Duration(seconds: 10), () => unawaited(stopScan()));
     } catch (e) {
       await _fail(generation, e);
     }

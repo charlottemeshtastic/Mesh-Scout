@@ -30,7 +30,7 @@ jobs:
           cp /tmp/meshscout-build.gradle.kts android/app/build.gradle.kts
           git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml
       - run: flutter pub get --enforce-lockfile
-      - run: dart format lib test
+      - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --timeout 30s
       - run: flutter build apk --debug
@@ -42,11 +42,3 @@ jobs:
         with:
           name: meshscout-test-coverage
           path: coverage/lcov.info
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: validated-sources
-          path: |
-            lib/
-            test/
-            pubspec.lock
