@@ -167,7 +167,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   final _text = TextEditingController();
   String? _key;
   @override
-  void initState() { super.initState(); Future.microtask(() => ref.read(messagesProvider.notifier).load()); }
+  void initState() { super.initState(); Future.microtask(() { if (mounted) { return ref.read(messagesProvider.notifier).load(); } }); }
   @override
   void dispose() { _text.dispose(); super.dispose(); }
   @override

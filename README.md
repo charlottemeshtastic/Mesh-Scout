@@ -1,4 +1,4 @@
-# MeshScout 0.4
+# MeshScout 0.5
 
 Independent Android-first MeshCore field-mapping application. No BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
@@ -6,7 +6,7 @@ Independent Android-first MeshCore field-mapping application. No BackCountrySign
 
 Map, Radios, Nodes, Coverage, History and Settings are available from bottom navigation. Radio status is shown on every tab. Bluetooth scanning starts only on user action, requests the Android-version-appropriate permissions, and searches for up to ten seconds. Connect is enabled immediately when a UART candidate appears; selection cancels scanning. A UART UUID or name alone never proves MeshCore compatibility.
 
-Connection validates GATT RX/TX properties, negotiates MTU, subscribes to TX, and performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Setup has bounded deadlines and a single query retry for notification readiness. No configuration, messages, keys, or radio clock are changed. Raw identity replies, including any BLE PIN, are not displayed or persisted.
+Connection validates GATT RX/TX properties, negotiates MTU, subscribes to TX, and performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Setup has bounded deadlines and a single query retry for notification readiness. Identification changes no configuration, messages, keys, or radio clock. Messages are transmitted only through the explicit Send action. Raw identity replies, including any BLE PIN, are not displayed or persisted.
 
 An Android connectedDevice foreground service supports radio retention while switching apps. After an identified link drops, automatic reconnect retries the same companion at delays of 3, 6, 12, 24 and 30 seconds, at most five attempts. Each attempt repeats identification. The service stays active during retry delays. Settings can disable automatic reconnect; Disconnect/cancel stops pending retries and releases the service. Initial connection or protocol failures require manual recovery. The target and preference are in-memory for this app run; there is no reconnection after process death, and Android/OEM termination can still end a connection.
 
@@ -18,13 +18,21 @@ A stored contact or advertised location does not prove current presence, reachab
 
 The map can show stored contacts with advertised coordinates as purple markers. Tap a marker for name/type/key and advertisement time; hide them with the Advertised nodes checkbox. Contacts without coordinates are omitted, and neither a marker nor its location establishes current reachability.
 
+## Messaging
+
+Nodes → Messages opens a private on-phone inbox and composer. Refresh contacts first, then select a chat node to send plain direct text. Recipient prefixes must uniquely match the companion's contact table. Sends are bounded to 133 UTF-8 bytes and the negotiated MTU, have a single outstanding command, and are never automatically repeated. Radio acceptance is shown as delivery unconfirmed; only a matching SEND_CONFIRMED acknowledgement for an accepted send in this live app process establishes delivery. Ambiguous acknowledgement tags remain unconfirmed. Uncertain commands require reconnect before another request. No channel sending, CLI commands, radio clock changes or key editing are implemented.
+
+Fetch messages explicitly drains at most 100 queued messages per tap, stopping at 1,000 stored messages. Every supported contact/channel message is persisted before requesting the next. Queued-message retrieval removes it from the companion immediately; a process crash between retrieval and persistence can lose it. Unsupported queued types stop retrieval with a notice after the radio has already removed that item. Forwarded messages have unverified original origin. Fetch requires MTU ≥175. Incoming notifications only indicate waiting mail; there is no automatic queue draining or push notification service.
+
+Local history is written atomically to private, unencrypted app storage. Failed writes retain pending data in memory, block further sends/fetches, and offer Retry saving. Restarting the app does not resend messages or infer delivery from old acceptance. Clear history requires confirmation. There is no message backup/export or guaranteed lossless recovery from phone termination.
+
 ## Export and sharing
 
 History's Export session button offers Save or Share in GeoJSON or CSV. Android's document picker chooses a save destination; the share chooser grants temporary read access to the selected receiving application. Opening the chooser does not prove delivery. Exports include precise locations and UTC times; GPS accuracy and LoRa RSSI/SNR are preserved. GeoJSON uses longitude/latitude ordering and includes route geometry plus measurement features; a single GPS point never becomes an invalid one-point LineString. Export does not delete the local session. Temporary shared files are limited to 20 cached exports.
 
 ## Offline topo maps
 
-Map's Download area saves a roughly 4 × 4 km square centered on the current map view. No provider account is needed. Downloads use the public-domain USGS Topo tile service, restricted in this release to the contiguous U.S. and zoom levels 12–16, with at most 1,000 tiles / 50 MB. This is one replaceable area, not a whole-state or global download.
+Map's Download area saves a roughly 4 × 4, 8 × 8 or 12 × 12 km square centered on the current map view. No provider account is needed. Downloads use the public-domain USGS Topo tile service, restricted in this release to the contiguous U.S. and zoom levels 12–16, with at most 5,000 tiles / 150 MB. This is one replaceable area, not a whole-state or global download.
 
 Downloads show progress and support cancellation. A complete new area is published only after all tile responses are saved; failure/cancellation retains the prior complete area. Interrupted publication can recover the backup on next launch. The Offline switch uses only local files with no online tile fallback. Outside saved bounds, the basemap is unavailable; GPS, route and node overlays still operate. The area persists, but Offline mode is selected manually each fresh app launch. Delete offline area removes only the map pack. Below zoom 12 the offline basemap is hidden; zooming above 16 enlarges saved tiles. Enabling Offline centers the map on the saved area.
 
@@ -38,7 +46,7 @@ While recording with an identified radio, RX log pushes (0x88) provide signed Lo
 
 Coverage lists recent measured observations. Map shows individual measured dots, colored by RSSI: green at or above −90 dBm, orange at or above −110 dBm, red below −110 dBm. These are illustrative bins; there is no interpolation or invented signal between points. Observations without recent GPS are not mapped. Lack of observations does not prove lack of coverage.
 
-Stop and save writes a session atomically to private app files. History reopens the GPS route and its measurements and offers confirmed deletion. Older GPS-only sessions still load. Failed saves retain points/observations for Retry save and block starting another route over them. Each session is limited to 10,000 GPS fixes and 10,000 observations.
+Stop and save writes a session atomically to private app files. History reopens the GPS route and its measurements, supports editable session names (80 characters), and offers confirmed deletion. Names are saved atomically and included in GeoJSON; older unnamed sessions remain readable. Older GPS-only sessions still load. Failed saves retain points/observations for Retry save and block starting another route over them. Each session is limited to 10,000 GPS fixes and 10,000 observations.
 
 GPS recording stops and saves on background; radio connection/retry can continue independently. There is no background GPS permission or automatic GPS restart. Data remains local unencrypted app storage; backup is disabled. Uninstalling or clearing app data removes sessions. Online map tiles require internet; a previously downloaded topo area can be used in Offline mode. Session export is available from History.
 
@@ -61,6 +69,7 @@ Tests verify parsing, sequencing, state transitions, contact-stream integrity, r
 - Export an older GPS-only route and a route with measurements to GeoJSON/CSV. Save through Android, reopen in a GIS/spreadsheet, and verify timestamps, longitude/latitude, RSSI/SNR and accuracy. Share to another app; verify the attachment arrives.
 - Refresh contacts and locate purple advertised markers; tap details and hide/show markers.
 - Pan to your contiguous-U.S. test area, download it and enable Offline. Disable internet while keeping Bluetooth active, pan/zoom within the saved area, and restart/toggle Offline again. Verify outside-area missing basemap, cancellation, failure retaining old area, replacement and deletion.
+- Refresh contacts, open Messages, send to a known chat companion, distinguish acceptance from delivery confirmation, retrieve known direct/channel messages, restart to verify persistence, and test disconnection without duplicate transmission. Rename a saved route and reopen it; verify 4, 8 and 12 km download choices.
 - Repeat across Android/OEM and firmware/hardware variants. Do not share PINs, private keys or sensitive location data when reporting results.
 
 ## Sources

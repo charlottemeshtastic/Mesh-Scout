@@ -411,27 +411,9 @@ class HistoryScreen extends ConsumerWidget {
                         state.points.isNotEmpty
                     ? null
                     : () async {
-                        final controller =
-                            TextEditingController(text: session.name ?? '');
                         final name = await showDialog<String>(
                             context: context,
-                            builder: (c) => AlertDialog(
-                                    title: const Text('Name session'),
-                                    content: TextField(
-                                        controller: controller,
-                                        maxLength: 80,
-                                        decoration: const InputDecoration(
-                                            labelText: 'Session name')),
-                                    actions: [
-                                      TextButton(
-                                          onPressed: () => Navigator.pop(c),
-                                          child: const Text('Cancel')),
-                                      FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c, controller.text),
-                                          child: const Text('Save'))
-                                    ]));
-                        // The dialog's closing animation may still reference its controller.
+                            builder: (_) => _SessionNameDialog(name: session.name));
                         if (name != null) {
                           await actions.rename(session, name);
                         }
@@ -508,6 +490,23 @@ class HistoryScreen extends ConsumerWidget {
         ),
     ]);
   }
+}
+
+class _SessionNameDialog extends StatefulWidget {
+  const _SessionNameDialog({this.name});
+  final String? name;
+  @override
+  State<_SessionNameDialog> createState() => _SessionNameDialogState();
+}
+class _SessionNameDialogState extends State<_SessionNameDialog> {
+  late final controller = TextEditingController(text: widget.name ?? '');
+  @override
+  void dispose() { controller.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Name session'),
+    content: TextField(controller: controller, maxLength: 80, decoration: const InputDecoration(labelText: 'Session name')),
+    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Save'))]);
 }
 
 class FeaturePlaceholder extends StatelessWidget {
@@ -629,7 +628,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 0.4'),
+            title: Text('MeshScout 0.5'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),
