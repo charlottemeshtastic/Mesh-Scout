@@ -52,7 +52,9 @@ class RadioState {
       this.messageEvent,
       this.channels = const [],
       this.channelsLoading = false,
-      this.controlsBusy = false});
+      this.controlsBusy = false, this.heard = const [], this.remoteEvent});
+  final List<MeshContact> heard;
+  final List<int>? remoteEvent;
   final RadioPhase phase;
   final List<RadioDevice> devices;
   final RadioFailure? failure;
@@ -70,7 +72,7 @@ class RadioState {
   final List<int>? messageEvent;
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
   RadioState copyWith(
-          {RadioPhase? phase,
+          {List<MeshContact>? heard, List<int>? remoteEvent, RadioPhase? phase,
           List<RadioDevice>? devices,
           List<MeshContact>? contacts,
           bool? syncing,
@@ -85,6 +87,8 @@ class RadioState {
           bool? channelsLoading,
           bool? controlsBusy}) =>
       RadioState(
+          heard: heard ?? this.heard,
+          remoteEvent: remoteEvent ?? this.remoteEvent,
           phase: phase ?? this.phase,
           devices: devices ?? this.devices,
           failure: failure,
@@ -114,6 +118,7 @@ class RadioNotifier extends Notifier<RadioState> {
   Set<int> _messageTypes = {};
   String? get companionId => _target?.id;
   int get mtu => _mtu;
+  int get channelCapacity => _channelCapacity;
   int get sessionToken => _generation;
   int? _expected;
   int _generation = 0;
@@ -477,6 +482,19 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   void _data(List<int> bytes) {
+    if (bytes.isEmpty) return;
+    if (bytes.first == 0x8a) {
+      try {
+        final contact = MeshContact.parse(bytes);
+        state = state.copyWith(heard: List.unmodifiable([
+          contact, ...state.heard.where((c) => c.key != contact.key).take(99)
+        ]));
+      } on FormatException { /* Ignore malformed discovery frames. */ }
+    }
+    if ([0x85, 0x86, 0x87, 0x8b, 0x8d].contains(bytes.first)) {
+      state = state.copyWith(remoteEvent: List<int>.unmodifiable(bytes));
+    }
+
     if (bytes.first == 0x82 || bytes.first == 0x83) {
       state = state.copyWith(messageEvent: List<int>.unmodifiable(bytes));
     }

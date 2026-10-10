@@ -8,7 +8,8 @@ class MeshContact {
       required this.type,
       required this.lastAdvert,
       required this.latitude,
-      required this.longitude});
+      required this.longitude, this.frame = const []});
+  final List<int> frame;
   final String key;
   final String name;
   final int type;
@@ -45,7 +46,8 @@ class MeshContact {
             : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000,
                 isUtc: true),
         latitude: location ? lat : null,
-        longitude: location ? lon : null);
+        longitude: location ? lon : null,
+        frame: List.unmodifiable(bytes.take(148)));
   }
 }
 

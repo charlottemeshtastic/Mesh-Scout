@@ -1,3 +1,5 @@
+import '../backup/full_backup.dart';
+import '../mapping/field_tools.dart';
 import 'dart:async';
 import '../alerts/message_alerts.dart';
 import '../backup/backup.dart';
@@ -294,8 +296,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       urlTemplate: '${offline.area!.path}/{z}/{x}/{y}.tile',
                       tileProvider: FileTileProvider(),
                       minZoom: 12,
-                      minNativeZoom: 12,
-                      maxNativeZoom: 16,
+                      minNativeZoom: offline.area!.minZoom,
+                      maxNativeZoom: offline.area!.maxZoom,
                       errorTileCallback: (tile, error, stack) {},
                     )
                   else
@@ -613,6 +615,7 @@ class CoverageScreen extends ConsumerWidget {
     final observations = mapping.displayedObservations;
     return ListView(padding: const EdgeInsets.all(16), children: [
       Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
+      OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const FieldToolsScreen())), child: const Text('Summaries, comparisons, waypoints and route import')),
       const Text(
           'Received LoRa signal observations at your GPS location. These are last-hop reception metrics, not proof of sender reachability or two-way coverage.'),
       const SizedBox(height: 12),
@@ -696,6 +699,7 @@ class SettingsScreen extends ConsumerWidget {
                   : (value) =>
                       ref.read(backgroundGpsProvider.notifier).set(value)),
           const BackupControls(),
+          const FullBackupControls(),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),

@@ -15,8 +15,8 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
     throw const FormatException(
         'Offline topo currently supports the contiguous U.S.');
   }
-  if (![4, 8, 12].contains(sideKm)) {
-    throw const FormatException('Choose a 4, 8 or 12 km area.');
+  if (![4, 8, 12, 24, 48].contains(sideKm)) {
+    throw const FormatException('Choose a 4, 8, 12, 24 or 48 km area.');
   }
   final latDelta = sideKm / 2 / 111.32;
   final lonDelta = latDelta / math.cos(latitude * math.pi / 180);
@@ -31,7 +31,7 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
   }
 
   final tiles = <MapTile>[];
-  for (var z = 12; z <= 16; z++) {
+  for (var z = sideKm > 12 ? 10 : 12; z <= (sideKm > 12 ? 14 : 16); z++) {
     final n = 1 << z;
     for (var col = x(longitude - lonDelta, n);
         col <= x(longitude + lonDelta, n);
@@ -52,7 +52,8 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
 class OfflineArea {
   const OfflineArea(
       this.path, this.latitude, this.longitude, this.tiles, this.bytes,
-      {this.sideKm = 4, this.name});
+      {this.sideKm = 4, this.name, this.minZoom = 12, this.maxZoom = 16});
+  final int minZoom, maxZoom;
   final String path;
   final String? name;
   final double latitude, longitude;
@@ -64,6 +65,7 @@ final offlineDirectoryProvider = Provider<Future<String> Function()>((ref) =>
         .invokeMethod<String>('directory'))!);
 final dataDirectoryProvider = Provider<Future<String> Function()>(
     (ref) => ref.read(offlineDirectoryProvider));
+final mapDirectoryProvider = Provider<Future<String> Function()>((ref) => () async => "${await ref.read(offlineDirectoryProvider)()}/offline");
 final offlineTileUrlProvider = Provider<
     String Function(
         MapTile)>((ref) => (tile) =>
@@ -104,7 +106,7 @@ class OfflineMaps extends Notifier<OfflineState> {
   }
 
   Future<Directory> _root() async =>
-      Directory('${await ref.read(offlineDirectoryProvider)()}/offline');
+      Directory(await ref.read(mapDirectoryProvider)());
   Future<void> initialize() async {
     try {
       final root = await _root();
@@ -134,7 +136,7 @@ class OfflineMaps extends Notifier<OfflineState> {
               data['tiles'] as int,
               data['bytes'] as int,
               sideKm: data['sideKm'] as int? ?? 4,
-              name: data['name'] as String?));
+              name: data['name'] as String?, minZoom: data['minZoom'] as int? ?? 12, maxZoom: data['maxZoom'] as int? ?? 16));
         }
       }
       areas.sort((a, b) => b.path.compareTo(a.path));
@@ -165,7 +167,7 @@ class OfflineMaps extends Notifier<OfflineState> {
         area: state.area,
         areas: state.areas,
         enabled: state.enabled,
-        message: 'Download cancelled; previous area retained.');
+        message: 'Download paused. Resume to continue; saved areas retained.');
   }
 
   Future<void> download(double lat, double lon,
@@ -192,8 +194,11 @@ class OfflineMaps extends Notifier<OfflineState> {
       if (generation != _generation) return;
       await root.create(recursive: true);
       staging = Directory('${root.path}/pending');
-      if (staging.existsSync()) await staging.delete(recursive: true);
+      final resume = File('${staging.path}/resume.json');
+      final identity = jsonEncode({'lat':lat,'lon':lon,'sideKm':sideKm,'name':name});
+      if (staging.existsSync() && (!resume.existsSync() || await resume.readAsString() != identity)) await staging.delete(recursive: true);
       await staging.create(recursive: true);
+      await resume.writeAsString(identity, flush:true);
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15);
       _client = client;
@@ -201,6 +206,17 @@ class OfflineMaps extends Notifier<OfflineState> {
       var count = 0;
       for (final tile in tiles) {
         if (generation != _generation) return;
+        final existing = File('${staging.path}/${tile.z}/${tile.x}/${tile.y}.tile');
+        if (existing.existsSync()) {
+          final image = await existing.readAsBytes();
+          if (image.length >= 8 && image.length <= 1024*1024 && (image[0]==137 && image[1]==80 || image[0]==255 && image[1]==216)) {
+            bytes += image.length; count++;
+            if(bytes>150*1024*1024)throw const FormatException('Download exceeds 150 MB.');
+            state=OfflineState(area:previous,areas:saved,busy:true,progress:count,total:tiles.length);
+            continue;
+          }
+          await existing.delete();
+        }
         final request = await client
             .getUrl(Uri.parse(ref.read(offlineTileUrlProvider)(tile)))
             .timeout(const Duration(seconds: 20));
@@ -249,17 +265,19 @@ class OfflineMaps extends Notifier<OfflineState> {
             'tiles': count,
             'bytes': bytes,
             'sideKm': sideKm,
+            'minZoom':sideKm>12?10:12,'maxZoom':sideKm>12?14:16,
             if (name != null && name.trim().isNotEmpty) 'name': name.trim()
           }),
           flush: true);
       if (generation != _generation) return;
+      await resume.delete();
       _committing = true;
       final active = Directory(
           '${root.path}/area-${DateTime.now().microsecondsSinceEpoch}');
       await staging.rename(active.path);
       if (!ref.mounted) return;
       final area = OfflineArea(active.path, lat, lon, count, bytes,
-          sideKm: sideKm, name: name?.trim());
+          sideKm: sideKm, name: name?.trim(),minZoom:sideKm>12?10:12,maxZoom:sideKm>12?14:16);
       state = OfflineState(
           area: area,
           areas: List.unmodifiable([area, ...saved]),
@@ -274,12 +292,26 @@ class OfflineMaps extends Notifier<OfflineState> {
       _committing = false;
       _client?.close(force: true);
       _client = null;
-      if (staging != null && staging.existsSync()) {
-        await staging.delete(recursive: true);
-      }
+
     }
   }
 
+  Future<void> resume() async {
+    final metadata = File('${(await _root()).path}/pending/resume.json');
+    if(!metadata.existsSync())throw const FormatException('No paused download.');
+    final data=jsonDecode(await metadata.readAsString()) as Map<String,dynamic>;
+    await download((data['lat'] as num).toDouble(),(data['lon'] as num).toDouble(),sideKm:data['sideKm'] as int,name:data['name'] as String?);
+  }
+  Future<void> rename(String name) async {
+    if(state.busy || state.area==null)return;
+    if(name.trim().isEmpty || name.length>60 || name.contains(RegExp(r'[\x00-\x1f]')))throw const FormatException('Use a name of 1–60 characters.');
+    final selected=state.area!;
+    final file=File('${selected.path}/area.json');
+    final data=jsonDecode(await file.readAsString()) as Map<String,dynamic>;data['name']=name.trim();
+    final temp=File('${file.path}.tmp');await temp.writeAsString(jsonEncode(data),flush:true);await temp.rename(file.path);
+    await initialize();
+    final updated=state.areas.firstWhere((a)=>a.path==selected.path);select(updated);
+  }
   void select(OfflineArea area) {
     if (_running || state.busy || !state.areas.contains(area)) return;
     state =

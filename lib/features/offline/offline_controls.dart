@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'offline_maps.dart';
 
@@ -44,12 +45,12 @@ class OfflineControls extends ConsumerWidget {
                             builder: (c) => AlertDialog(
                                     title: const Text('Download offline topo?'),
                                     content: Text(
-                                        'Save an area around ${point.lat.toStringAsFixed(4)}, ${point.lon.toStringAsFixed(4)} at zoom 12–16. Contiguous U.S. only; up to 150 MB. Keeps up to five separate areas; existing areas are retained.'),
+                                        'Save an area around ${point.lat.toStringAsFixed(4)}, ${point.lon.toStringAsFixed(4)} at zoom 12–16 (4–12 km) or 10–14 (24–48 km). Contiguous U.S. only; up to 150 MB. Keeps up to five separate areas; existing areas are retained.'),
                                     actions: [
                                       TextButton(
                                           onPressed: () => Navigator.pop(c),
                                           child: const Text('Cancel')),
-                                      for (final side in [4, 8, 12])
+                                      for (final side in [4, 8, 12, 24, 48])
                                         TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(c, side),
@@ -110,11 +111,17 @@ class OfflineControls extends ConsumerWidget {
                     },
               icon: const Icon(Icons.delete_outline))
       ]),
+      Wrap(children:[
+        TextButton(onPressed:offline.busy?null:()async{try{await actions.resume();}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}},child:const Text('Resume download')),
+        TextButton(onPressed:offline.busy || offline.area==null?null:()async{final name=await showDialog<String>(context:context,builder:(_)=>const _AreaNameDialog());if(name!=null){try{await actions.rename(name);}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}}},child:const Text('Rename area')),
+        TextButton(onPressed:offline.busy?null:()async{try{await const MethodChannel('org.meshscout/files').invokeMethod<bool>('importMap');await actions.initialize();}catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Map import failed: $e')));}},child:const Text('Import raster MBTiles')),
+      ]),
+      const Text('Raster MBTiles supports larger regions worldwide: PNG/JPEG, up to 500 MB and 50,000 tiles. Use a map pack you have permission to download. Vector MBTiles is unsupported.'),
       if (offline.message != null)
         Text(offline.message!, style: Theme.of(context).textTheme.bodySmall),
       if (offline.enabled)
         Text(
-            '${offline.area!.sideKm} × ${offline.area!.sideKm} km offline topo · zoom 12–16 · saved near ${offline.area!.latitude.toStringAsFixed(3)}, ${offline.area!.longitude.toStringAsFixed(3)}. Outside the downloaded area, no basemap is available.',
+            '${offline.area!.sideKm} × ${offline.area!.sideKm} km offline map · zoom ${offline.area!.minZoom}–${offline.area!.maxZoom} · saved near ${offline.area!.latitude.toStringAsFixed(3)}, ${offline.area!.longitude.toStringAsFixed(3)}. Outside the downloaded area, no basemap is available.',
             style: Theme.of(context).textTheme.bodySmall),
     ]);
   }

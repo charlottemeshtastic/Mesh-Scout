@@ -61,7 +61,7 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
     throw const FormatException('Truncated message.');
   }
   final type = bytes[typeOffset];
-  if (type != 0 && type != 2) {
+  if (type != 0 && type != 1 && type != 2) {
     throw const FormatException('Unsupported message type.');
   }
   final offset = typeOffset + 5 + (type == 2 ? 4 : 0);

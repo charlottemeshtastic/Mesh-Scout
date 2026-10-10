@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/mesh_data.dart';
 import '../radio/radio_notifier.dart';
 import '../messages/messages.dart';
+import '../radio/advanced_radio.dart';
 
 class NodesScreen extends ConsumerStatefulWidget {
   const NodesScreen({super.key});
@@ -25,6 +26,7 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
       Text('Nodes', style: Theme.of(context).textTheme.headlineSmall),
       const Text(
           'Contacts stored on your companion radio. A saved contact does not prove current reachability.'),
+      OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const AdvancedRadioScreen())), child: const Text('Manage contacts, channels and diagnostics')),
       const SizedBox(height: 12),
       OutlinedButton.icon(
           onPressed: () => Navigator.push(

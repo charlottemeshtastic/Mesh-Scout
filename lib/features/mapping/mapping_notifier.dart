@@ -81,6 +81,14 @@ class MappingNotifier extends Notifier<MappingState> {
     }
   }
 
+  Future<void> importSession(MappingSession session) async {
+    if (state.loading || state.busy || state.recording || state.points.isNotEmpty || _loadFailed) return;
+    if (state.sessions.length >= 1000) throw const FormatException('Session limit reached.');
+    final sessions = [session, ...state.sessions];
+    await _service.save(encodeSessions(sessions));
+    if (ref.mounted) state = MappingState(loading: false, sessions: List.unmodifiable(sessions), selected: session);
+  }
+
   Future<void> start({bool background = false}) async {
     if (state.loading ||
         state.busy ||

@@ -8,10 +8,12 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class ScoutFiles(private val activity: Activity) {
+    private val bundles = ScoutBundles(activity)
     private var pending: MethodChannel.Result? = null
     private var content: String? = null
 
     fun handle(call: MethodCall, result: MethodChannel.Result) {
+        if (bundles.handle(call, result)) return
         try {
             if (call.method == "directory") {
                 result.success(activity.filesDir.absolutePath)
@@ -38,7 +40,8 @@ class ScoutFiles(private val activity: Activity) {
                 require(pending == null)
                 pending = result
                 activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE); type = "application/json"
+                    addCategory(Intent.CATEGORY_OPENABLE); type = "*/*"
+                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "application/geo+json", "text/plain"))
                 }, 805)
                 return
             }
@@ -79,6 +82,7 @@ class ScoutFiles(private val activity: Activity) {
         }
     }
     fun activityResult(request: Int, code: Int, data: Intent?): Boolean {
+        if (bundles.activityResult(request, code, data)) return true
         if (request == 805) {
             val result = pending ?: return true
             pending = null
