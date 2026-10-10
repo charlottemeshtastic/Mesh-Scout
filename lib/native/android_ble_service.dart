@@ -17,11 +17,13 @@ class AndroidBleService implements BleService {
       throw const RadioException(RadioFailure.unavailable);
     }
     final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
-    final permissions = permissionPlan(sdk).map((access) => switch (access) {
-      BluetoothAccess.scan => Permission.bluetoothScan,
-      BluetoothAccess.connect => Permission.bluetoothConnect,
-      BluetoothAccess.location => Permission.locationWhenInUse,
-    }).toList();
+    final permissions = permissionPlan(sdk)
+        .map((access) => switch (access) {
+              BluetoothAccess.scan => Permission.bluetoothScan,
+              BluetoothAccess.connect => Permission.bluetoothConnect,
+              BluetoothAccess.location => Permission.locationWhenInUse,
+            })
+        .toList();
     final statuses = await permissions.request();
     if (statuses.values.any((s) => s.isPermanentlyDenied)) {
       throw const RadioException(RadioFailure.permanentlyDenied);
@@ -30,9 +32,11 @@ class AndroidBleService implements BleService {
       throw const RadioException(RadioFailure.denied);
     }
     await _ble.initialize();
-    final status = await _ble.statusStream.firstWhere(
-      (s) => s != BleStatus.unknown,
-    ).timeout(const Duration(seconds: 5));
+    final status = await _ble.statusStream
+        .firstWhere(
+          (s) => s != BleStatus.unknown,
+        )
+        .timeout(const Duration(seconds: 5));
     if (status != BleStatus.ready) {
       throw const RadioException(RadioFailure.unavailable);
     }
@@ -40,19 +44,23 @@ class AndroidBleService implements BleService {
 
   @override
   Stream<RadioDevice> scan() => _ble.scanForDevices(
-    withServices: [_service], scanMode: ScanMode.lowLatency,
-  ).map((d) => RadioDevice(d.id, d.name, d.rssi));
+        withServices: [_service],
+        scanMode: ScanMode.lowLatency,
+      ).map((d) => RadioDevice(d.id, d.name, d.rssi));
 
   @override
-  Stream<RadioLink> connect(String id) => _ble.connectToAdvertisingDevice(
-    id: id, withServices: [_service],
-    prescanDuration: const Duration(seconds: 3),
-    connectionTimeout: const Duration(seconds: 10),
-  ).map((u) => switch (u.connectionState) {
-    DeviceConnectionState.connected => RadioLink.connected,
-    DeviceConnectionState.disconnected => RadioLink.disconnected,
-    _ => RadioLink.connecting,
-  });
+  Stream<RadioLink> connect(String id) => _ble
+      .connectToAdvertisingDevice(
+        id: id,
+        withServices: [_service],
+        prescanDuration: const Duration(seconds: 3),
+        connectionTimeout: const Duration(seconds: 10),
+      )
+      .map((u) => switch (u.connectionState) {
+            DeviceConnectionState.connected => RadioLink.connected,
+            DeviceConnectionState.disconnected => RadioLink.disconnected,
+            _ => RadioLink.connecting,
+          });
 
   @override
   Future<void> discover(String id) async {
@@ -65,7 +73,10 @@ class AndroidBleService implements BleService {
     final characteristics = matches.single.characteristics;
     final rx = characteristics.where((c) => c.id == Uuid.parse(meshCoreRx));
     final tx = characteristics.where((c) => c.id == Uuid.parse(meshCoreTx));
-    if (rx.length != 1 || tx.length != 1 || !rx.single.isWritableWithResponse || !tx.single.isNotifiable) {
+    if (rx.length != 1 ||
+        tx.length != 1 ||
+        !rx.single.isWritableWithResponse ||
+        !tx.single.isNotifiable) {
       throw const RadioException(RadioFailure.protocol);
     }
   }
@@ -75,7 +86,10 @@ class AndroidBleService implements BleService {
       _ble.requestMtu(deviceId: id, mtu: requestedCompanionMtu);
 
   QualifiedCharacteristic _characteristic(String id, String uuid) =>
-      QualifiedCharacteristic(deviceId: id, serviceId: _service, characteristicId: Uuid.parse(uuid));
+      QualifiedCharacteristic(
+          deviceId: id,
+          serviceId: _service,
+          characteristicId: Uuid.parse(uuid));
 
   @override
   Stream<List<int>> notifications(String id) =>
@@ -83,8 +97,11 @@ class AndroidBleService implements BleService {
 
   @override
   Future<void> write(String id, List<int> bytes) =>
-      _ble.writeCharacteristicWithResponse(_characteristic(id, meshCoreRx), value: bytes);
+      _ble.writeCharacteristicWithResponse(_characteristic(id, meshCoreRx),
+          value: bytes);
 
   @override
-  Future<void> openSettings() async { await openAppSettings(); }
+  Future<void> openSettings() async {
+    await openAppSettings();
+  }
 }

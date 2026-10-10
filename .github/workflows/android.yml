@@ -2,6 +2,9 @@ name: MeshScout Android CI
 on:
   push:
   pull_request:
+concurrency:
+  group: meshscout-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -31,7 +34,7 @@ jobs:
           cp /tmp/meshscout-pubspec.lock pubspec.lock
           cp /tmp/meshscout-analysis.yaml analysis_options.yaml
       - run: flutter pub get --enforce-lockfile
-      - run: dart format lib test
+      - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --timeout 2m
       - run: flutter build apk --debug
