@@ -66,7 +66,8 @@ class _BackupControlsState extends ConsumerState<BackupControls> {
   }
   Future<void> perform(bool restore) async {
     if (!available || ref.read(maintenanceProvider)) return;
-    ref.read(maintenanceProvider.notifier).set(true);
+    final maintenance = ref.read(maintenanceProvider.notifier);
+    maintenance.set(true);
     try {
       if (restore) {
         final text = await channel.invokeMethod<String>('openBackup');
@@ -94,7 +95,7 @@ class _BackupControlsState extends ConsumerState<BackupControls> {
     } catch (e) {
       notice = 'Backup/restore failed: $e';
     } finally {
-      if (ref.mounted) ref.read(maintenanceProvider.notifier).set(false);
+      maintenance.set(false);
       if (mounted) setState(() {});
     }
   }

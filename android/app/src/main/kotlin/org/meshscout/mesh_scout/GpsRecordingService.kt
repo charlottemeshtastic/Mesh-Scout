@@ -25,6 +25,11 @@ import java.util.TimeZone
 /** A user-started location service; never restarts itself after process death. */
 class GpsRecordingService : Service(), LocationListener {
     companion object {
+        private var active: GpsRecordingService? = null
+        fun stop(context: android.content.Context) {
+            active?.finish()
+            context.stopService(Intent(context, GpsRecordingService::class.java))
+        }
         var running = false
             private set
         var sink: EventChannel.EventSink? = null
@@ -56,6 +61,14 @@ class GpsRecordingService : Service(), LocationListener {
     private var session: JSONObject? = null
     private var lastTime = 0L
     private fun iso(time: Long): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(time))
+    override fun onCreate() { super.onCreate(); active = this }
+    private fun finish() {
+        locations.removeUpdates(this)
+        running = false
+        session = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (running) return START_NOT_STICKY
         try {
@@ -76,14 +89,14 @@ class GpsRecordingService : Service(), LocationListener {
             lastTime = started / 1000 - 5000
             running = true
             locations.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
-        } catch (e: Exception) { sink?.error("gps", e.message, null); stopSelf() }
+        } catch (e: Exception) { sink?.error("gps", e.message, null); finish() }
         return START_NOT_STICKY
     }
     override fun onLocationChanged(location: Location) {
         val data = session ?: return
         if (!location.hasAccuracy() || location.accuracy < 0 || location.accuracy > 100) return
         val points = data.getJSONArray("points")
-        if (points.length() >= 10000) { sink?.endOfStream(); stopSelf(); return }
+        if (points.length() >= 10000) { sink?.endOfStream(); finish(); return }
         if (location.time <= lastTime) return
         lastTime = location.time
         try {
@@ -93,15 +106,15 @@ class GpsRecordingService : Service(), LocationListener {
             ScoutStorage.write(temp, data.toString())
             require(temp.renameTo(File(filesDir, "gps-in-progress.json")))
             sink?.success(mapOf("lat" to location.latitude, "lon" to location.longitude, "accuracy" to location.accuracy.toDouble(), "time" to location.time))
-        } catch (e: Exception) { sink?.error("gps_save", "Could not checkpoint GPS route", null); stopSelf() }
+        } catch (e: Exception) { sink?.error("gps_save", "Could not checkpoint GPS route", null); finish() }
     }
-    override fun onProviderDisabled(provider: String) { sink?.error("gps_off", "GPS/location services were turned off", null); stopSelf() }
+    override fun onProviderDisabled(provider: String) { sink?.error("gps_off", "GPS/location services were turned off", null); finish() }
     override fun onProviderEnabled(provider: String) {}
     @Deprecated("Legacy callback")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     override fun onDestroy() {
         locations.removeUpdates(this)
-        running = false
+        if (active === this) { active = null; running = false }
         session = null
         super.onDestroy()
     }

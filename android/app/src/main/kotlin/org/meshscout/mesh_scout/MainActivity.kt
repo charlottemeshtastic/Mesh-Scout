@@ -116,7 +116,7 @@ class MainActivity : FlutterActivity() {
                 override fun onCancel(arguments: Any?) {
                     stopLocations()
                     GpsRecordingService.sink = null
-                    stopService(Intent(this@MainActivity, GpsRecordingService::class.java))
+                    GpsRecordingService.stop(this@MainActivity)
                 }
             })
     }
@@ -148,7 +148,7 @@ class MainActivity : FlutterActivity() {
         scoutFiles.dispose()
         stopLocations()
         GpsRecordingService.sink = null
-        stopService(Intent(this, GpsRecordingService::class.java))
+        GpsRecordingService.stop(this)
         stopService(Intent(this, RadioConnectionService::class.java))
         super.onDestroy()
     }
