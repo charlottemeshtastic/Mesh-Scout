@@ -152,7 +152,8 @@ class OfflineMaps extends Notifier<OfflineState> {
       final root = await _root();
       if (generation != _generation) return;
       await root.create(recursive: true);
-      staging = Directory('${root.path}/pending-$generation');
+      staging = Directory('${root.path}/pending');
+      if (staging.existsSync()) await staging.delete(recursive: true);
       await staging.create(recursive: true);
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15);

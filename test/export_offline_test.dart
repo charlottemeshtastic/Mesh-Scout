@@ -69,6 +69,9 @@ void main() {
       () async {
     final directory =
         await Directory.systemTemp.createTemp('meshscout-map-test');
+    final stale = File('${directory.path}/offline/pending/ghost.tile');
+    await stale.parent.create(recursive: true);
+    await stale.writeAsString('interrupted prior download');
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final sub = server.listen((request) async {
       request.response.headers.contentType = ContentType('image', 'png');
@@ -87,6 +90,7 @@ void main() {
       final state = container.read(offlineProvider);
       expect(state.area, isNotNull);
       expect(state.area!.tiles, areaTiles(35.2, -80.8).length);
+      expect(File('${state.area!.path}/ghost.tile').existsSync(), isFalse);
       expect(state.busy, isFalse);
       actions.enable(true);
       expect(container.read(offlineProvider).enabled, isTrue);
@@ -126,7 +130,7 @@ void main() {
       expect(container.read(offlineProvider).area!.latitude, 35.2);
       expect(container.read(offlineProvider).message, contains('failed'));
       expect(File('${active.path}/area.json').existsSync(), isTrue);
-      expect(Directory('${directory.path}/offline/pending-1').existsSync(),
+      expect(Directory('${directory.path}/offline/pending').existsSync(),
           isFalse);
     } finally {
       container.dispose();
@@ -158,7 +162,7 @@ void main() {
       expect(container.read(offlineProvider).message, contains('cancelled'));
       expect(
           Directory('${directory.path}/offline/active').existsSync(), isFalse);
-      expect(Directory('${directory.path}/offline/pending-1').existsSync(),
+      expect(Directory('${directory.path}/offline/pending').existsSync(),
           isFalse);
     } finally {
       container.dispose();
