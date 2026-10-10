@@ -198,6 +198,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _controller.move(LatLng(point.latitude, point.longitude), 16);
     });
     final offline = ref.watch(offlineProvider);
+    ref.listen(offlineProvider, (previous, next) {
+      if (_mapReady && next.enabled && next.area != null &&
+          (previous?.enabled != true || previous?.area != next.area)) {
+        _controller.move(LatLng(next.area!.latitude, next.area!.longitude), 14);
+      }
+    });
     final nodes = ref
         .watch(radioProvider)
         .contacts
@@ -238,6 +244,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       key: ValueKey(offline.area),
                       urlTemplate: '${offline.area!.path}/{z}/{x}/{y}.tile',
                       tileProvider: FileTileProvider(),
+                      minZoom: 12,
                       minNativeZoom: 12,
                       maxNativeZoom: 16,
                       errorTileCallback: (tile, error, stack) {},
