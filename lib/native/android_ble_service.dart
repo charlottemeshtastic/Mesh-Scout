@@ -16,9 +16,11 @@ class AndroidBleService implements BleService {
       throw const RadioException(RadioFailure.unavailable);
     }
     final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
-    final permissions = sdk >= 31
-        ? [Permission.bluetoothScan, Permission.bluetoothConnect]
-        : [Permission.locationWhenInUse];
+    final permissions = permissionPlan(sdk).map((access) => switch (access) {
+      BluetoothAccess.scan => Permission.bluetoothScan,
+      BluetoothAccess.connect => Permission.bluetoothConnect,
+      BluetoothAccess.location => Permission.locationWhenInUse,
+    }).toList();
     final statuses = await permissions.request();
     if (statuses.values.any((s) => s.isPermanentlyDenied)) {
       throw const RadioException(RadioFailure.permanentlyDenied);

@@ -66,7 +66,7 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> connect(RadioDevice device) async {
-    if (state.phase != RadioPhase.idle || !state.devices.any((d) => d.id == device.id)) return;
+    if (state.phase != RadioPhase.idle || !state.devices.any((d) => d.id == device.id)) { return; }
     final generation = ++_generation;
     state = const RadioState(phase: RadioPhase.connecting);
     try {
@@ -103,7 +103,7 @@ class RadioNotifier extends Notifier<RadioState> {
       if (!_current(generation)) return;
       final info = await _exchange(generation, id, deviceQuery, 13);
       if (!_current(generation)) return;
-      if (info[1] < 3) throw const RadioException(RadioFailure.protocol);
+      if (info[1] < 3) { throw const RadioException(RadioFailure.protocol); }
       _deadline?.cancel();
       state = const RadioState(phase: RadioPhase.ready);
     } catch (e) { await _fail(generation, e); }
@@ -115,12 +115,12 @@ class RadioNotifier extends Notifier<RadioState> {
     _response = response;
     // Observe cancellation before sending and after each bounded operation.
     for (var attempt = 0; attempt < 2; attempt++) {
-      if (!_current(generation)) throw const RadioException(RadioFailure.transport);
+      if (!_current(generation)) { throw const RadioException(RadioFailure.transport); }
       await _service.write(id, command).timeout(const Duration(seconds: 3));
       try {
         return await response.future.timeout(const Duration(seconds: 2));
       } on TimeoutException {
-        if (attempt == 1) throw const RadioException(RadioFailure.protocol);
+        if (attempt == 1) { throw const RadioException(RadioFailure.protocol); }
       }
     }
     throw const RadioException(RadioFailure.protocol);
@@ -130,14 +130,14 @@ class RadioNotifier extends Notifier<RadioState> {
     if (!_current(generation)) return;
     final cleanupGeneration = ++_generation;
     await _cleanup();
-    if (_current(cleanupGeneration)) state = RadioState(phase: RadioPhase.failed,
-      failure: error is RadioException ? error.failure : RadioFailure.transport);
+    if (_current(cleanupGeneration)) { state = RadioState(phase: RadioPhase.failed,
+      failure: error is RadioException ? error.failure : RadioFailure.transport); }
   }
 
   Future<void> disconnect() async {
     final generation = ++_generation;
     final failure = await _cleanup();
-    if (_current(generation)) state = failure == null ? const RadioState() : RadioState(phase: RadioPhase.failed, failure: failure);
+    if (_current(generation)) { state = failure == null ? const RadioState() : RadioState(phase: RadioPhase.failed, failure: failure); }
   }
 
   Future<RadioFailure?> _cleanup() async {

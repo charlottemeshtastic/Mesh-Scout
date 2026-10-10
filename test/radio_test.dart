@@ -18,7 +18,7 @@ class FakeBle implements BleService {
   final writes = <List<int>>[];
   @override
   Future<void> authorize() async {
-    if (authorizationFailure case final failure?) throw RadioException(failure);
+    if (authorizationFailure case final failure?) { throw RadioException(failure); }
   }
   @override
   Stream<RadioDevice> scan() { scanCalls++; return devices.stream; }
@@ -34,7 +34,7 @@ class FakeBle implements BleService {
   @override
   Future<void> write(String id, List<int> bytes) async {
     writes.add(bytes);
-    if (answer) packets.add(bytes.first == 1 ? [5, ...List.filled(57, 0)] : [13, 3, ...List.filled(78, 0)]);
+    if (answer) { packets.add(bytes.first == 1 ? [5, ...List.filled(57, 0)] : [13, 3, ...List.filled(78, 0)]); }
   }
   @override
   Future<void> openSettings() async {}
@@ -42,6 +42,11 @@ class FakeBle implements BleService {
 }
 
 void main() {
+  test('Android permission split occurs exactly at API 31', () {
+    expect(permissionPlan(30), [BluetoothAccess.location]);
+    expect(permissionPlan(31), [BluetoothAccess.scan, BluetoothAccess.connect]);
+    expect(permissionPlan(36), [BluetoothAccess.scan, BluetoothAccess.connect]);
+  });
   late FakeBle ble;
   late ProviderContainer container;
   late RadioNotifier actions;

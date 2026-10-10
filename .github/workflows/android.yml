@@ -24,7 +24,7 @@ jobs:
           cp android/app/src/main/AndroidManifest.xml /tmp/meshscout-manifest.xml
           flutter create --platforms=android --org org.meshscout --project-name mesh_scout --no-pub .
           cp /tmp/meshscout-manifest.xml android/app/src/main/AndroidManifest.xml
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
       - run: dart format lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage
