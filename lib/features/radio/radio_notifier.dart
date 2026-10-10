@@ -40,7 +40,9 @@ class RadioState {
       this.syncedAt,
       this.lastRx,
       this.autoReconnect = true,
-      this.retryAttempt = 0, this.messagingBusy = false, this.messageEvent});
+      this.retryAttempt = 0,
+      this.messagingBusy = false,
+      this.messageEvent});
   final RadioPhase phase;
   final List<RadioDevice> devices;
   final RadioFailure? failure;
@@ -63,7 +65,9 @@ class RadioState {
           DateTime? syncedAt,
           RxObservation? lastRx,
           bool? autoReconnect,
-          int? retryAttempt, bool? messagingBusy, List<int>? messageEvent}) =>
+          int? retryAttempt,
+          bool? messagingBusy,
+          List<int>? messageEvent}) =>
       RadioState(
           phase: phase ?? this.phase,
           devices: devices ?? this.devices,
@@ -75,7 +79,8 @@ class RadioState {
           lastRx: lastRx ?? this.lastRx,
           autoReconnect: autoReconnect ?? this.autoReconnect,
           retryAttempt: retryAttempt ?? this.retryAttempt,
-          messagingBusy: messagingBusy ?? this.messagingBusy, messageEvent: messageEvent ?? this.messageEvent);
+          messagingBusy: messagingBusy ?? this.messagingBusy,
+          messageEvent: messageEvent ?? this.messageEvent);
 }
 
 class RadioNotifier extends Notifier<RadioState> {
@@ -269,7 +274,10 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> refreshContacts() async {
-    if (state.phase != RadioPhase.ready || state.syncing || state.messagingBusy || _target == null) {
+    if (state.phase != RadioPhase.ready ||
+        state.syncing ||
+        state.messagingBusy ||
+        _target == null) {
       return;
     }
     if (_syncFailed) {
@@ -312,8 +320,13 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<List<int>> messageCommand(List<int> command, Set<int> replies) async {
-    if (state.phase != RadioPhase.ready || state.syncing || state.messagingBusy || _target == null || _syncFailed) {
-      throw StateError('Connect or reconnect the radio and finish contact sync first.');
+    if (state.phase != RadioPhase.ready ||
+        state.syncing ||
+        state.messagingBusy ||
+        _target == null ||
+        _syncFailed) {
+      throw StateError(
+          'Connect or reconnect the radio and finish contact sync first.');
     }
     final generation = _generation;
     final reply = Completer<List<int>>();
@@ -324,14 +337,21 @@ class RadioNotifier extends Notifier<RadioState> {
     final response = _withTimeout(reply.future, const Duration(seconds: 8));
     unawaited(response.then<void>((_) {}, onError: (Object _) {}));
     try {
-      await _withTimeout(_service.write(_target!.id, command), const Duration(seconds: 3));
+      await _withTimeout(
+          _service.write(_target!.id, command), const Duration(seconds: 3));
       final bytes = await response;
-      if (bytes.first == 1) { throw StateError('Radio rejected the request.'); }
-      if (bytes.first == 6 && bytes.length != 10) { throw const FormatException('Invalid radio acceptance.'); }
+      if (bytes.first == 1) {
+        throw StateError('Radio rejected the request.');
+      }
+      if (bytes.first == 6 && bytes.length != 10) {
+        throw const FormatException('Invalid radio acceptance.');
+      }
       return bytes;
     } catch (_) {
       // Never retry a transmission or let a late reply match another command.
-      if (_current(generation)) { _syncFailed = true; }
+      if (_current(generation)) {
+        _syncFailed = true;
+      }
       rethrow;
     } finally {
       // Consume cancellation errors even when the write failed first.
@@ -349,7 +369,9 @@ class RadioNotifier extends Notifier<RadioState> {
       state = state.copyWith(messageEvent: List<int>.unmodifiable(bytes));
     }
     final reply = _messageReply;
-    if (reply != null && !reply.isCompleted && _messageTypes.contains(bytes.first)) {
+    if (reply != null &&
+        !reply.isCompleted &&
+        _messageTypes.contains(bytes.first)) {
       reply.complete(List<int>.unmodifiable(bytes));
     }
     final rx = RxObservation.parse(bytes, DateTime.now());

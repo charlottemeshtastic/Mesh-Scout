@@ -406,18 +406,18 @@ class HistoryScreen extends ConsumerWidget {
             IconButton(
                 icon: const Icon(Icons.edit_outlined),
                 tooltip: 'Name session',
-                onPressed: state.recording ||
-                        state.busy ||
-                        state.points.isNotEmpty
-                    ? null
-                    : () async {
-                        final name = await showDialog<String>(
-                            context: context,
-                            builder: (_) => _SessionNameDialog(name: session.name));
-                        if (name != null) {
-                          await actions.rename(session, name);
-                        }
-                      }),
+                onPressed:
+                    state.recording || state.busy || state.points.isNotEmpty
+                        ? null
+                        : () async {
+                            final name = await showDialog<String>(
+                                context: context,
+                                builder: (_) =>
+                                    _SessionNameDialog(name: session.name));
+                            if (name != null) {
+                              await actions.rename(session, name);
+                            }
+                          }),
             IconButton(
                 icon: const Icon(Icons.ios_share),
                 tooltip: 'Export session',
@@ -498,15 +498,30 @@ class _SessionNameDialog extends StatefulWidget {
   @override
   State<_SessionNameDialog> createState() => _SessionNameDialogState();
 }
+
 class _SessionNameDialogState extends State<_SessionNameDialog> {
   late final controller = TextEditingController(text: widget.name ?? '');
   @override
-  void dispose() { controller.dispose(); super.dispose(); }
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Name session'),
-    content: TextField(controller: controller, maxLength: 80, decoration: const InputDecoration(labelText: 'Session name')),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Save'))]);
+          title: const Text('Name session'),
+          content: TextField(
+              controller: controller,
+              maxLength: 80,
+              decoration: const InputDecoration(labelText: 'Session name')),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, controller.text),
+                child: const Text('Save'))
+          ]);
 }
 
 class FeaturePlaceholder extends StatelessWidget {
