@@ -224,7 +224,10 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> rename(MappingSession session, String input) async {
-    if (state.recording || state.busy || _loadFailed || state.points.isNotEmpty) {
+    if (state.recording ||
+        state.busy ||
+        _loadFailed ||
+        state.points.isNotEmpty) {
       return;
     }
     final value = input.trim();
