@@ -172,7 +172,7 @@ void main() {
       expect(container.read(offlineProvider).message, contains('failed'));
       expect(File('${active.path}/area.json').existsSync(), isTrue);
       expect(
-          Directory('${directory.path}/offline/pending').existsSync(), isFalse);
+          File('${directory.path}/offline/pending/resume.json').existsSync(), isTrue);
     } finally {
       container.dispose();
       await server.close(force: true);
@@ -200,11 +200,11 @@ void main() {
       await download.timeout(const Duration(seconds: 5));
       expect(container.read(offlineProvider).busy, isFalse);
       expect(container.read(offlineProvider).area, isNull);
-      expect(container.read(offlineProvider).message, contains('cancelled'));
+      expect(container.read(offlineProvider).message, contains('paused'));
       expect(
           Directory('${directory.path}/offline/active').existsSync(), isFalse);
       expect(
-          Directory('${directory.path}/offline/pending').existsSync(), isFalse);
+          File('${directory.path}/offline/pending/resume.json').existsSync(), isTrue);
     } finally {
       container.dispose();
       await server.close(force: true);

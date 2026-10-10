@@ -20,7 +20,7 @@ class ScoutPreferences extends Notifier<String?> {
       final file=File('${await ref.read(dataDirectoryProvider)()}/settings.json');
       if(file.existsSync()){
         final data=jsonDecode(await file.readAsString()) as Map<String,dynamic>;
-        if(data['autoReconnect'] is bool)ref.read(radioProvider.notifier).setAutoReconnect(data['autoReconnect'] as bool);
+        if(data['autoReconnect'] is bool)await ref.read(radioProvider.notifier).setAutoReconnect(data['autoReconnect'] as bool);
         if(data['backgroundGps'] is bool)ref.read(backgroundGpsProvider.notifier).set(data['backgroundGps'] as bool);
       }
       initialized=true;
