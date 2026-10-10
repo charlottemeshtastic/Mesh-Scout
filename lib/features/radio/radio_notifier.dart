@@ -73,7 +73,7 @@ class RadioNotifier extends Notifier<RadioState> {
             devices: List.unmodifiable(devices.values));
       }, onError: (Object e) => unawaited(_fail(generation, e)));
       _deadline =
-          Timer(const Duration(seconds: 10), () => unawaited(stopScan()));
+          ref.read(radioTimerProvider)(const Duration(seconds: 10), () => unawaited(stopScan()));
     } catch (e) {
       await _fail(generation, e);
     }
@@ -160,7 +160,8 @@ class RadioNotifier extends Notifier<RadioState> {
       if (!_current(generation)) {
         throw const RadioException(RadioFailure.transport);
       }
-      await _withTimeout(_service.write(id, command), const Duration(seconds: 3));
+      await _withTimeout(
+          _service.write(id, command), const Duration(seconds: 3));
       try {
         return await _withTimeout(response.future, const Duration(seconds: 2));
       } on TimeoutException {
@@ -176,20 +177,31 @@ class RadioNotifier extends Notifier<RadioState> {
   Future<T> _withTimeout<T>(Future<T> operation, Duration duration) {
     final result = Completer<T>();
     final timer = ref.read(radioTimerProvider)(duration, () {
-      if (!result.isCompleted) { result.completeError(TimeoutException('Bluetooth operation timed out')); }
+      if (!result.isCompleted) {
+        result.completeError(TimeoutException('Bluetooth operation timed out'));
+      }
     });
     void cancel() {
       timer.cancel();
-      if (!result.isCompleted) { result.completeError(const RadioException(RadioFailure.transport)); }
+      if (!result.isCompleted) {
+        result.completeError(const RadioException(RadioFailure.transport));
+      }
     }
+
     _cancelOperations.add(cancel);
-    void finish() { timer.cancel(); _cancelOperations.remove(cancel); }
+    void finish() {
+      timer.cancel();
+      _cancelOperations.remove(cancel);
+    }
+
     operation.then((value) {
       finish();
       if (!result.isCompleted) result.complete(value);
     }, onError: (Object error, StackTrace stack) {
       finish();
-      if (!result.isCompleted) { result.completeError(error, stack); }
+      if (!result.isCompleted) {
+        result.completeError(error, stack);
+      }
     });
     return result.future;
   }
@@ -220,7 +232,9 @@ class RadioNotifier extends Notifier<RadioState> {
     _deadline?.cancel();
     final cancellations = _cancelOperations.toList();
     _cancelOperations.clear();
-    for (final cancel in cancellations) { cancel(); }
+    for (final cancel in cancellations) {
+      cancel();
+    }
     final scan = _scan;
     final link = _link;
     final notifications = _notifications;

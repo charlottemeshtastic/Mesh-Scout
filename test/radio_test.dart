@@ -67,8 +67,17 @@ class ManualTimer implements Timer {
   @override
   int tick = 0;
   @override
-  void cancel() { isActive = false; }
-  void fire() { if (isActive) { isActive = false; tick = 1; callback(); } }
+  void cancel() {
+    isActive = false;
+  }
+
+  void fire() {
+    if (isActive) {
+      isActive = false;
+      tick = 1;
+      callback();
+    }
+  }
 }
 
 class ManualScheduler {
@@ -79,10 +88,13 @@ class ManualScheduler {
     timers.add(timer);
     return timer;
   }
+
   void elapse(Duration duration) {
     elapsed += duration;
     for (final timer in timers.toList()) {
-      if (timer.isActive && timer.due <= elapsed) { timer.fire(); }
+      if (timer.isActive && timer.due <= elapsed) {
+        timer.fire();
+      }
     }
   }
 }
