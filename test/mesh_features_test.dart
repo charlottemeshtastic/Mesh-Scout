@@ -59,14 +59,23 @@ class ManualTimer implements Timer {
   ManualTimer(this.callback);
   final void Function() callback;
   bool _active = true;
-  void fire() { if (_active) { _active = false; callback(); } }
+  void fire() {
+    if (_active) {
+      _active = false;
+      callback();
+    }
+  }
+
   @override
   bool get isActive => _active;
   @override
   int get tick => _active ? 0 : 1;
   @override
-  void cancel() { _active = false; }
+  void cancel() {
+    _active = false;
+  }
 }
+
 void main() {
   Future<void> flush() async {
     for (var i = 0; i < 15; i++) {
@@ -207,7 +216,7 @@ void main() {
     await flush();
     for (var i = 0; i < 5; i++) {
       retryTimers.last.fire();
-    await flush();
+      await flush();
       ble.links.add(RadioLink.disconnected);
       await flush();
     }

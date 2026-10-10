@@ -185,7 +185,9 @@ class MappingNotifier extends Notifier<MappingState> {
   void capture(RxObservation rx) {
     if (!state.recording ||
         state.points.isEmpty ||
-        state.observations.length >= 10000) return;
+        state.observations.length >= 10000) {
+      return;
+    }
     final point = state.points.last;
     final age = rx.time.difference(point.time);
     if (age.isNegative || age > const Duration(seconds: 15)) return;

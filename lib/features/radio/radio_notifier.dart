@@ -8,7 +8,8 @@ final bleServiceProvider =
     Provider<BleService>((ref) => throw UnimplementedError());
 final reconnectDelayProvider = Provider<Duration Function(int)>(
     (ref) => (attempt) => Duration(seconds: [3, 6, 12, 24, 30][attempt - 1]));
-final reconnectTimerProvider = Provider<Timer Function(Duration, void Function())>(
+final reconnectTimerProvider =
+    Provider<Timer Function(Duration, void Function())>(
   (ref) => Timer.new,
 );
 final radioProvider =
@@ -98,6 +99,7 @@ class RadioNotifier extends Notifier<RadioState> {
     _cachedService = created;
     return created;
   }
+
   bool _current(int generation) => !_disposed && generation == _generation;
   RadioState _empty(
           {RadioPhase phase = RadioPhase.idle, RadioFailure? failure}) =>
@@ -154,7 +156,9 @@ class RadioNotifier extends Notifier<RadioState> {
   Future<void> connect(RadioDevice device) async {
     if ((state.phase != RadioPhase.idle &&
             state.phase != RadioPhase.scanning) ||
-        !state.devices.any((d) => d.id == device.id)) return;
+        !state.devices.any((d) => d.id == device.id)) {
+      return;
+    }
     _target = device;
     _identifiedBefore = false;
     _attempt = 0;
@@ -201,16 +205,18 @@ class RadioNotifier extends Notifier<RadioState> {
       _mtu =
           await _service.negotiateMtu(id).timeout(const Duration(seconds: 5));
       if (!_current(generation)) return;
-      if (_mtu < minimumIdentificationMtu)
+      if (_mtu < minimumIdentificationMtu) {
         throw const RadioException(RadioFailure.protocol);
+      }
       _notifications = _service.notifications(id).listen((bytes) {
         if (!_current(generation) || bytes.isEmpty) return;
         if (state.phase == RadioPhase.ready) _data(bytes);
         final minimum = _expected == 5 ? 58 : 80;
         if (bytes.first == _expected && bytes.length >= minimum) {
           final response = _response;
-          if (response != null && !response.isCompleted)
+          if (response != null && !response.isCompleted) {
             response.complete(bytes);
+          }
         }
       }, onError: (Object e) => unawaited(_fail(generation, e)));
       await _exchange(generation, id, appStart, 5);
@@ -236,8 +242,9 @@ class RadioNotifier extends Notifier<RadioState> {
     final response = Completer<List<int>>();
     _response = response;
     for (var attempt = 0; attempt < 2; attempt++) {
-      if (!_current(generation))
+      if (!_current(generation)) {
         throw const RadioException(RadioFailure.transport);
+      }
       await _service.write(id, command).timeout(const Duration(seconds: 3));
       try {
         return await response.future.timeout(const Duration(seconds: 2));
@@ -249,8 +256,9 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> refreshContacts() async {
-    if (state.phase != RadioPhase.ready || state.syncing || _target == null)
+    if (state.phase != RadioPhase.ready || state.syncing || _target == null) {
       return;
+    }
     if (_syncFailed) {
       state = state.copyWith(
           contactMessage: 'Reconnect before starting another contact sync.');
@@ -267,15 +275,17 @@ class RadioNotifier extends Notifier<RadioState> {
     _contactCount = null;
     state = state.copyWith(syncing: true);
     _contactDeadline = Timer(const Duration(seconds: 30), () {
-      if (_current(generation) && state.syncing)
+      if (_current(generation) && state.syncing) {
         _syncError('Contact sync timed out. Reconnect before retrying.');
+      }
     });
     try {
       await _service
           .write(_target!.id, const [4]).timeout(const Duration(seconds: 3));
     } catch (_) {
-      if (_current(generation))
+      if (_current(generation)) {
         _syncError('Could not request contacts. Reconnect and retry.');
+      }
     }
   }
 
@@ -289,8 +299,9 @@ class RadioNotifier extends Notifier<RadioState> {
 
   void _data(List<int> bytes) {
     final rx = RxObservation.parse(bytes, DateTime.now());
-    if (rx != null)
+    if (rx != null) {
       state = state.copyWith(lastRx: rx, contactMessage: state.contactMessage);
+    }
     if (!state.syncing) return;
     try {
       if (bytes.first == 1) {
@@ -298,8 +309,9 @@ class RadioNotifier extends Notifier<RadioState> {
         return;
       }
       if (bytes.first == 2) {
-        if (bytes.length != 5 || _contactCount != null)
+        if (bytes.length != 5 || _contactCount != null) {
           throw const FormatException();
+        }
         final count = ByteData.sublistView(Uint8List.fromList(bytes))
             .getUint32(1, Endian.little);
         if (count > 5000) throw const FormatException();
@@ -312,7 +324,9 @@ class RadioNotifier extends Notifier<RadioState> {
       } else if (bytes.first == 4) {
         if (bytes.length != 5 ||
             _contactCount == null ||
-            _incoming!.length != _contactCount) throw const FormatException();
+            _incoming!.length != _contactCount) {
+          throw const FormatException();
+        }
         final contacts = _incoming!.values.toList()
           ..sort(
               (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -349,7 +363,8 @@ class RadioNotifier extends Notifier<RadioState> {
           retryAttempt: _attempt,
           contactMessage:
               'Radio disconnected; previously loaded contacts may be stale.');
-      _retry = ref.read(reconnectTimerProvider)(ref.read(reconnectDelayProvider)(_attempt), () {
+      _retry = ref.read(reconnectTimerProvider)(
+          ref.read(reconnectDelayProvider)(_attempt), () {
         if (!_current(cleanupGeneration)) return;
         state = state.copyWith(phase: RadioPhase.connecting);
         try {
@@ -382,12 +397,16 @@ class RadioNotifier extends Notifier<RadioState> {
         (state.phase == RadioPhase.ready ||
             state.phase == RadioPhase.reconnecting ||
             state.phase == RadioPhase.connecting ||
-            state.phase == RadioPhase.identifying)) return;
-    if (state.phase == RadioPhase.scanning)
+            state.phase == RadioPhase.identifying)) {
+      return;
+    }
+    if (state.phase == RadioPhase.scanning) {
       await stopScan();
-    else if (state.phase == RadioPhase.authorizing ||
+    } else if (state.phase == RadioPhase.authorizing ||
         state.phase == RadioPhase.connecting ||
-        state.phase == RadioPhase.identifying) await disconnect();
+        state.phase == RadioPhase.identifying) {
+      await disconnect();
+    }
   }
 
   Future<void> disconnect() async {
@@ -397,10 +416,11 @@ class RadioNotifier extends Notifier<RadioState> {
     _identifiedBefore = false;
     _attempt = 0;
     final failure = await _cleanup();
-    if (_current(generation))
+    if (_current(generation)) {
       state = _empty(
           failure: failure,
           phase: failure == null ? RadioPhase.idle : RadioPhase.failed);
+    }
   }
 
   Future<RadioFailure?> _cleanup({bool keepSession = false}) async {
