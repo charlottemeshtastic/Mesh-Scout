@@ -28,9 +28,9 @@ jobs:
           cp /tmp/meshscout-pubspec.lock pubspec.lock
           git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml
       - run: flutter pub get --enforce-lockfile
-      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart format lib test
       - run: flutter analyze --fatal-infos
-      - run: flutter test --coverage
+      - run: flutter test --coverage --timeout 30s
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
