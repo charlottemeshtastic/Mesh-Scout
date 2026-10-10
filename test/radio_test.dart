@@ -357,7 +357,10 @@ void main() {
     expect(container.read(radioProvider).observations, isEmpty);
     await tester.ensureVisible(find.text('Start collecting'));
     await tester.tap(find.text('Start collecting'));
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.runAsync(() async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await flush();
+    });
     await tester.pump();
     expect(container.read(radioProvider).collecting, isFalse);
     expect(ble.packets.hasListener, isFalse);
