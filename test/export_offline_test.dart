@@ -135,7 +135,8 @@ void main() {
     }
   });
   test('cancelled download publishes no partial area', () async {
-    final directory = await Directory.systemTemp.createTemp('meshscout-map-cancel');
+    final directory =
+        await Directory.systemTemp.createTemp('meshscout-map-cancel');
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final received = Completer<void>();
     server.listen((request) {
@@ -143,7 +144,8 @@ void main() {
     });
     final container = ProviderContainer(overrides: [
       offlineDirectoryProvider.overrideWithValue(() async => directory.path),
-      offlineTileUrlProvider.overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
+      offlineTileUrlProvider
+          .overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
     ]);
     try {
       final actions = container.read(offlineProvider.notifier);
@@ -154,31 +156,36 @@ void main() {
       expect(container.read(offlineProvider).busy, isFalse);
       expect(container.read(offlineProvider).area, isNull);
       expect(container.read(offlineProvider).message, contains('cancelled'));
-      expect(Directory('${directory.path}/offline/active').existsSync(), isFalse);
-      expect(Directory('${directory.path}/offline/pending-1').existsSync(), isFalse);
+      expect(
+          Directory('${directory.path}/offline/active').existsSync(), isFalse);
+      expect(Directory('${directory.path}/offline/pending-1').existsSync(),
+          isFalse);
     } finally {
       container.dispose();
       await server.close(force: true);
       await directory.delete(recursive: true);
     }
   });
-  test('interrupted replacement recovers its complete backup on startup', () async {
-    final directory = await Directory.systemTemp.createTemp('meshscout-map-recovery');
+  test('interrupted replacement recovers its complete backup on startup',
+      () async {
+    final directory =
+        await Directory.systemTemp.createTemp('meshscout-map-recovery');
     final backup = Directory('${directory.path}/offline/backup');
     await backup.create(recursive: true);
-    await File('${backup.path}/area.json').writeAsString(jsonEncode({'lat':35.2,'lon':-80.8,'tiles':1,'bytes':8}));
+    await File('${backup.path}/area.json').writeAsString(
+        jsonEncode({'lat': 35.2, 'lon': -80.8, 'tiles': 1, 'bytes': 8}));
     final container = ProviderContainer(overrides: [
       offlineDirectoryProvider.overrideWithValue(() async => directory.path),
     ]);
     try {
       await container.read(offlineProvider.notifier).initialize();
       expect(container.read(offlineProvider).area!.latitude, 35.2);
-      expect(Directory('${directory.path}/offline/active').existsSync(), isTrue);
+      expect(
+          Directory('${directory.path}/offline/active').existsSync(), isTrue);
       expect(backup.existsSync(), isFalse);
     } finally {
       container.dispose();
       await directory.delete(recursive: true);
     }
   });
-
 }

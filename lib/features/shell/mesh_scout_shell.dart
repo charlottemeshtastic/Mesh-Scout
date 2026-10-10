@@ -199,7 +199,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
     final offline = ref.watch(offlineProvider);
     ref.listen(offlineProvider, (previous, next) {
-      if (_mapReady && next.enabled && next.area != null &&
+      if (_mapReady &&
+          next.enabled &&
+          next.area != null &&
           (previous?.enabled != true || previous?.area != next.area)) {
         _controller.move(LatLng(next.area!.latitude, next.area!.longitude), 14);
       }
@@ -212,23 +214,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final points = mapping.displayedPoints;
     final observations = mapping.displayedObservations;
     return Column(children: [
-      Flexible(child: SingleChildScrollView(child: Column(children: [
-      const MappingAvailability(),
-      OfflineControls(center: () {
-        final center = _mapReady
-            ? _controller.camera.center
-            : const LatLng(39.8283, -98.5795);
-        return (lat: center.latitude, lon: center.longitude);
-      }),
-      Row(children: [
-        Checkbox(
-            value: _showNodes,
-            onChanged: (v) => setState(() => _showNodes = v ?? false)),
-        Expanded(
-            child: Text(
-                'Advertised nodes: ${nodes.length} · locations may be stale',
-                style: Theme.of(context).textTheme.bodySmall)),
-      ]),
+      Flexible(
+          child: SingleChildScrollView(
+              child: Column(children: [
+        const MappingAvailability(),
+        OfflineControls(center: () {
+          final center = _mapReady
+              ? _controller.camera.center
+              : const LatLng(39.8283, -98.5795);
+          return (lat: center.latitude, lon: center.longitude);
+        }),
+        Row(children: [
+          Checkbox(
+              value: _showNodes,
+              onChanged: (v) => setState(() => _showNodes = v ?? false)),
+          Expanded(
+              child: Text(
+                  'Advertised nodes: ${nodes.length} · locations may be stale',
+                  style: Theme.of(context).textTheme.bodySmall)),
+        ]),
       ]))),
       Expanded(
           child: widget.mapContent ??
