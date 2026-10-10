@@ -59,6 +59,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
             RadioPhase.authorizing => 'Checking Bluetooth permissions…',
             RadioPhase.scanning => 'Scanning for nearby radios…',
             RadioPhase.connecting => 'Connecting…',
+            RadioPhase.reconnecting => 'Reconnecting to your radio (attempt ${state.retryAttempt}/5)…',
             RadioPhase.identifying => 'Checking MeshCore companion protocol…',
             RadioPhase.ready => 'MeshCore companion connected',
             RadioPhase.failed => switch (state.failure) {
@@ -108,7 +109,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
             ),
           const SizedBox(height: 16),
           const Text(
-              'Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. GPS routes are available on Map. LoRa coverage measurements are not implemented.'),
+              'Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. GPS routes are available on Map. Record received LoRa metrics with GPS on Map; stored contacts are available on Nodes.'),
         ]),
       ),
     );

@@ -10,6 +10,7 @@ class AndroidBleService implements BleService {
   AndroidBleService();
   // The plugin initializes on construction; defer it until permissions pass.
   late final FlutterReactiveBle _ble = FlutterReactiveBle();
+  bool _sessionRunning = false;
   final _service = Uuid.parse(meshCoreService);
 
   @override
@@ -52,24 +53,27 @@ class AndroidBleService implements BleService {
   @override
   Stream<RadioLink> connect(String id) async* {
     const session = MethodChannel('org.meshscout/radio_session');
-    try {
-      // Start from the user's foreground Connect action, before app switching.
+    // Keep the service active during retry delays; only endSession stops it.
+    if (!_sessionRunning) {
       await session.invokeMethod<void>('start');
-      yield* _ble
-          .connectToAdvertisingDevice(
-            id: id,
-            withServices: [_service],
-            prescanDuration: const Duration(seconds: 3),
-            connectionTimeout: const Duration(seconds: 10),
-          )
-          .map((u) => switch (u.connectionState) {
-                DeviceConnectionState.connected => RadioLink.connected,
-                DeviceConnectionState.disconnected => RadioLink.disconnected,
-                _ => RadioLink.connecting,
-              });
-    } finally {
-      await session.invokeMethod<void>('stop');
+      _sessionRunning = true;
     }
+    yield* _ble.connectToAdvertisingDevice(
+      id: id, withServices: [_service],
+      prescanDuration: const Duration(seconds: 3),
+      connectionTimeout: const Duration(seconds: 10),
+    ).map((u) => switch (u.connectionState) {
+      DeviceConnectionState.connected => RadioLink.connected,
+      DeviceConnectionState.disconnected => RadioLink.disconnected,
+      _ => RadioLink.connecting,
+    });
+  }
+
+  @override
+  Future<void> endSession() async {
+    if (!_sessionRunning) return;
+    await const MethodChannel('org.meshscout/radio_session').invokeMethod<void>('stop');
+    _sessionRunning = false;
   }
 
   @override

@@ -85,9 +85,9 @@ void main() {
     await select(tester, 1);
     expect(find.text('Scan for radios'), findsOneWidget);
     await select(tester, 2);
-    expect(find.text('Node discovery is coming soon'), findsOneWidget);
+    expect(find.text('Refresh from radio'), findsOneWidget);
     await select(tester, 3);
-    expect(find.text('No coverage observations yet'), findsOneWidget);
+    expect(find.textContaining('No coverage observations yet'), findsOneWidget);
     await select(tester, 4);
     expect(find.textContaining('No mapping sessions yet'), findsOneWidget);
     await select(tester, 5);
@@ -108,7 +108,7 @@ void main() {
     expect(find.text('Stop and save route'), findsOneWidget);
     mapping.updates.add(GpsPoint(35.2, -80.8, 5, DateTime.now()));
     await tester.pumpAndSettle();
-    expect(find.text('1 GPS points · recording route'), findsOneWidget);
+    expect(find.text('1 GPS points · 0 LoRa observations'), findsOneWidget);
     await tester.tap(find.text('Stop and save route'));
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();

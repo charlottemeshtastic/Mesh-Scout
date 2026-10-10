@@ -59,6 +59,8 @@ class FakeBle implements BleService {
 
   @override
   Future<void> openSettings() async {}
+  @override
+  Future<void> endSession() async {}
   Future<void> close() async {
     await devices.close();
     await links.close();

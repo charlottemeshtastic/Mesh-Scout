@@ -32,6 +32,7 @@ abstract interface class BleService {
   Stream<List<int>> notifications(String id);
   Future<void> write(String id, List<int> bytes);
   Future<void> openSettings();
+  Future<void> endSession();
 }
 
 const meshCoreService = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';

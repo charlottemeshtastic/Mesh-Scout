@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mapping_service.dart';
+import '../../common/mesh_data.dart';
 
 final mappingServiceProvider =
     Provider<MappingService>((ref) => throw UnimplementedError());
@@ -15,6 +16,7 @@ class MappingState {
       this.points = const [],
       this.sessions = const [],
       this.selected,
+      this.observations = const [],
       this.message});
   final bool loading;
   final bool recording;
@@ -22,6 +24,9 @@ class MappingState {
   final List<GpsPoint> points;
   final List<MappingSession> sessions;
   final MappingSession? selected;
+  final List<CoverageObservation> observations;
+  List<CoverageObservation> get displayedObservations => recording || points.isNotEmpty
+      ? observations : selected?.observations ?? const [];
   final String? message;
   List<GpsPoint> get displayedPoints =>
       recording || points.isNotEmpty ? points : selected?.points ?? const [];
@@ -105,6 +110,7 @@ class MappingNotifier extends Notifier<MappingState> {
             loading: false,
             recording: true,
             sessions: state.sessions,
+            observations: state.observations,
             points: List.unmodifiable([...state.points, point]));
       }, onError: (Object error) {
         unawaited(stop(reason: 'GPS stopped. ${error.toString()}'));
@@ -126,9 +132,10 @@ class MappingNotifier extends Notifier<MappingState> {
     if (!state.recording && state.points.isEmpty) return;
     ++_generation;
     final points = state.points;
+    final observations = state.observations;
     final sessions = state.sessions;
     state = MappingState(
-        loading: false, busy: true, points: points, sessions: sessions);
+        loading: false, busy: true, points: points, observations: observations, sessions: sessions);
     try {
       final subscription = _positions;
       _positions = null;
@@ -147,7 +154,7 @@ class MappingNotifier extends Notifier<MappingState> {
           id: started.microsecondsSinceEpoch.toString(),
           started: started,
           ended: DateTime.now(),
-          points: points);
+          points: points, observations: observations);
       final updated = [session, ...sessions];
       await _service.save(encodeSessions(updated));
       if (_disposed) return;
@@ -162,9 +169,20 @@ class MappingNotifier extends Notifier<MappingState> {
           loading: false,
           sessions: sessions,
           points: points,
+          observations: observations,
           message:
               'Could not save this route. Tap Retry save before starting another.');
     }
+  }
+
+  void capture(RxObservation rx) {
+    if (!state.recording || state.points.isEmpty || state.observations.length >= 10000) return;
+    final point = state.points.last;
+    final age = rx.time.difference(point.time);
+    if (age.isNegative || age > const Duration(seconds: 15)) return;
+    final observation = CoverageObservation(point: point, rssi: rx.rssi, snr: rx.snr, time: rx.time);
+    state = MappingState(loading: false, recording: true, points: state.points,
+      sessions: state.sessions, observations: List.unmodifiable([...state.observations, observation]));
   }
 
   Future<void> background() async {

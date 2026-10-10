@@ -59,3 +59,11 @@ Stop and save writes a session atomically into the app's private files. History 
 Validation must include a real phone: GPS grant/denial, precise versus approximate location, disabled GPS, first outdoor fix, walk route, stop/save, restart/reopen, deletion, switching apps, radio notification, explicit disconnect, and range loss. Automated fakes cannot verify native location or radio behavior.
 
 CI debug APKs use a stable private test signer supplied through encrypted repository secrets. Subsequent test builds can update in place and preserve saved routes. No private signing key is committed. The older 0.2 APK used an ephemeral CI signer and may require a one-time uninstall before installing 0.2.1. Production distribution still requires production signing configuration.
+
+## MeshScout 0.3 nodes, LoRa observations and reconnect
+
+Nodes reads the companion's stored contacts via GET_CONTACTS, validates the start/count/contact/end stream, and provides name/public-key search, repeater filtering and details. Advertised coordinates and timestamps are stored radio information, not current reachability. Refresh is explicit and read-only; a failed/partial sync never replaces the complete list and requires reconnect before retrying. Contact frames require MTU at least 151.
+
+During foreground GPS recording, RX log pushes (0x88) provide signed LoRa RSSI and quarter-dB SNR. Only receptions paired with an accepted GPS fix no older than 15 seconds are recorded. Sessions save/reopen metrics, Coverage lists recent observations, and Map shows measured dots with RSSI colors. These are raw last-hop receptions (firmware emits the log before packet validation); there is no sender attribution, delivery verification, two-way coverage proof, interpolation, or invented observations. Raw packet contents are never retained. BLE RSSI remains separate.
+
+After an identified link drops, automatic reconnect retries the same companion up to five times at delays of 3, 6, 12, 24 and 30 seconds. Each attempt repeats the handshake. The connected-device service remains active during retry delays. Settings can disable reconnect; Disconnect/cancel always stops retries and the service. Initial identification/protocol failures do not auto-retry. The target and setting are in-memory for this app run; no reconnect after process death. Hardware validation remains required.

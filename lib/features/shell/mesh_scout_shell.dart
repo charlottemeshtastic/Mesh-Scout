@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../radio/radio_notifier.dart';
 import '../mapping/mapping_notifier.dart';
 import '../radio/radio_screen.dart';
+import '../nodes/nodes_screen.dart';
 
 enum ScoutTab { map, radios, nodes, coverage, history, settings }
 
@@ -69,6 +70,11 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
   @override
   Widget build(BuildContext context) {
     final radio = ref.watch(radioProvider);
+    ref.listen(radioProvider, (previous, next) {
+      if (next.lastRx != null && !identical(previous?.lastRx, next.lastRx)) {
+        ref.read(mappingProvider.notifier).capture(next.lastRx!);
+      }
+    });
     return Scaffold(
       appBar: AppBar(
         title: const Text('MeshScout'),
@@ -90,14 +96,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
                 children: [
                   MapScreen(mapContent: widget.mapContent),
                   const RadioScreen(embedded: true),
-                  const FeaturePlaceholder(
-                    icon: Icons.hub_outlined,
-                    title: 'Nodes',
-                    message: 'Node discovery is coming soon',
-                    detail: 'MeshCore contacts and repeater discovery are not '
-                        'implemented yet. Connecting a radio will not populate '
-                        'this list in version 0.2.',
-                  ),
+                  const NodesScreen(),
                   const CoverageScreen(),
                   HistoryScreen(onMap: () => _select(0)),
                   SettingsScreen(onRadios: () => _select(1)),
@@ -141,6 +140,7 @@ class RadioStatusBar extends StatelessWidget {
       RadioPhase.authorizing => 'Checking Bluetooth permissions…',
       RadioPhase.scanning => 'Scanning for radios…',
       RadioPhase.connecting => 'Connecting radio…',
+      RadioPhase.reconnecting => 'Reconnecting radio · attempt ${state.retryAttempt}/5',
       RadioPhase.identifying => 'Checking MeshCore compatibility…',
       RadioPhase.ready => 'MeshCore companion connected',
       RadioPhase.failed => 'Radio unavailable · tap to retry',
@@ -154,7 +154,7 @@ class RadioStatusBar extends StatelessWidget {
             : Icons.bluetooth),
         title: Text(status),
         subtitle: state.phase == RadioPhase.ready
-            ? const Text('Bluetooth connected · coverage recording unavailable')
+            ? const Text('Bluetooth connected · GPS-tagged LoRa reception available')
             : null,
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
@@ -189,6 +189,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _controller.move(LatLng(point.latitude, point.longitude), 16);
     });
     final points = mapping.displayedPoints;
+    final observations = mapping.displayedObservations;
     return Column(children: [
       const MappingAvailability(),
       Expanded(
@@ -221,7 +222,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           child: const Icon(Icons.my_location,
                               color: Colors.blue, size: 30))
                     ]),
-                  const RichAttributionWidget(attributions: [
+                  if (observations.isNotEmpty) CircleLayer(circles: [
+            for (final observation in observations) CircleMarker(
+              point: LatLng(observation.point.latitude, observation.point.longitude),
+              radius: 6, color: signalColor(observation.rssi).withValues(alpha: 0.7),
+              borderColor: Colors.white, borderStrokeWidth: 1),
+          ]),
+          const RichAttributionWidget(attributions: [
                     TextSourceAttribution('OpenStreetMap contributors')
                   ]),
                 ],
@@ -264,8 +271,8 @@ class MappingAvailability extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
                 state.recording
-                    ? '${state.points.length} GPS points · recording route'
-                    : 'GPS routes save on this phone. LoRa coverage is not recorded.',
+                    ? '${state.points.length} GPS points · ${state.observations.length} LoRa observations'
+                    : 'GPS routes and received LoRa observations save on this phone.',
                 style: Theme.of(context).textTheme.bodySmall),
             if (state.message != null) Text(state.message!),
           ],
@@ -295,7 +302,7 @@ class HistoryScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.route),
           title: Text(session.started.toLocal().toString().split('.').first),
-          subtitle: Text('${session.points.length} GPS points · '
+          subtitle: Text('${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
               '${session.ended.difference(session.started).inMinutes} min'),
           onTap: state.recording || state.busy || state.points.isNotEmpty
               ? null
@@ -361,27 +368,33 @@ class FeaturePlaceholder extends StatelessWidget {
       );
 }
 
-class CoverageScreen extends StatelessWidget {
-  const CoverageScreen({super.key});
+Color signalColor(int rssi) => rssi >= -90 ? Colors.green
+    : rssi >= -110 ? Colors.orange : Colors.red;
 
+class CoverageScreen extends ConsumerWidget {
+  const CoverageScreen({super.key});
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 24),
-          const Icon(Icons.layers_outlined, size: 48),
-          const SizedBox(height: 16),
-          Text('No coverage observations yet',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          const Text(
-              'GPS route recording is available on Map. LoRa observations and '
-              'coverage overlays are not implemented. Bluetooth signal strength is only the '
-              'phone-to-radio link; it is not LoRa coverage.'),
-          const MappingAvailability(),
-        ],
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mapping = ref.watch(mappingProvider);
+    final radio = ref.watch(radioProvider);
+    final observations = mapping.displayedObservations;
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
+      const Text('Received LoRa signal observations at your GPS location. These are last-hop reception metrics, not proof of sender reachability or two-way coverage.'),
+      const SizedBox(height: 12),
+      Text('${observations.length} GPS-tagged LoRa observations'),
+      const Text('Map dots: green ≥ −90 dBm · orange ≥ −110 dBm · red below −110 dBm. No interpolation between points.'),
+      if (radio.lastRx != null) Text('Latest reception: ${radio.lastRx!.rssi} dBm · SNR ${radio.lastRx!.snr.toStringAsFixed(2)} dB'),
+      if (radio.phase != RadioPhase.ready) const Text('Connect your companion radio to receive LoRa metrics.'),
+      if (observations.isEmpty) const Text('No coverage observations yet. Start Mapping outdoors while connected. Only received radio packets with a GPS fix from the last 15 seconds are recorded.'),
+      const MappingAvailability(),
+      for (final observation in observations.reversed.take(100)) ListTile(
+        leading: Icon(Icons.circle, color: signalColor(observation.rssi)),
+        title: Text('${observation.rssi} dBm · SNR ${observation.snr.toStringAsFixed(2)} dB'),
+        subtitle: Text('${observation.time.toLocal().toString().split('.').first} · GPS ±${observation.point.accuracy.round()} m')),
+      if (observations.length > 100) const Text('Latest 100 listed; the session and map contain all saved observations.'),
+    ]);
+  }
 }
 
 class SettingsScreen extends ConsumerWidget {
@@ -408,6 +421,10 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('Manage Bluetooth access in Android settings'),
             onTap: () async => ref.read(radioProvider.notifier).openSettings(),
           ),
+          SwitchListTile(title: const Text('Automatic radio reconnect'),
+            subtitle: const Text('Retry the same identified radio up to five times after link loss. Manual disconnect stops retries.'),
+            value: ref.watch(radioProvider).autoReconnect,
+            onChanged: (enabled) async => ref.read(radioProvider.notifier).setAutoReconnect(enabled)),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),
@@ -419,12 +436,12 @@ class SettingsScreen extends ConsumerWidget {
             leading: Icon(Icons.privacy_tip_outlined),
             title: Text('Privacy'),
             subtitle: Text(
-                'GPS routes stay on this phone. No LoRa coverage or sharing. Online map tiles '
+                'GPS routes and LoRa observations stay on this phone. Online map tiles '
                 'are requested from OpenStreetMap when the map is displayed.'),
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 0.2.2'),
+            title: Text('MeshScout 0.3'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),
