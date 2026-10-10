@@ -35,7 +35,7 @@ class MessageBle extends FakeBle {
                 105,
                 99,
                 ...List.filled(26, 0),
-                ...List.filled(16, 99)
+                ...List.filled(16, 254)
               ]);
       }
     } else if (bytes.first == 3) {
@@ -109,7 +109,7 @@ void main() {
     expect(container.read(radioProvider).channels.single.index, 0);
     final reply = await radio.messageCommand([31, 0], {18});
     expect(reply.length, 34);
-    expect(reply, isNot(contains(99)));
+    expect(reply, isNot(contains(254)));
   });
   test('channel acceptance stays unconfirmed even after a direct ACK',
       () async {
