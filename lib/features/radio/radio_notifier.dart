@@ -176,11 +176,11 @@ class RadioNotifier extends Notifier<RadioState> {
   Future<T> _withTimeout<T>(Future<T> operation, Duration duration) {
     final result = Completer<T>();
     final timer = ref.read(radioTimerProvider)(duration, () {
-      if (!result.isCompleted) result.completeError(TimeoutException('Bluetooth operation timed out'));
+      if (!result.isCompleted) { result.completeError(TimeoutException('Bluetooth operation timed out')); }
     });
     void cancel() {
       timer.cancel();
-      if (!result.isCompleted) result.completeError(const RadioException(RadioFailure.transport));
+      if (!result.isCompleted) { result.completeError(const RadioException(RadioFailure.transport)); }
     }
     _cancelOperations.add(cancel);
     void finish() { timer.cancel(); _cancelOperations.remove(cancel); }
@@ -189,7 +189,7 @@ class RadioNotifier extends Notifier<RadioState> {
       if (!result.isCompleted) result.complete(value);
     }, onError: (Object error, StackTrace stack) {
       finish();
-      if (!result.isCompleted) result.completeError(error, stack);
+      if (!result.isCompleted) { result.completeError(error, stack); }
     });
     return result.future;
   }
