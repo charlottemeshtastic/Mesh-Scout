@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'features/radio/radio_notifier.dart';
 import 'features/radio/radio_screen.dart';
 import 'native/android_ble_service.dart';
@@ -8,7 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 void main() => runApp(ProviderScope(
-  overrides: [bleServiceProvider.overrideWithValue(AndroidBleService(FlutterReactiveBle()))],
+  overrides: [bleServiceProvider.overrideWithValue(AndroidBleService())],
   child: const MeshScoutApp(),
 ));
 

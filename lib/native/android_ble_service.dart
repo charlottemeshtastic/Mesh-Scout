@@ -6,7 +6,7 @@ import '../features/radio/ble_service.dart';
 
 /// Android implementation. Plugins remain confined to this boundary.
 class AndroidBleService implements BleService {
-  AndroidBleService(this._ble);
+  AndroidBleService() : _ble = FlutterReactiveBle();
   final FlutterReactiveBle _ble;
   final _service = Uuid.parse(meshCoreService);
 
@@ -53,14 +53,15 @@ class AndroidBleService implements BleService {
 
   @override
   Future<void> discover(String id) async {
-    final services = await _ble.discoverServices(id);
-    final matches = services.where((s) => s.serviceId == _service);
+    await _ble.discoverAllServices(id);
+    final services = await _ble.getDiscoveredServices(id);
+    final matches = services.where((s) => s.id == _service);
     if (matches.length != 1) {
       throw const RadioException(RadioFailure.protocol);
     }
     final characteristics = matches.single.characteristics;
-    final rx = characteristics.where((c) => c.characteristicId == Uuid.parse(meshCoreRx));
-    final tx = characteristics.where((c) => c.characteristicId == Uuid.parse(meshCoreTx));
+    final rx = characteristics.where((c) => c.id == Uuid.parse(meshCoreRx));
+    final tx = characteristics.where((c) => c.id == Uuid.parse(meshCoreTx));
     if (rx.length != 1 || tx.length != 1 || !rx.single.isWritableWithResponse || !tx.single.isNotifiable) {
       throw const RadioException(RadioFailure.protocol);
     }

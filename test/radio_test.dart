@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mesh_scout/features/radio/ble_service.dart';
 import 'package:mesh_scout/features/radio/radio_notifier.dart';
+import 'package:mesh_scout/features/radio/radio_screen.dart';
 
 class FakeBle implements BleService {
   final devices = StreamController<RadioDevice>.broadcast(sync: true);
@@ -11,6 +13,7 @@ class FakeBle implements BleService {
   RadioFailure? authorizationFailure;
   bool answer = true;
   bool validServices = true;
+  Completer<void>? discoveryGate;
   int scanCalls = 0;
   final writes = <List<int>>[];
   @override
@@ -23,6 +26,7 @@ class FakeBle implements BleService {
   Stream<RadioLink> connect(String id) => links.stream;
   @override
   Future<void> discover(String id) async {
+    await discoveryGate?.future;
     if (!validServices) throw const RadioException(RadioFailure.protocol);
   }
   @override
@@ -89,6 +93,30 @@ void main() {
   test('cancel during authorization ignores late permission result', () async {
     final pending = actions.scan(); await actions.disconnect(); await pending;
     expect(container.read(radioProvider).phase, RadioPhase.idle); expect(ble.scanCalls, 0);
+  });
+  test('cancel during discovery prevents late handshake writes', () async {
+    ble.discoveryGate = Completer<void>();
+    await findRadio(); ble.links.add(RadioLink.connected); await flush();
+    await actions.disconnect(); ble.discoveryGate!.complete(); await flush();
+    expect(ble.writes, isEmpty);
+    expect(container.read(radioProvider).phase, RadioPhase.idle);
+  });
+  test('duplicate connected events initialize only once', () async {
+    await findRadio(); ble.links.add(RadioLink.connected); ble.links.add(RadioLink.connected); await flush();
+    expect(ble.writes, [appStart, deviceQuery]);
+  });
+  testWidgets('permission failure renders recovery and background cancels scan', (tester) async {
+    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const MaterialApp(home: RadioScreen())));
+    ble.authorizationFailure = RadioFailure.permanentlyDenied;
+    await tester.tap(find.text('Scan for radios')); await tester.pumpAndSettle();
+    expect(find.text('Open app settings'), findsOneWidget);
+    ble.authorizationFailure = null;
+    await tester.tap(find.text('Scan for radios')); await tester.pumpAndSettle();
+    expect(ble.devices.hasListener, isTrue);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(ble.devices.hasListener, isFalse);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   });
   testWidgets('scan deadline stops after ten seconds', (tester) async {
     await actions.scan(); await tester.pump(const Duration(seconds: 10)); await tester.pump();

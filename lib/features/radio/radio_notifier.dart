@@ -58,11 +58,11 @@ class RadioNotifier extends Notifier<RadioState> {
 
   Future<void> stopScan() async {
     if (state.phase != RadioPhase.scanning) return;
-    _generation++;
+    final generation = ++_generation;
     _deadline?.cancel();
     await _scan?.cancel();
     _scan = null;
-    if (!_disposed) state = RadioState(devices: state.devices);
+    if (_current(generation)) state = RadioState(devices: state.devices);
   }
 
   Future<void> connect(RadioDevice device) async {
@@ -128,26 +128,30 @@ class RadioNotifier extends Notifier<RadioState> {
 
   Future<void> _fail(int generation, Object error) async {
     if (!_current(generation)) return;
-    _generation++;
+    final cleanupGeneration = ++_generation;
     await _cleanup();
-    if (!_disposed) state = RadioState(phase: RadioPhase.failed,
+    if (_current(cleanupGeneration)) state = RadioState(phase: RadioPhase.failed,
       failure: error is RadioException ? error.failure : RadioFailure.transport);
   }
 
   Future<void> disconnect() async {
     final generation = ++_generation;
-    await _cleanup();
-    if (_current(generation)) state = const RadioState();
+    final failure = await _cleanup();
+    if (_current(generation)) state = failure == null ? const RadioState() : RadioState(phase: RadioPhase.failed, failure: failure);
   }
 
-  Future<void> _cleanup() async {
+  Future<RadioFailure?> _cleanup() async {
     _deadline?.cancel();
     final scan = _scan; final link = _link; final notifications = _notifications;
     _scan = null; _link = null; _notifications = null;
     _expected = null; _response = null;
-    await scan?.cancel();
-    await notifications?.cancel();
-    await link?.cancel(); // Cancelling reactive BLE connection closes GATT.
+    RadioFailure? failure;
+    for (final subscription in <StreamSubscription<Object>?>[scan, notifications, link]) {
+      try { await subscription?.cancel(); }
+      catch (_) { failure = RadioFailure.transport; }
+    }
+    // Attempt every cancellation even when one plugin cleanup fails.
+    return failure;
   }
 
   Future<void> openSettings() async {
