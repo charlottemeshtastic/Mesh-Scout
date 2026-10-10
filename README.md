@@ -1,4 +1,4 @@
-# MeshScout 0.5
+# MeshScout 0.6
 
 Independent Android-first MeshCore field-mapping application. No BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
@@ -20,7 +20,7 @@ The map can show stored contacts with advertised coordinates as purple markers. 
 
 ## Messaging
 
-Nodes → Messages opens a private on-phone inbox and composer. Refresh contacts first, then select a chat node to send plain direct text. Recipient prefixes must uniquely match the companion's contact table. Sends are bounded to 133 UTF-8 bytes and the negotiated MTU, have a single outstanding command, and are never automatically repeated. Radio acceptance is shown as delivery unconfirmed; only a matching SEND_CONFIRMED acknowledgement for an accepted send in this live app process establishes delivery. Ambiguous acknowledgement tags remain unconfirmed. Uncertain commands require reconnect before another request. No channel sending, CLI commands, radio clock changes or key editing are implemented.
+Nodes → Messages opens a private on-phone inbox and composer. Refresh contacts first, then select a chat node to send plain direct text. Recipient prefixes must uniquely match the companion's contact table. Sends are bounded to 133 UTF-8 bytes and the negotiated MTU, have a single outstanding command, and are never automatically repeated. Radio acceptance is shown as delivery unconfirmed; only a matching SEND_CONFIRMED acknowledgement for an accepted send in this live app process establishes delivery. Ambiguous acknowledgement tags remain unconfirmed. Uncertain commands require reconnect before another request. Configured channels can be loaded from the companion and selected for plain channel sending. Only channel index/name are retained; the key portion of GET_CHANNEL is discarded before returning the response to the UI. Discovery uses the reported slot count, bounded to 64, and expected missing slots do not invalidate the connection. Channel sends are limited to 99 UTF-8 bytes to reserve space for the firmware sender-name prefix and prevent silent truncation. Radio OK confirms acceptance only; channel messages have no direct delivery ACK and remain unconfirmed. Channel configuration/key editing, CLI commands and radio clock changes remain unimplemented.
 
 Fetch messages explicitly drains at most 100 queued messages per tap, stopping at 1,000 stored messages. Every supported contact/channel message is persisted before requesting the next. Queued-message retrieval removes it from the companion immediately; a process crash between retrieval and persistence can lose it. Unsupported queued types stop retrieval with a notice after the radio has already removed that item. Forwarded messages have unverified original origin. Fetch requires MTU ≥175. Incoming notifications only indicate waiting mail; there is no automatic queue draining or push notification service.
 

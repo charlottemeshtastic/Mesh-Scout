@@ -11,9 +11,19 @@ class MessageBle extends FakeBle {
   int fetches = 0;
   bool immediateAck = false;
   bool malformedAcceptance = false;
+  bool missingChannel = false;
+  bool malformedChannel = false;
   @override
   Future<void> write(String id, List<int> bytes) async {
-    if (bytes.first == 2) {
+    if (bytes.first == 22) {
+      writes.add(bytes); packets.add([13,3,0,2,...List.filled(76,0)]);
+    } else if (bytes.first == 31) {
+      writes.add(bytes);
+      if (bytes[1] == 1 || missingChannel) { packets.add([1,2]); }
+      else { packets.add(malformedChannel ? [18,0] : [18,0,80,117,98,108,105,99,...List.filled(26,0),...List.filled(16,99)]); }
+    } else if (bytes.first == 3) {
+      writes.add(bytes); packets.add([0]);
+    } else if (bytes.first == 2) {
       writes.add(bytes);
       packets
           .add(malformedAcceptance ? [6] : [6, 0, 42, 0, 0, 0, 100, 0, 0, 0]);
@@ -74,6 +84,32 @@ void main() {
     container.dispose();
     await ble.close();
     await directory.delete(recursive: true);
+  });
+  test('configured channel names omit keys and unused slots', () async {
+    await radio.refreshChannels();
+    expect(container.read(radioProvider).channels.single.name,'Public');
+    expect(container.read(radioProvider).channels.single.index,0);
+    final reply = await radio.messageCommand([31,0],{18});
+    expect(reply.length,34);
+    expect(reply, isNot(contains(99)));
+  });
+  test('channel acceptance stays unconfirmed even after a direct ACK', () async {
+    await radio.refreshChannels(); await messages.send('', 'hello channel', channel:0);
+    ble.packets.add([0x82,42,0,0,0,1,0,0,0]);
+    expect(container.read(messagesProvider).items.single['status'],contains('channel delivery unconfirmed'));
+    expect(ble.writes.where((b)=>b.first==3).length,1);
+    expect(await File('${directory.path}/messages.json').readAsString(),isNot(contains('secret')));
+  });
+  test('missing channel slots do not poison later message commands', () async {
+    ble.missingChannel = true; await radio.refreshChannels();
+    expect(container.read(radioProvider).channels,isEmpty);
+    await messages.send(key,'direct still works');
+    expect(container.read(messagesProvider).items.single['status'],contains('unconfirmed'));
+  });
+  test('malformed channel response blocks another command until reconnect', () async {
+    ble.malformedChannel = true; await radio.refreshChannels();
+    expect(container.read(radioProvider).channels,isEmpty);
+    await expectLater(radio.messageCommand([10],{10}), throwsStateError);
   });
   test('accepted send remains unconfirmed without ACK and is persisted',
       () async {

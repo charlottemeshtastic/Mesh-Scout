@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/mesh_data.dart';
@@ -17,6 +18,12 @@ final radioTimerProvider = Provider<Timer Function(Duration, void Function())>(
 );
 final radioProvider =
     NotifierProvider<RadioNotifier, RadioState>(RadioNotifier.new);
+
+class RadioChannel {
+  const RadioChannel(this.index, this.name);
+  final int index;
+  final String name;
+}
 
 enum RadioPhase {
   idle,
@@ -42,7 +49,7 @@ class RadioState {
       this.autoReconnect = true,
       this.retryAttempt = 0,
       this.messagingBusy = false,
-      this.messageEvent});
+      this.messageEvent, this.channels = const [], this.channelsLoading = false});
   final RadioPhase phase;
   final List<RadioDevice> devices;
   final RadioFailure? failure;
@@ -54,6 +61,8 @@ class RadioState {
   final bool autoReconnect;
   final int retryAttempt;
   final bool messagingBusy;
+  final List<RadioChannel> channels;
+  final bool channelsLoading;
   final List<int>? messageEvent;
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
   RadioState copyWith(
@@ -67,7 +76,7 @@ class RadioState {
           bool? autoReconnect,
           int? retryAttempt,
           bool? messagingBusy,
-          List<int>? messageEvent}) =>
+          List<int>? messageEvent, List<RadioChannel>? channels, bool? channelsLoading}) =>
       RadioState(
           phase: phase ?? this.phase,
           devices: devices ?? this.devices,
@@ -80,7 +89,7 @@ class RadioState {
           autoReconnect: autoReconnect ?? this.autoReconnect,
           retryAttempt: retryAttempt ?? this.retryAttempt,
           messagingBusy: messagingBusy ?? this.messagingBusy,
-          messageEvent: messageEvent ?? this.messageEvent);
+          messageEvent: messageEvent ?? this.messageEvent, channels: channels ?? this.channels, channelsLoading: channelsLoading ?? this.channelsLoading);
 }
 
 class RadioNotifier extends Notifier<RadioState> {
@@ -104,6 +113,7 @@ class RadioNotifier extends Notifier<RadioState> {
   bool _identifiedBefore = false;
   int _attempt = 0;
   int _mtu = 0;
+  int _channelCapacity = 0;
   RadioDevice? _target;
   Map<String, MeshContact>? _incoming;
   int? _contactCount;
@@ -241,6 +251,7 @@ class RadioNotifier extends Notifier<RadioState> {
       final info = await _exchange(generation, id, deviceQuery, 13);
       if (!_current(generation)) return;
       if (info[1] < 3) throw const RadioException(RadioFailure.protocol);
+      _channelCapacity = info[3] <= 64 ? info[3] : 0;
       _deadline?.cancel();
       _expected = null;
       _response = null;
@@ -277,6 +288,7 @@ class RadioNotifier extends Notifier<RadioState> {
     if (state.phase != RadioPhase.ready ||
         state.syncing ||
         state.messagingBusy ||
+        state.channelsLoading ||
         _target == null) {
       return;
     }
@@ -319,10 +331,38 @@ class RadioNotifier extends Notifier<RadioState> {
     state = state.copyWith(syncing: false, contactMessage: message);
   }
 
-  Future<List<int>> messageCommand(List<int> command, Set<int> replies) async {
+  Future<void> refreshChannels() async {
+    if (state.phase != RadioPhase.ready || state.syncing || state.messagingBusy || state.channelsLoading) { return; }
+    final generation = _generation;
+    state = state.copyWith(channelsLoading: true);
+    final channels = <RadioChannel>[];
+    try {
+      if (_channelCapacity == 0) { throw StateError('Radio reports no supported channel slots.'); }
+      for (var index = 0; index < _channelCapacity; index++) {
+        if (!_current(generation)) { return; }
+        final reply = await messageCommand([31, index], {18}, allowNotFound: true);
+        if (reply.first == 1) { continue; }
+        if (reply.length != 34 || reply[1] != index) {
+          _syncFailed = true;
+          throw const FormatException('Invalid channel index. Reconnect before retrying.');
+        }
+        final name = utf8.decode(reply.sublist(2, 34).takeWhile((b) => b != 0).toList());
+        // Empty names indicate unused slots; expose configured names only.
+        if (name.isNotEmpty) { channels.add(RadioChannel(index, name)); }
+      }
+      if (_current(generation)) { state = state.copyWith(channels: List.unmodifiable(channels), contactMessage: channels.isEmpty ? 'No named channels configured on the radio.' : 'Channels loaded.'); }
+    } catch (_) {
+      if (_current(generation)) { _syncFailed = true; state = state.copyWith(contactMessage: 'Could not load channels. Reconnect and retry.'); }
+    } finally {
+      if (_current(generation)) { state = state.copyWith(channelsLoading: false, contactMessage: state.contactMessage); }
+    }
+  }
+
+  Future<List<int>> messageCommand(List<int> command, Set<int> replies, {bool allowNotFound = false}) async {
     if (state.phase != RadioPhase.ready ||
         state.syncing ||
         state.messagingBusy ||
+        (state.channelsLoading && command.first != 31) ||
         _target == null ||
         _syncFailed) {
       throw StateError(
@@ -340,9 +380,13 @@ class RadioNotifier extends Notifier<RadioState> {
       await _withTimeout(
           _service.write(_target!.id, command), const Duration(seconds: 3));
       final bytes = await response;
+      if (bytes.first == 1 && allowNotFound && command.first == 31 && bytes.length == 2 && bytes[1] == 2) {
+        return bytes;
+      }
       if (bytes.first == 1) {
         throw StateError('Radio rejected the request.');
       }
+      if (bytes.first == 0 && bytes.length != 1) { throw const FormatException('Invalid acceptance.'); }
       if (bytes.first == 6 && bytes.length != 10) {
         throw const FormatException('Invalid radio acceptance.');
       }
@@ -372,7 +416,16 @@ class RadioNotifier extends Notifier<RadioState> {
     if (reply != null &&
         !reply.isCompleted &&
         _messageTypes.contains(bytes.first)) {
-      reply.complete(List<int>.unmodifiable(bytes));
+      if (bytes.first == 18) {
+        // GET_CHANNEL includes a secret after byte 33. Never publish that key.
+        if (bytes.length != 50) {
+          reply.completeError(const FormatException('Invalid channel response.'));
+        } else {
+          reply.complete(List<int>.unmodifiable(bytes.take(34)));
+        }
+      } else {
+        reply.complete(List<int>.unmodifiable(bytes));
+      }
     }
     final rx = RxObservation.parse(bytes, DateTime.now());
     if (rx != null) {
@@ -470,6 +523,7 @@ class RadioNotifier extends Notifier<RadioState> {
           phase: RadioPhase.reconnecting,
           syncing: false,
           messagingBusy: false,
+          channels: const [], channelsLoading: false,
           retryAttempt: _attempt,
           contactMessage:
               'Radio disconnected; previously loaded contacts may be stale.');
