@@ -18,8 +18,22 @@ class ScoutFiles(private val activity: Activity) {
                 return
             }
             if (call.method == "dataDirectory") { result.success(ScoutStorage.directory(activity).absolutePath); return }
-            if (call.method == "readBackup") { result.success(ScoutStorage.readBackup(activity)); return }
-            if (call.method == "restoreBackup") { ScoutStorage.restore(activity, call.arguments as String); result.success(null); return }
+            if (call.method == "readBackup" || call.method == "restoreBackup") {
+                val restore = call.method == "restoreBackup"
+                val text = if (restore) call.arguments as String else null
+                Thread {
+                    try {
+                        val value = if (restore) {
+                            require(!GpsRecordingService.running) { "Stop GPS recording first" }
+                            ScoutStorage.restore(activity, text!!)
+                            GpsRecordingService.clearJournal(activity)
+                            null
+                        } else ScoutStorage.readBackup(activity)
+                        activity.runOnUiThread { result.success(value) }
+                    } catch (e: Exception) { activity.runOnUiThread { result.error("backup", e.message, null) } }
+                }.start()
+                return
+            }
             if (call.method == "openBackup") {
                 require(pending == null)
                 pending = result

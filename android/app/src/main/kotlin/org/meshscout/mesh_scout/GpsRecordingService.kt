@@ -66,7 +66,7 @@ class GpsRecordingService : Service(), LocationListener {
         locations.removeUpdates(this)
         running = false
         session = null
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE) else stopForeground(true)
         stopSelf()
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

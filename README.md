@@ -1,4 +1,4 @@
-# MeshScout 0.8
+# MeshScout 0.9
 
 Independent Android-first MeshCore field-mapping application. No BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
@@ -30,7 +30,7 @@ Local history is written atomically to private, unencrypted app storage. Failed 
 
 Settings → Background message alerts is an opt-in, persisted on this phone. Enabling it requests Android notification permission; refusal does not block Bluetooth or the connected-device foreground service. While the existing identified radio session and Flutter process remain alive, a valid MSG_WAITING push produces a generic notification only when the Activity is backgrounded. Notifications contain no message body, sender, channel keys or asserted message count. One alert is coalesced until the app returns to foreground, alerts are disabled, or the radio leaves Ready. Tapping opens Messages directly, reusing an existing Messages route to preserve its composer. Fetch explicitly; opening an alert does not retrieve the radio queue. No radio queue items are retrieved automatically.
 
-Returning to foreground cancels the alert. Explicit disconnect/lost-ready state clears it. Android notification/channel settings can suppress alerts. There is no scheduled polling, alert recovery after process death, or background GPS recording. Real permission dialogs, lock-screen delivery and device/OEM behavior require hardware testing. The radio foreground service retains its separate ongoing connection notification.
+Returning to foreground cancels the alert. Explicit disconnect/lost-ready state clears it. Android notification/channel settings can suppress alerts. There is no scheduled polling, alert recovery after process death, or automatic GPS restart. Real permission dialogs, lock-screen delivery and device/OEM behavior require hardware testing. The radio foreground service retains its separate ongoing connection notification.
 
 ## Export and sharing
 
@@ -38,9 +38,9 @@ History's Export session button offers Save or Share in GeoJSON or CSV. Android'
 
 ## Offline topo maps
 
-Map's Download area saves a roughly 4 × 4, 8 × 8 or 12 × 12 km square centered on the current map view. No provider account is needed. Downloads use the public-domain USGS Topo tile service, restricted in this release to the contiguous U.S. and zoom levels 12–16, with at most 5,000 tiles / 150 MB. This is one replaceable area, not a whole-state or global download.
+Map's Download area saves a roughly 4 × 4, 8 × 8 or 12 × 12 km square centered on the current map view. No provider account is needed. Downloads use the public-domain USGS Topo tile service, restricted in this release to the contiguous U.S. and zoom levels 12–16, with at most 5,000 tiles / 150 MB. Keep up to five separately named areas, each capped at 150 MB (up to 750 MB total). Select an area in the map controls. Whole-state/global packs are not implemented.
 
-Downloads show progress and support cancellation. A complete new area is published only after all tile responses are saved; failure/cancellation retains the prior complete area. Interrupted publication can recover the backup on next launch. The Offline switch uses only local files with no online tile fallback. Outside saved bounds, the basemap is unavailable; GPS, route and node overlays still operate. The area persists, but Offline mode is selected manually each fresh app launch. Delete offline area removes only the map pack. Below zoom 12 the offline basemap is hidden; zooming above 16 enlarges saved tiles. Enabling Offline centers the map on the saved area.
+Downloads show progress and support cancellation. A complete new area is published only after all tile responses are saved; failure/cancellation retains the prior complete area. Interrupted publication can recover the backup on next launch. The Offline switch uses only local files with no online tile fallback. Outside saved bounds, the basemap is unavailable; GPS, route and node overlays still operate. The area persists, but Offline mode is selected manually each fresh app launch. Delete offline area removes only the selected pack; other packs remain. Existing 0.8 offline areas remain selectable after updating. Below zoom 12 the offline basemap is hidden; zooming above 16 enlarges saved tiles. Enabling Offline centers the map on the saved area.
 
 Online mode continues to use OpenStreetMap. Its standard tile server is never bulk-downloaded. Map services and data available from U.S. Geological Survey, National Geospatial Program.
 
@@ -54,7 +54,19 @@ Coverage lists recent measured observations. Map shows individual measured dots,
 
 Stop and save writes a session atomically to private app files. History reopens the GPS route and its measurements, supports editable session names (80 characters), and offers confirmed deletion. Names are saved atomically and included in GeoJSON; older unnamed sessions remain readable. Older GPS-only sessions still load. Failed saves retain points/observations for Retry save and block starting another route over them. Each session is limited to 10,000 GPS fixes and 10,000 observations.
 
-GPS recording stops and saves on background; radio connection/retry can continue independently. There is no background GPS permission or automatic GPS restart. Data remains local unencrypted app storage; backup is disabled. Uninstalling or clearing app data removes sessions. Online map tiles require internet; a previously downloaded topo area can be used in Offline mode. Session export is available from History.
+Foreground-only GPS recording remains the default. Settings → Keep GPS recording in background applies to the next route and resets off on app restart. Start while the app is visible; a location-type foreground service keeps GPS updates running while locked or switching apps. Its separate ongoing notification opens MeshScout to stop/save. The service does not request background location permission, boot-start or automatically restart after termination. Each accepted native GPS fix is checkpointed to private storage; interrupted recordings recover on reopening as a named GPS-only route. Unsaved LoRa observations are not recovered after process death. Closing the Activity, force-stop, revoked permissions and Android/OEM termination can end recording. Physical screen-off/OEM behavior remains unverified.
+
+Data remains local unencrypted app storage; Android automatic app backup is disabled. Uninstalling or clearing app data removes sessions. Online map tiles require internet; a previously downloaded topo area can be used in Offline mode. Session export is available from History.
+
+## Backup and restore
+
+Settings offers Save backup and Restore backup for route/message history (20 MB max, 1,000 routes / 1,000 messages, up to 10,000 GPS points and observations per route). Stop recording, resolve pending save failures and disconnect the radio first. Backups retain route names, precise GPS locations, raw reception observations, message text, timestamps, direction and recorded delivery status. Files are unencrypted. App settings, offline tiles, contacts, channel keys, private keys and live acknowledgement tags are excluded. JSON/CSV message exports are separate and cannot be restored as backups.
+
+Restore validates the format/version, counts, coordinates, field types and duplicate route IDs, then previews counts and asks before replacing all route/message history. The pair of history files is staged together and published through one directory pointer; pre-publication failure leaves existing history in place. Settings and offline maps stay on the phone. Save a backup first if current history matters. Restored status never becomes a new live delivery acknowledgement. Platform picker behavior and power-loss recovery require Android testing.
+
+## Radio status and controls
+
+Radios → Refresh radio status reads companion name, board/firmware, battery voltage, optional storage use, LoRa frequency/bandwidth/SF/CR and signed transmit power. Battery voltage is not an inferred battery percentage. Change radio name enforces 31 UTF-8 bytes; transmit power is bounded by the radio-reported maximum and firmware minimum of −9 dBm. Explicit clock sync uses phone time; firmware rejects backwards changes. Accepted name/power changes refresh status. The command lock excludes concurrent messaging and contact/channel refresh; mutations are never automatically retried. Failure or uncertain results require reconnecting. Bluetooth PIN bytes from DEVICE_INFO are cleared before returning to controls. Channel keys/private keys and frequency-region editing are not exposed. Real firmware settings changes remain unverified.
 
 ## Build and validation
 
