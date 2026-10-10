@@ -150,8 +150,12 @@ void main() {
       () async {
     ble.immediateAck = true;
     await messages.send(key, 'hello');
-    for (var i = 0; i < 30 && container.read(messagesProvider).busy; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 1));
+    for (var i = 0;
+        i < 200 &&
+            container.read(messagesProvider).items.single['status'] !=
+                'Delivery confirmed';
+        i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(container.read(messagesProvider).items.single['status'],
         'Delivery confirmed');
@@ -172,8 +176,12 @@ void main() {
     expect(container.read(messagesProvider).notice, contains('Save failed'));
     await Directory('${directory.path}/messages.json.pending').delete();
     await messages.retrySave();
-    for (var i = 0; i < 30 && container.read(messagesProvider).busy; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 1));
+    for (var i = 0;
+        i < 200 &&
+            container.read(messagesProvider).items.single['status'] !=
+                'Delivery confirmed';
+        i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(container.read(messagesProvider).items.single['body'], 'A');
     expect(await File('${directory.path}/messages.json').readAsString(),
