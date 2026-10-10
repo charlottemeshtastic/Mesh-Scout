@@ -110,8 +110,16 @@ void main() {
         (w.decoration?.labelText?.startsWith('Direct message') ?? false));
     await tester.enterText(composer, 'draft stays');
     alerts.open = true;
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
     await tester.pumpAndSettle();
     expect(find.byType(MessagesScreen), findsOneWidget);
     expect(find.text('draft stays'), findsOneWidget);
