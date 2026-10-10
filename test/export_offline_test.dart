@@ -9,10 +9,21 @@ import 'package:mesh_scout/features/offline/offline_maps.dart';
 void main() {
   final time = DateTime.utc(2026, 10, 10);
   final point = GpsPoint(35.2, -80.8, 5, time);
-  final session = MappingSession(id: 'route', started: time, ended: time,
-    points: [point], observations: [CoverageObservation(point: point, rssi: -101, snr: -2.25, time: time)]);
-  test('GeoJSON uses longitude/latitude, retains measurements and avoids one-point lines', () {
-    final json = jsonDecode(exportSession(session, ExportFormat.geoJson)) as Map<String, dynamic>;
+  final session = MappingSession(
+      id: 'route',
+      started: time,
+      ended: time,
+      points: [
+        point
+      ],
+      observations: [
+        CoverageObservation(point: point, rssi: -101, snr: -2.25, time: time)
+      ]);
+  test(
+      'GeoJSON uses longitude/latitude, retains measurements and avoids one-point lines',
+      () {
+    final json = jsonDecode(exportSession(session, ExportFormat.geoJson))
+        as Map<String, dynamic>;
     final features = json['features'] as List<dynamic>;
     expect(features.length, 2);
     expect(features[0]['geometry']['coordinates'], [-80.8, 35.2]);
@@ -27,14 +38,24 @@ void main() {
     expect(csv, contains('"-101","-2.25"'));
     expect(csv, contains(time.toIso8601String()));
   });
-  test('empty session exports valid empty GeoJSON; two points produce route', () {
-    final empty = MappingSession(id: 'empty', started: time, ended: time, points: []);
-    expect(jsonDecode(exportSession(empty, ExportFormat.geoJson))['features'], isEmpty);
-    final route = MappingSession(id: 'two', started: time, ended: time,
-      points: [point, GpsPoint(35.21, -80.81, 6, time)]);
-    expect(jsonDecode(exportSession(route, ExportFormat.geoJson))['features'][0]['geometry']['type'], 'LineString');
+  test('empty session exports valid empty GeoJSON; two points produce route',
+      () {
+    final empty =
+        MappingSession(id: 'empty', started: time, ended: time, points: []);
+    expect(jsonDecode(exportSession(empty, ExportFormat.geoJson))['features'],
+        isEmpty);
+    final route = MappingSession(
+        id: 'two',
+        started: time,
+        ended: time,
+        points: [point, GpsPoint(35.21, -80.81, 6, time)]);
+    expect(
+        jsonDecode(exportSession(route, ExportFormat.geoJson))['features'][0]
+            ['geometry']['type'],
+        'LineString');
   });
-  test('offline tile plan is bounded, unique and covers zoom 12 through 16', () {
+  test('offline tile plan is bounded, unique and covers zoom 12 through 16',
+      () {
     final tiles = areaTiles(35.2, -80.8);
     expect(tiles.length, lessThan(1000));
     expect(tiles.toSet().length, tiles.length);
@@ -42,8 +63,11 @@ void main() {
     expect(() => areaTiles(0, 0), throwsFormatException);
     expect(() => areaTiles(double.nan, -80), throwsFormatException);
   });
-  test('complete download publishes only finished area and reloads without network', () async {
-    final directory = await Directory.systemTemp.createTemp('meshscout-map-test');
+  test(
+      'complete download publishes only finished area and reloads without network',
+      () async {
+    final directory =
+        await Directory.systemTemp.createTemp('meshscout-map-test');
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final sub = server.listen((request) async {
       request.response.headers.contentType = ContentType('image', 'png');
@@ -53,7 +77,8 @@ void main() {
     final container = ProviderContainer(overrides: [
       offlineDirectoryProvider.overrideWithValue(() async => directory.path),
       offlineThrottleProvider.overrideWithValue(Duration.zero),
-      offlineTileUrlProvider.overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/${tile.z}/${tile.x}/${tile.y}'),
+      offlineTileUrlProvider.overrideWithValue((tile) =>
+          'http://127.0.0.1:${server.port}/${tile.z}/${tile.x}/${tile.y}'),
     ]);
     try {
       final actions = container.read(offlineProvider.notifier);
@@ -77,10 +102,12 @@ void main() {
     }
   });
   test('failed replacement preserves previous complete area', () async {
-    final directory = await Directory.systemTemp.createTemp('meshscout-map-failure');
+    final directory =
+        await Directory.systemTemp.createTemp('meshscout-map-failure');
     final active = Directory('${directory.path}/offline/active');
     await active.create(recursive: true);
-    await File('${active.path}/area.json').writeAsString(jsonEncode({'lat':35.2,'lon':-80.8,'tiles':1,'bytes':8}));
+    await File('${active.path}/area.json').writeAsString(
+        jsonEncode({'lat': 35.2, 'lon': -80.8, 'tiles': 1, 'bytes': 8}));
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       request.response.statusCode = 503;
@@ -88,7 +115,8 @@ void main() {
     });
     final container = ProviderContainer(overrides: [
       offlineDirectoryProvider.overrideWithValue(() async => directory.path),
-      offlineTileUrlProvider.overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
+      offlineTileUrlProvider
+          .overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile'),
     ]);
     try {
       final actions = container.read(offlineProvider.notifier);
@@ -97,11 +125,12 @@ void main() {
       expect(container.read(offlineProvider).area!.latitude, 35.2);
       expect(container.read(offlineProvider).message, contains('failed'));
       expect(File('${active.path}/area.json').existsSync(), isTrue);
-      expect(Directory('${directory.path}/offline/pending-1').existsSync(), isFalse);
+      expect(Directory('${directory.path}/offline/pending-1').existsSync(),
+          isFalse);
     } finally {
       container.dispose();
-      await server.close(force:true);
-      await directory.delete(recursive:true);
+      await server.close(force: true);
+      await directory.delete(recursive: true);
     }
   });
 }

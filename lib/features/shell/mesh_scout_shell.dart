@@ -198,18 +198,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _controller.move(LatLng(point.latitude, point.longitude), 16);
     });
     final offline = ref.watch(offlineProvider);
-    final nodes = ref.watch(radioProvider).contacts.where((c) => c.latitude != null && c.longitude != null).toList();
+    final nodes = ref
+        .watch(radioProvider)
+        .contacts
+        .where((c) => c.latitude != null && c.longitude != null)
+        .toList();
     final points = mapping.displayedPoints;
     final observations = mapping.displayedObservations;
     return Column(children: [
       const MappingAvailability(),
       OfflineControls(center: () {
-        final center = _mapReady ? _controller.camera.center : const LatLng(39.8283, -98.5795);
+        final center = _mapReady
+            ? _controller.camera.center
+            : const LatLng(39.8283, -98.5795);
         return (lat: center.latitude, lon: center.longitude);
       }),
       Row(children: [
-        Checkbox(value: _showNodes, onChanged: (v) => setState(() => _showNodes = v ?? false)),
-        Expanded(child: Text('Advertised nodes: ${nodes.length} · locations may be stale', style: Theme.of(context).textTheme.bodySmall)),
+        Checkbox(
+            value: _showNodes,
+            onChanged: (v) => setState(() => _showNodes = v ?? false)),
+        Expanded(
+            child: Text(
+                'Advertised nodes: ${nodes.length} · locations may be stale',
+                style: Theme.of(context).textTheme.bodySmall)),
       ]),
       Expanded(
           child: widget.mapContent ??
@@ -225,25 +236,44 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       key: ValueKey(offline.area),
                       urlTemplate: '${offline.area!.path}/{z}/{x}/{y}.tile',
                       tileProvider: FileTileProvider(),
-                      minNativeZoom: 12, maxNativeZoom: 16,
+                      minNativeZoom: 12,
+                      maxNativeZoom: 16,
                       errorTileCallback: (tile, error, stack) {},
                     )
-                  else TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'org.meshscout.mesh_scout'),
+                  else
+                    TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'org.meshscout.mesh_scout'),
                   if (_showNodes)
                     MarkerLayer(markers: [
                       for (final node in nodes)
-                        Marker(width: 44, height: 44,
-                          point: LatLng(node.latitude!, node.longitude!),
-                          child: IconButton(
-                            tooltip: '${node.name.isEmpty ? "Unnamed node" : node.name} · advertised',
-                            icon: Icon(node.type == 2 ? Icons.cell_tower : Icons.person_pin_circle, color: Colors.purple),
-                            onPressed: () => showDialog<void>(context: context, builder: (c) => AlertDialog(
-                              title: Text(node.name.isEmpty ? 'Unnamed node' : node.name),
-                              content: Text('${node.typeLabel}\nAdvertised location; current reachability unverified.\n${node.lastAdvert == null ? "No advertisement time" : node.lastAdvert!.toLocal()}\n${node.key}'),
-                              actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Close'))]))))
+                        Marker(
+                            width: 44,
+                            height: 44,
+                            point: LatLng(node.latitude!, node.longitude!),
+                            child: IconButton(
+                                tooltip:
+                                    '${node.name.isEmpty ? "Unnamed node" : node.name} · advertised',
+                                icon: Icon(
+                                    node.type == 2
+                                        ? Icons.cell_tower
+                                        : Icons.person_pin_circle,
+                                    color: Colors.purple),
+                                onPressed: () => showDialog<void>(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                            title: Text(node.name.isEmpty
+                                                ? 'Unnamed node'
+                                                : node.name),
+                                            content: Text(
+                                                '${node.typeLabel}\nAdvertised location; current reachability unverified.\n${node.lastAdvert == null ? "No advertisement time" : node.lastAdvert!.toLocal()}\n${node.key}'),
+                                            actions: [
+                                              TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(c),
+                                                  child: const Text('Close'))
+                                            ]))))
                     ]),
                   if (points.length > 1)
                     PolylineLayer(polylines: [
@@ -275,7 +305,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             borderStrokeWidth: 1),
                     ]),
                   const RichAttributionWidget(attributions: [
-                    TextSourceAttribution('OpenStreetMap contributors · Offline: USGS National Geospatial Program')
+                    TextSourceAttribution(
+                        'OpenStreetMap contributors · Offline: USGS National Geospatial Program')
                   ]),
                 ],
               )),
@@ -358,51 +389,72 @@ class HistoryScreen extends ConsumerWidget {
                   onMap();
                 },
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            IconButton(icon: const Icon(Icons.ios_share), tooltip: 'Export session',
-              onPressed: () async {
-                final choice = await showDialog<({ExportFormat format, bool share})>(
-                  context: context, builder: (c) => SimpleDialog(title: const Text('Export session'),
-                    children: [
-                      const Padding(padding: EdgeInsets.all(16), child: Text('Export includes precise route locations and reception times. Choose where to save or share it.')),
-                      for (final format in ExportFormat.values)
-                        for (final share in [false, true])
-                          SimpleDialogOption(onPressed: () => Navigator.pop(c, (format: format, share: share)),
-                            child: Text('${share ? "Share" : "Save"} ${format == ExportFormat.csv ? "CSV" : "GeoJSON"}'))
-                    ]));
-                if (choice == null) return;
-                try {
-                  final done = await SessionExportService().send(session, choice.format, share: choice.share);
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:
-                    Text(done ? choice.share ? 'Share menu opened' : 'Session saved' : 'Save cancelled')));
-                } catch (_) {
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export failed. Try another destination.')));
-                }
-              }),
             IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete session',
-              onPressed:
-                  state.recording || state.busy || state.points.isNotEmpty
-                      ? null
-                      : () async {
-                          final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                      title: const Text('Delete this route?'),
-                                      content: const Text(
-                                          'This removes the saved GPS route from this phone.'),
-                                      actions: [
-                                        TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context, false),
-                                            child: const Text('Cancel')),
-                                        FilledButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context, true),
-                                            child: const Text('Delete'))
-                                      ]));
-                          if (confirmed == true) await actions.delete(session);
-                        }),
+                icon: const Icon(Icons.ios_share),
+                tooltip: 'Export session',
+                onPressed: () async {
+                  final choice =
+                      await showDialog<({ExportFormat format, bool share})>(
+                          context: context,
+                          builder: (c) => SimpleDialog(
+                                  title: const Text('Export session'),
+                                  children: [
+                                    const Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: Text(
+                                            'Export includes precise route locations and reception times. Choose where to save or share it.')),
+                                    for (final format in ExportFormat.values)
+                                      for (final share in [false, true])
+                                        SimpleDialogOption(
+                                            onPressed: () => Navigator.pop(c,
+                                                (format: format, share: share)),
+                                            child: Text(
+                                                '${share ? "Share" : "Save"} ${format == ExportFormat.csv ? "CSV" : "GeoJSON"}'))
+                                  ]));
+                  if (choice == null) return;
+                  try {
+                    final done = await SessionExportService()
+                        .send(session, choice.format, share: choice.share);
+                    if (context.mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(done
+                              ? choice.share
+                                  ? 'Share menu opened'
+                                  : 'Session saved'
+                              : 'Save cancelled')));
+                  } catch (_) {
+                    if (context.mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content:
+                              Text('Export failed. Try another destination.')));
+                  }
+                }),
+            IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Delete session',
+                onPressed: state.recording ||
+                        state.busy ||
+                        state.points.isNotEmpty
+                    ? null
+                    : () async {
+                        final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                                    title: const Text('Delete this route?'),
+                                    content: const Text(
+                                        'This removes the saved GPS route from this phone.'),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancel')),
+                                      FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text('Delete'))
+                                    ]));
+                        if (confirmed == true) await actions.delete(session);
+                      }),
           ]),
         ),
     ]);

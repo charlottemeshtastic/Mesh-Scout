@@ -7,13 +7,40 @@ enum ExportFormat { geoJson, csv }
 String exportSession(MappingSession session, ExportFormat format) {
   if (format == ExportFormat.csv) {
     final rows = <List<Object>>[
-      ['kind', 'time_utc', 'latitude', 'longitude', 'accuracy_m', 'rssi_dbm', 'snr_db'],
+      [
+        'kind',
+        'time_utc',
+        'latitude',
+        'longitude',
+        'accuracy_m',
+        'rssi_dbm',
+        'snr_db'
+      ],
       for (final p in session.points)
-        ['gps', p.time.toUtc().toIso8601String(), p.latitude, p.longitude, p.accuracy, '', ''],
+        [
+          'gps',
+          p.time.toUtc().toIso8601String(),
+          p.latitude,
+          p.longitude,
+          p.accuracy,
+          '',
+          ''
+        ],
       for (final o in session.observations)
-        ['raw_lora_rx', o.time.toUtc().toIso8601String(), o.point.latitude, o.point.longitude, o.point.accuracy, o.rssi, o.snr],
+        [
+          'raw_lora_rx',
+          o.time.toUtc().toIso8601String(),
+          o.point.latitude,
+          o.point.longitude,
+          o.point.accuracy,
+          o.rssi,
+          o.snr
+        ],
     ];
-    return rows.map((r) => r.map((v) => '"${v.toString().replaceAll('"', '""')}"').join(',')).join('\r\n');
+    return rows
+        .map((r) =>
+            r.map((v) => '"${v.toString().replaceAll('"', '""')}"').join(','))
+        .join('\r\n');
   }
   return jsonEncode({
     'type': 'FeatureCollection',
@@ -21,36 +48,66 @@ String exportSession(MappingSession session, ExportFormat format) {
       'session_id': session.id,
       'started': session.started.toUtc().toIso8601String(),
       'ended': session.ended.toUtc().toIso8601String(),
-      'measurement_note': 'Raw last-hop reception; sender identity and delivery unverified.',
+      'measurement_note':
+          'Raw last-hop reception; sender identity and delivery unverified.',
     },
     'features': [
       if (session.points.length >= 2)
-        {'type': 'Feature', 'properties': {'kind': 'route'},
-          'geometry': {'type': 'LineString', 'coordinates': [
-            for (final p in session.points) [p.longitude, p.latitude]
-          ]}},
+        {
+          'type': 'Feature',
+          'properties': {'kind': 'route'},
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': [
+              for (final p in session.points) [p.longitude, p.latitude]
+            ]
+          }
+        },
       for (final p in session.points)
-        {'type': 'Feature', 'properties': {
-          'kind': 'gps', 'time_utc': p.time.toUtc().toIso8601String(), 'accuracy_m': p.accuracy
-        }, 'geometry': {'type': 'Point', 'coordinates': [p.longitude, p.latitude]}},
+        {
+          'type': 'Feature',
+          'properties': {
+            'kind': 'gps',
+            'time_utc': p.time.toUtc().toIso8601String(),
+            'accuracy_m': p.accuracy
+          },
+          'geometry': {
+            'type': 'Point',
+            'coordinates': [p.longitude, p.latitude]
+          }
+        },
       for (final o in session.observations)
-        {'type': 'Feature', 'properties': {
-          'kind': 'raw_lora_rx', 'time_utc': o.time.toUtc().toIso8601String(),
-          'gps_time_utc': o.point.time.toUtc().toIso8601String(), 'accuracy_m': o.point.accuracy,
-          'rssi_dbm': o.rssi, 'snr_db': o.snr
-        }, 'geometry': {'type': 'Point', 'coordinates': [o.point.longitude, o.point.latitude]}},
+        {
+          'type': 'Feature',
+          'properties': {
+            'kind': 'raw_lora_rx',
+            'time_utc': o.time.toUtc().toIso8601String(),
+            'gps_time_utc': o.point.time.toUtc().toIso8601String(),
+            'accuracy_m': o.point.accuracy,
+            'rssi_dbm': o.rssi,
+            'snr_db': o.snr
+          },
+          'geometry': {
+            'type': 'Point',
+            'coordinates': [o.point.longitude, o.point.latitude]
+          }
+        },
     ]
   });
 }
 
 class SessionExportService {
   static const channel = MethodChannel('org.meshscout/files');
-  Future<bool> send(MappingSession session, ExportFormat format, {required bool share}) async {
+  Future<bool> send(MappingSession session, ExportFormat format,
+      {required bool share}) async {
     final extension = format == ExportFormat.csv ? 'csv' : 'geojson';
     return await channel.invokeMethod<bool>(share ? 'share' : 'save', {
-      'name': 'MeshScout-${session.started.toUtc().millisecondsSinceEpoch}.$extension',
-      'mime': format == ExportFormat.csv ? 'text/csv' : 'application/geo+json',
-      'content': exportSession(session, format),
-    }) ?? false;
+          'name':
+              'MeshScout-${session.started.toUtc().millisecondsSinceEpoch}.$extension',
+          'mime':
+              format == ExportFormat.csv ? 'text/csv' : 'application/geo+json',
+          'content': exportSession(session, format),
+        }) ??
+        false;
   }
 }
