@@ -2,7 +2,7 @@
 
 Independent Android-first MeshCore coverage mapping application. This repository has no BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
-## Version 0.2.1 GPS routes and radio continuity
+## Version 0.2.2 GPS routes and radio continuity
 
 The bottom navigation opens Map, Radios, Nodes, Coverage, History, and Settings. A connection status bar is visible on every tab and opens Radios. Start Mapping records a foreground GPS route independently of radio connection. Stop and save persists GPS points on this phone; History reopens and deletes saved routes. GPS routes are not LoRa coverage observations. Nodes and Coverage explain their limitations; History shows real saved GPS sessions. Settings links to Radios and Android app permissions and explains map/network and recording behavior.
 
@@ -14,7 +14,7 @@ Interface tests navigate all six tabs, verify no launch-time Bluetooth authoriza
 
 Open the Radios tab or tap the connection status bar. Scan requests Nearby Devices on Android 12+; Android 11 and earlier request foreground location access and require location services. Permanent denial offers app settings. Enable Bluetooth before retrying.
 
-A scan is bounded to ten seconds and filters the Nordic UART service. Results are deduplicated by device ID and update BLE RSSI. Stop scanning before selecting a candidate. This UUID is shared by unrelated products: candidates are **not** identified as MeshCore by their name or UUID alone.
+A scan is bounded to ten seconds and filters the Nordic UART service. Results are deduplicated by device ID and update BLE RSSI. Select Connect as soon as a candidate appears; selection cancels the scan immediately rather than waiting for its ten-second deadline. This UUID is shared by unrelated products: candidates are **not** identified as MeshCore by their name or UUID alone.
 
 Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, requests MTU 185 and requires at least 93 bytes to fit identification replies including ATT overhead, subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands fit the default 20-byte ATT payload, but identification replies do not; the connection explicitly negotiates MTU before sending commands. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
 

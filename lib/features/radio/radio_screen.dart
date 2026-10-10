@@ -92,7 +92,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                 child: const Text('Open app settings')),
           if (state.phase == RadioPhase.idle && state.devices.isEmpty)
             const Text(
-                'Scan lasts 10 seconds. Keep the companion radio nearby and advertising.'),
+                'Scan runs for up to 10 seconds. Connect as soon as your radio appears.'),
           for (final device in state.devices)
             ListTile(
               title: Text(device.name.isEmpty
@@ -100,14 +100,15 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                   : device.name),
               subtitle: Text('${device.id} · BLE signal ${device.rssi} dBm'),
               trailing: TextButton(
-                  onPressed: state.phase == RadioPhase.idle
+                  onPressed: state.phase == RadioPhase.idle ||
+                          state.phase == RadioPhase.scanning
                       ? () async => actions.connect(device)
                       : null,
                   child: const Text('Connect')),
             ),
           const SizedBox(height: 16),
           const Text(
-              'Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. LoRa coverage recording and GPS capture are not available yet.'),
+              'Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. GPS routes are available on Map. LoRa coverage measurements are not implemented.'),
         ]),
       ),
     );

@@ -90,13 +90,20 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> connect(RadioDevice device) async {
-    if (state.phase != RadioPhase.idle ||
+    if ((state.phase != RadioPhase.idle &&
+            state.phase != RadioPhase.scanning) ||
         !state.devices.any((d) => d.id == device.id)) {
       return;
     }
     final generation = ++_generation;
     state = const RadioState(phase: RadioPhase.connecting);
+    _deadline?.cancel();
+    final scan = _scan;
+    _scan = null;
     try {
+      // Selecting a result ends scanning immediately, without its ten-second wait.
+      await scan?.cancel();
+      if (!_current(generation)) return;
       await _service.authorize();
       if (!_current(generation)) return;
       _deadline = Timer(

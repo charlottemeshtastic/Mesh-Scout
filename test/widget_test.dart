@@ -157,6 +157,26 @@ void main() {
     expect(find.text('Radio disconnected'), findsOneWidget);
   });
 
+  testWidgets('a discovered radio can connect before the scan deadline',
+      (tester) async {
+    await launch(tester);
+    await select(tester, 1);
+    await tester.tap(find.text('Scan for radios'));
+    await tester.pumpAndSettle();
+    ble.devices.add(const RadioDevice('radio', 'Companion', -55));
+    await tester.pumpAndSettle();
+    expect(container.read(radioProvider).phase, RadioPhase.scanning);
+    await tester.tap(find.text('Connect'));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    expect(ble.devices.hasListener, isFalse);
+    expect(ble.links.hasListener, isTrue);
+    expect(container.read(radioProvider).phase, RadioPhase.connecting);
+    await tester
+        .runAsync(() => container.read(radioProvider.notifier).disconnect());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('connection status opens Radios and reports permission failures',
       (tester) async {
     await launch(tester);
