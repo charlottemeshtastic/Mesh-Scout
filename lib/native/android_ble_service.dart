@@ -1,0 +1,82 @@
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../features/radio/ble_service.dart';
+
+/// Android implementation. Plugins remain confined to this boundary.
+class AndroidBleService implements BleService {
+  AndroidBleService(this._ble);
+  final FlutterReactiveBle _ble;
+  final _service = Uuid.parse(meshCoreService);
+
+  @override
+  Future<void> authorize() async {
+    if (!Platform.isAndroid) {
+      throw const RadioException(RadioFailure.unavailable);
+    }
+    final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    final permissions = sdk >= 31
+        ? [Permission.bluetoothScan, Permission.bluetoothConnect]
+        : [Permission.locationWhenInUse];
+    final statuses = await permissions.request();
+    if (statuses.values.any((s) => s.isPermanentlyDenied)) {
+      throw const RadioException(RadioFailure.permanentlyDenied);
+    }
+    if (statuses.values.any((s) => !s.isGranted)) {
+      throw const RadioException(RadioFailure.denied);
+    }
+    await _ble.initialize();
+    final status = await _ble.statusStream.firstWhere(
+      (s) => s != BleStatus.unknown,
+    ).timeout(const Duration(seconds: 5));
+    if (status != BleStatus.ready) {
+      throw const RadioException(RadioFailure.unavailable);
+    }
+  }
+
+  @override
+  Stream<RadioDevice> scan() => _ble.scanForDevices(
+    withServices: [_service], scanMode: ScanMode.lowLatency,
+  ).map((d) => RadioDevice(d.id, d.name, d.rssi));
+
+  @override
+  Stream<RadioLink> connect(String id) => _ble.connectToAdvertisingDevice(
+    id: id, withServices: [_service],
+    prescanDuration: const Duration(seconds: 3),
+    connectionTimeout: const Duration(seconds: 10),
+  ).map((u) => switch (u.connectionState) {
+    DeviceConnectionState.connected => RadioLink.connected,
+    DeviceConnectionState.disconnected => RadioLink.disconnected,
+    _ => RadioLink.connecting,
+  });
+
+  @override
+  Future<void> discover(String id) async {
+    final services = await _ble.discoverServices(id);
+    final matches = services.where((s) => s.serviceId == _service);
+    if (matches.length != 1) {
+      throw const RadioException(RadioFailure.protocol);
+    }
+    final characteristics = matches.single.characteristics;
+    final rx = characteristics.where((c) => c.characteristicId == Uuid.parse(meshCoreRx));
+    final tx = characteristics.where((c) => c.characteristicId == Uuid.parse(meshCoreTx));
+    if (rx.length != 1 || tx.length != 1 || !rx.single.isWritableWithResponse || !tx.single.isNotifiable) {
+      throw const RadioException(RadioFailure.protocol);
+    }
+  }
+
+  QualifiedCharacteristic _characteristic(String id, String uuid) =>
+      QualifiedCharacteristic(deviceId: id, serviceId: _service, characteristicId: Uuid.parse(uuid));
+
+  @override
+  Stream<List<int>> notifications(String id) =>
+      _ble.subscribeToCharacteristic(_characteristic(id, meshCoreTx));
+
+  @override
+  Future<void> write(String id, List<int> bytes) =>
+      _ble.writeCharacteristicWithResponse(_characteristic(id, meshCoreRx), value: bytes);
+
+  @override
+  Future<void> openSettings() async { await openAppSettings(); }
+}
