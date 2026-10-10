@@ -46,7 +46,9 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) { unawaited(_openMessages()); }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_openMessages());
+    }
     if (state == AppLifecycleState.paused) {
       unawaited(ref.read(radioProvider.notifier).background());
       unawaited(ref.read(mappingProvider.notifier).background());
@@ -57,20 +59,33 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
   }
 
   Future<void> _openMessages() async {
-    if (_openingMessages) { return; }
+    if (_openingMessages) {
+      return;
+    }
     _openingMessages = true;
     try {
       final open = await ref.read(alertServiceProvider).consumeOpen();
-      if (!open || !mounted) { return; }
+      if (!open || !mounted) {
+        return;
+      }
       var existing = false;
       Navigator.of(context).popUntil((route) {
-        if (route.settings.name == '/messages') { existing = true; return true; }
+        if (route.settings.name == '/messages') {
+          existing = true;
+          return true;
+        }
         return route.isFirst;
       });
-      if (!existing) { unawaited(Navigator.of(context).push<void>(MaterialPageRoute<void>(settings: const RouteSettings(name: '/messages'), builder: (_) => const MessagesScreen()))); }
+      if (!existing) {
+        unawaited(Navigator.of(context).push<void>(MaterialPageRoute<void>(
+            settings: const RouteSettings(name: '/messages'),
+            builder: (_) => const MessagesScreen())));
+      }
     } catch (_) {
       // Opening the app remains usable if the platform intent is unavailable.
-    } finally { _openingMessages = false; }
+    } finally {
+      _openingMessages = false;
+    }
   }
 
   @override

@@ -27,7 +27,11 @@ class CountingBle extends FakeBle {
 class OpenMessageAlerts extends SilentAlerts {
   bool open = true;
   @override
-  Future<bool> consumeOpen() async { final value = open; open = false; return value; }
+  Future<bool> consumeOpen() async {
+    final value = open;
+    open = false;
+    return value;
+  }
 }
 
 void main() {
@@ -85,17 +89,23 @@ void main() {
     });
   }
 
-  testWidgets('notification opens Messages once and preserves an existing draft', (tester) async {
+  testWidgets(
+      'notification opens Messages once and preserves an existing draft',
+      (tester) async {
     final alerts = OpenMessageAlerts();
-    await launch(tester, alerts: alerts); await tester.pumpAndSettle();
+    await launch(tester, alerts: alerts);
+    await tester.pumpAndSettle();
     expect(find.byType(MessagesScreen), findsOneWidget);
-    final composer = find.byWidgetPredicate((w) => w is TextField && (w.decoration?.labelText?.startsWith('Direct message') ?? false));
+    final composer = find.byWidgetPredicate((w) =>
+        w is TextField &&
+        (w.decoration?.labelText?.startsWith('Direct message') ?? false));
     await tester.enterText(composer, 'draft stays');
     alerts.open = true;
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
-    expect(find.byType(MessagesScreen), findsOneWidget); expect(find.text('draft stays'), findsOneWidget);
+    expect(find.byType(MessagesScreen), findsOneWidget);
+    expect(find.text('draft stays'), findsOneWidget);
   });
   testWidgets('all six tabs navigate without requesting Bluetooth permissions',
       (tester) async {
