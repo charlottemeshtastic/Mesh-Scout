@@ -23,6 +23,8 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        // Recover durable native GPS checkpoints before Flutter loads history.
+        runCatching { GpsRecordingService.recover(this) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/message_alerts")
             .setMethodCallHandler { call, result -> messageAlerts.handle(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/files")
@@ -45,20 +47,24 @@ class MainActivity : FlutterActivity() {
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/mapping")
             .setMethodCallHandler { call, result ->
                 try {
-                    val file = File(filesDir, "mapping-sessions.json")
+                    val file = File(ScoutStorage.directory(this), "mapping-sessions.json")
                     when (call.method) {
                         "locationEnabled" -> result.success(
                             locations.isProviderEnabled(LocationManager.GPS_PROVIDER))
-                        "loadSessions" -> result.success(if (file.exists()) file.readText() else null)
+                        "loadSessions" -> {
+                            GpsRecordingService.recover(this)
+                            result.success(if (file.exists()) file.readText() else null)
+                        }
                         "saveSessions" -> {
                             val json = call.arguments as String
                             JSONArray(json) // Reject invalid session data before replacing the file.
-                            val temp = File(filesDir, "mapping-sessions.tmp")
+                            val temp = File(ScoutStorage.directory(this), "mapping-sessions.tmp")
                             temp.outputStream().use { stream ->
                                 stream.write(json.toByteArray(Charsets.UTF_8))
                                 stream.fd.sync()
                             }
                             if (!temp.renameTo(file)) throw Exception("Could not save sessions")
+                            GpsRecordingService.clearJournal(this)
                             result.success(null)
                         }
                         else -> result.notImplemented()
@@ -75,6 +81,16 @@ class MainActivity : FlutterActivity() {
                     }
                     if (!locations.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                         sink.error("gps_off", "Enable GPS/location services", null)
+                        return
+                    }
+                    val options = arguments as? Map<*, *>
+                    if (options?.get("background") == true) {
+                        try {
+                            GpsRecordingService.sink = sink
+                            val intent = Intent(this@MainActivity, GpsRecordingService::class.java)
+                                .putExtra("started", (options["started"] as Number).toLong())
+                            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+                        } catch (e: Exception) { GpsRecordingService.sink = null; sink.error("gps_service", e.message, null) }
                         return
                     }
                     val newListener = object : LocationListener {
@@ -97,7 +113,11 @@ class MainActivity : FlutterActivity() {
                         sink.error("gps", e.message, null)
                     }
                 }
-                override fun onCancel(arguments: Any?) { stopLocations() }
+                override fun onCancel(arguments: Any?) {
+                    stopLocations()
+                    GpsRecordingService.sink = null
+                    stopService(Intent(this@MainActivity, GpsRecordingService::class.java))
+                }
             })
     }
     private fun stopLocations() {
@@ -127,6 +147,8 @@ class MainActivity : FlutterActivity() {
         messageAlerts.clear()
         scoutFiles.dispose()
         stopLocations()
+        GpsRecordingService.sink = null
+        stopService(Intent(this, GpsRecordingService::class.java))
         stopService(Intent(this, RadioConnectionService::class.java))
         super.onDestroy()
     }

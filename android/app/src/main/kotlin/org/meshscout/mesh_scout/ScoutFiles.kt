@@ -10,17 +10,29 @@ import java.io.File
 class ScoutFiles(private val activity: Activity) {
     private var pending: MethodChannel.Result? = null
     private var content: String? = null
+
     fun handle(call: MethodCall, result: MethodChannel.Result) {
         try {
             if (call.method == "directory") {
                 result.success(activity.filesDir.absolutePath)
                 return
             }
+            if (call.method == "dataDirectory") { result.success(ScoutStorage.directory(activity).absolutePath); return }
+            if (call.method == "readBackup") { result.success(ScoutStorage.readBackup(activity)); return }
+            if (call.method == "restoreBackup") { ScoutStorage.restore(activity, call.arguments as String); result.success(null); return }
+            if (call.method == "openBackup") {
+                require(pending == null)
+                pending = result
+                activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE); type = "application/json"
+                }, 805)
+                return
+            }
             if (call.method != "save" && call.method != "share") { result.notImplemented(); return }
             val name = call.argument<String>("name") ?: throw Exception("Missing name")
             val text = call.argument<String>("content") ?: throw Exception("Missing content")
             val mime = call.argument<String>("mime") ?: throw Exception("Missing type")
-            require(Regex("MeshScout-(?:Messages-)?[0-9]+\\.(csv|geojson|json)").matches(name))
+            require(Regex("MeshScout-(?:(?:Messages|Backup)-)?[0-9]+\\.(csv|geojson|json)").matches(name))
             require(text.toByteArray().size <= 20 * 1024 * 1024)
             if (call.method == "save") {
                 if (pending != null) throw Exception("A save dialog is already open")
@@ -53,6 +65,27 @@ class ScoutFiles(private val activity: Activity) {
         }
     }
     fun activityResult(request: Int, code: Int, data: Intent?): Boolean {
+        if (request == 805) {
+            val result = pending ?: return true
+            pending = null
+            if (code != Activity.RESULT_OK || data?.data == null) { result.success(null); return true }
+            val uri = data.data!!
+            Thread {
+                try {
+                    val bytes = activity.contentResolver.openInputStream(uri)?.use { stream ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        while (true) { val n = stream.read(buffer); if (n < 0) break
+                            require(output.size() + n <= 20 * 1024 * 1024) { "Backup exceeds 20 MB" }; output.write(buffer, 0, n) }
+                        output.toByteArray()
+                    } ?: throw Exception("Could not open backup")
+                    val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    val text = decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+                    activity.runOnUiThread { result.success(text) }
+                } catch (e: Exception) { activity.runOnUiThread { result.error("backup", e.message, null) } }
+            }.start()
+            return true
+        }
         if (request != 804) return false
         val result = pending ?: return true
         val text = content

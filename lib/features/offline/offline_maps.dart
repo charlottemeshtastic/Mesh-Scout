@@ -52,8 +52,9 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
 class OfflineArea {
   const OfflineArea(
       this.path, this.latitude, this.longitude, this.tiles, this.bytes,
-      {this.sideKm = 4});
+      {this.sideKm = 4, this.name});
   final String path;
+  final String? name;
   final double latitude, longitude;
   final int tiles, bytes, sideKm;
 }
@@ -61,6 +62,7 @@ class OfflineArea {
 final offlineDirectoryProvider = Provider<Future<String> Function()>((ref) =>
     () async => (await const MethodChannel('org.meshscout/files')
         .invokeMethod<String>('directory'))!);
+final dataDirectoryProvider = Provider<Future<String> Function()>((ref) => ref.read(offlineDirectoryProvider));
 final offlineTileUrlProvider = Provider<
     String Function(
         MapTile)>((ref) => (tile) =>
@@ -73,12 +75,14 @@ final offlineProvider =
 class OfflineState {
   const OfflineState(
       {this.area,
+      this.areas = const [],
       this.busy = false,
       this.progress = 0,
       this.total = 0,
       this.enabled = false,
       this.message});
   final OfflineArea? area;
+  final List<OfflineArea> areas;
   final bool busy, enabled;
   final int progress, total;
   final String? message;
@@ -108,19 +112,22 @@ class OfflineMaps extends Notifier<OfflineState> {
       if (!active.existsSync() && backup.existsSync()) {
         await backup.rename(active.path);
       }
-      final metadata = File('${root.path}/active/area.json');
-      if (!metadata.existsSync()) return;
-      final data =
-          jsonDecode(await metadata.readAsString()) as Map<String, dynamic>;
+      if (active.existsSync() && backup.existsSync()) await backup.delete(recursive: true);
+      final areas = <OfflineArea>[];
+      if (root.existsSync()) {
+        for (final entry in root.listSync().whereType<Directory>()) {
+          if (entry.path.endsWith('/pending') || entry.path.endsWith('/backup')) continue;
+          final metadata = File('${entry.path}/area.json');
+          if (!metadata.existsSync()) continue;
+          final data = jsonDecode(await metadata.readAsString()) as Map<String, dynamic>;
+          areas.add(OfflineArea(entry.path, (data['lat'] as num).toDouble(),
+              (data['lon'] as num).toDouble(), data['tiles'] as int, data['bytes'] as int,
+              sideKm: data['sideKm'] as int? ?? 4, name: data['name'] as String?));
+        }
+      }
+      areas.sort((a, b) => b.path.compareTo(a.path));
       if (!ref.mounted) return;
-      state = OfflineState(
-          area: OfflineArea(
-              '${root.path}/active',
-              (data['lat'] as num).toDouble(),
-              (data['lon'] as num).toDouble(),
-              data['tiles'] as int,
-              data['bytes'] as int,
-              sideKm: data['sideKm'] as int? ?? 4));
+      state = OfflineState(area: areas.isEmpty ? null : areas.first, areas: List.unmodifiable(areas));
     } catch (_) {
       if (!ref.mounted) return;
       state = const OfflineState(
@@ -131,6 +138,7 @@ class OfflineMaps extends Notifier<OfflineState> {
   void enable(bool value) {
     state = OfflineState(
         area: state.area,
+        areas: state.areas,
         enabled: value && state.area != null,
         message: state.message);
   }
@@ -141,19 +149,25 @@ class OfflineMaps extends Notifier<OfflineState> {
     _client?.close(force: true);
     state = OfflineState(
         area: state.area,
+        areas: state.areas,
         enabled: state.enabled,
         message: 'Download cancelled; previous area retained.');
   }
 
-  Future<void> download(double lat, double lon, {int sideKm = 4}) async {
+  Future<void> download(double lat, double lon, {int sideKm = 4, String? name}) async {
     if (_running || state.busy) return;
     _running = true;
     final generation = ++_generation;
     final previous = state.area;
+    final saved = state.areas;
     Directory? staging;
     try {
+      if (saved.length >= 5) throw const FormatException('Keep up to five offline areas. Delete one first.');
+      if (name != null && (name.trim().length > 60 || name.contains(RegExp(r'[\x00-\x1f]')))) {
+        throw const FormatException('Use a name of up to 60 characters.');
+      }
       final tiles = areaTiles(lat, lon, sideKm: sideKm);
-      state = OfflineState(area: previous, busy: true, total: tiles.length);
+      state = OfflineState(area: previous, areas: saved, busy: true, total: tiles.length);
       final root = await _root();
       if (generation != _generation) return;
       await root.create(recursive: true);
@@ -171,7 +185,7 @@ class OfflineMaps extends Notifier<OfflineState> {
             .getUrl(Uri.parse(ref.read(offlineTileUrlProvider)(tile)))
             .timeout(const Duration(seconds: 20));
         request.headers.set(
-            'User-Agent', 'MeshScout/0.5 (independent Android mapping app)');
+            'User-Agent', 'MeshScout/0.9 (independent Android mapping app)');
         final response =
             await request.close().timeout(const Duration(seconds: 20));
         if (response.statusCode != 200 ||
@@ -201,7 +215,7 @@ class OfflineMaps extends Notifier<OfflineState> {
         count++;
         if (generation != _generation) return;
         state = OfflineState(
-            area: previous, busy: true, progress: count, total: tiles.length);
+            area: previous, areas: saved, busy: true, progress: count, total: tiles.length);
         await Future<void>.delayed(ref.read(offlineThrottleProvider));
       }
       await File('${staging.path}/area.json').writeAsString(
@@ -210,35 +224,21 @@ class OfflineMaps extends Notifier<OfflineState> {
             'lon': lon,
             'tiles': count,
             'bytes': bytes,
-            'sideKm': sideKm
+            'sideKm': sideKm,
+            if (name != null && name.trim().isNotEmpty) 'name': name.trim()
           }),
           flush: true);
       if (generation != _generation) return;
       _committing = true;
-      final active = Directory('${root.path}/active');
-      final backup = Directory('${root.path}/backup');
-      if (backup.existsSync()) await backup.delete(recursive: true);
-      if (active.existsSync()) await active.rename(backup.path);
-      try {
-        await staging.rename(active.path);
-      } catch (_) {
-        if (backup.existsSync()) await backup.rename(active.path);
-        rethrow;
-      }
+      final active = Directory('${root.path}/area-${DateTime.now().microsecondsSinceEpoch}');
+      await staging.rename(active.path);
       if (!ref.mounted) return;
-      state = OfflineState(
-          area:
-              OfflineArea(active.path, lat, lon, count, bytes, sideKm: sideKm),
-          message:
-              'Area saved. Enable Offline map to use it without internet.');
-      try {
-        if (backup.existsSync()) await backup.delete(recursive: true);
-      } catch (_) {
-        // The complete active area is already published; cleanup can wait.
-      }
+      final area = OfflineArea(active.path, lat, lon, count, bytes, sideKm: sideKm, name: name?.trim());
+      state = OfflineState(area: area, areas: List.unmodifiable([area, ...saved]),
+          message: 'Area saved. Select an area and enable Offline map.');
     } catch (e) {
       if (ref.mounted && generation == _generation) {
-        state = OfflineState(area: previous, message: 'Download failed: $e');
+        state = OfflineState(area: previous, areas: saved, message: 'Download failed: $e');
       }
     } finally {
       _running = false;
@@ -251,10 +251,19 @@ class OfflineMaps extends Notifier<OfflineState> {
     }
   }
 
+  void select(OfflineArea area) {
+    if (_running || state.busy || !state.areas.contains(area)) return;
+    state = OfflineState(area: area, areas: state.areas, enabled: state.enabled);
+  }
+
   Future<void> delete() async {
-    if (_running || state.busy) return;
-    final root = await _root();
-    if (root.existsSync()) await root.delete(recursive: true);
-    state = const OfflineState(message: 'Offline area deleted.');
+    if (_running || state.busy || state.area == null) return;
+    final selected = state.area!;
+    final directory = Directory(selected.path);
+    if (directory.existsSync()) await directory.delete(recursive: true);
+    final areas = state.areas.where((a) => a.path != selected.path).toList();
+    state = OfflineState(area: areas.isEmpty ? null : areas.first,
+        areas: List.unmodifiable(areas), enabled: state.enabled && areas.isNotEmpty,
+        message: 'Selected offline area deleted.');
   }
 }

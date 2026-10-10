@@ -3,6 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mapping_service.dart';
 import '../../common/mesh_data.dart';
 
+final backgroundGpsProvider = NotifierProvider<BackgroundGps, bool>(BackgroundGps.new);
+class BackgroundGps extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool value) => state = value;
+}
+
 final mappingServiceProvider =
     Provider<MappingService>((ref) => throw UnimplementedError());
 final mappingProvider =
@@ -41,6 +48,7 @@ class MappingNotifier extends Notifier<MappingState> {
   bool _disposed = false;
   bool _loadFailed = false;
   bool _starting = false;
+  bool _keepBackground = false;
   MappingService get _service => ref.read(mappingServiceProvider);
 
   @override
@@ -71,7 +79,7 @@ class MappingNotifier extends Notifier<MappingState> {
     }
   }
 
-  Future<void> start() async {
+  Future<void> start({bool background = false}) async {
     if (state.loading ||
         state.busy ||
         state.recording ||
@@ -85,9 +93,17 @@ class MappingNotifier extends Notifier<MappingState> {
     state = MappingState(loading: false, busy: true, sessions: state.sessions);
     try {
       await _service.authorize();
-      _starting = false;
       if (_disposed || generation != _generation) return;
       _started = DateTime.now();
+      _keepBackground = background;
+      final service = _service;
+      if (service is BackgroundMappingService) {
+        await (service as BackgroundMappingService).configureRecording(background, _started!);
+      } else if (background) {
+        throw StateError('Background GPS is unavailable on this platform.');
+      }
+      if (_disposed || generation != _generation) return;
+      _starting = false;
       state = MappingState(
           loading: false,
           recording: true,
@@ -202,7 +218,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> background() async {
-    // GPS recording is foreground-only; cancel a pending permission start too.
+    // Foreground routes stop on app switching; opted-in routes keep recording.
     if (_starting) {
       _starting = false;
       ++_generation;
@@ -210,7 +226,7 @@ class MappingNotifier extends Notifier<MappingState> {
           loading: false,
           sessions: state.sessions,
           message: 'Recording start cancelled when leaving the app.');
-    } else if (state.recording) {
+    } else if (state.recording && !_keepBackground) {
       await stop(
           reason:
               'Saved when leaving the app. Tap Start Mapping to record again.');

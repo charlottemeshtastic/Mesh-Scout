@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../alerts/message_alerts.dart';
+import '../backup/backup.dart';
 import '../messages/messages.dart';
 
 import 'package:flutter/material.dart';
@@ -59,7 +60,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
   }
 
   Future<void> _openMessages() async {
-    if (_openingMessages) {
+    if (_openingMessages || ref.read(maintenanceProvider)) {
       return;
     }
     _openingMessages = true;
@@ -119,7 +120,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
         ref.read(mappingProvider.notifier).capture(next.lastRx!);
       }
     });
-    return Scaffold(
+    return AbsorbPointer(absorbing: ref.watch(maintenanceProvider), child: Scaffold(
       appBar: AppBar(
         title: const Text('MeshScout'),
         actions: [
@@ -168,7 +169,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
               icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -384,7 +385,7 @@ class MappingAvailability extends ConsumerWidget {
                       if (state.recording || retry) {
                         await actions.stop();
                       } else {
-                        await actions.start();
+                        await actions.start(background: ref.read(backgroundGpsProvider));
                       }
                     },
               icon: Icon(state.recording ? Icons.stop : Icons.play_arrow),
@@ -677,12 +678,18 @@ class SettingsScreen extends ConsumerWidget {
                       .configure(enabled)),
           if (ref.watch(messageAlertsProvider).notice != null)
             Text(ref.watch(messageAlertsProvider).notice!),
+          SwitchListTile(
+            title: const Text('Keep GPS recording in background'),
+            subtitle: const Text('Applies to the next route. Start while the app is open, then lock the phone or switch apps. An ongoing notification marks recording. Stop and save in Map. Android may stop the process; checkpointed GPS points are recovered on reopening.'),
+            value: ref.watch(backgroundGpsProvider),
+            onChanged: ref.watch(mappingProvider).recording || ref.watch(mappingProvider).busy ? null : (value) => ref.read(backgroundGpsProvider.notifier).set(value)),
+          const BackupControls(),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),
             subtitle: Text(
                 'Precise location is requested when you start a route. '
-                'Routes save on this phone; recording stops when you leave the app.'),
+                'Routes save on this phone. Background recording is optional and resets off when the app restarts.'),
           ),
           const ListTile(
             leading: Icon(Icons.privacy_tip_outlined),
@@ -693,7 +700,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 0.8'),
+            title: Text('MeshScout 0.9'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),

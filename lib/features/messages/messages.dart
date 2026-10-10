@@ -103,6 +103,7 @@ class Messages extends Notifier<MessageState> {
   final _acks = <String>{};
   final _live = <String>{};
   List<Map<String, dynamic>>? _unsaved;
+  bool get hasUnsaved => _unsaved != null;
   @override
   MessageState build() {
     ref.listen(radioProvider.select((s) => s.messageEvent), (_, bytes) {
@@ -130,7 +131,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<File> _file() async =>
-      File('${await ref.read(offlineDirectoryProvider)()}/messages.json');
+      File('${await ref.read(dataDirectoryProvider)()}/messages.json');
   Future<void> load() async {
     if (state.loaded || state.busy) {
       return;
@@ -437,6 +438,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         radio.phase == RadioPhase.ready &&
         !radio.syncing &&
         !radio.messagingBusy &&
+        !radio.controlsBusy &&
         !radio.channelsLoading &&
         actions.available;
     return Scaffold(
@@ -499,6 +501,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                         !state.busy &&
                         !radio.syncing &&
                         !radio.messagingBusy &&
+                        !radio.controlsBusy &&
                         !radio.channelsLoading
                     ? ref.read(radioProvider.notifier).refreshChannels
                     : null,

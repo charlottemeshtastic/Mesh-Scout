@@ -110,3 +110,7 @@ List<MappingSession> decodeSessions(String? data) => data == null
         .toList();
 String encodeSessions(List<MappingSession> sessions) =>
     jsonEncode(sessions.map((s) => s.toJson()).toList());
+
+abstract interface class BackgroundMappingService {
+  Future<void> configureRecording(bool background, DateTime started);
+}

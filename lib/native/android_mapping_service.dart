@@ -3,8 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../features/mapping/mapping_service.dart';
 
-class AndroidMappingService implements MappingService {
+class AndroidMappingService implements MappingService, BackgroundMappingService {
   static const _methods = MethodChannel('org.meshscout/mapping');
+  bool _background = false;
+  DateTime? _started;
+  @override
+  Future<void> configureRecording(bool background, DateTime started) async {
+    _background = background;
+    _started = started;
+    if (background) await Permission.notification.request();
+  }
   static const _events = EventChannel('org.meshscout/positions');
 
   @override
@@ -24,7 +32,7 @@ class AndroidMappingService implements MappingService {
   }
 
   @override
-  Stream<GpsPoint> positions() => _events.receiveBroadcastStream().map((event) {
+  Stream<GpsPoint> positions() => _events.receiveBroadcastStream({'background': _background, 'started': _started?.microsecondsSinceEpoch}).map((event) {
         final data = event as Map<dynamic, dynamic>;
         return GpsPoint(
             (data['lat'] as num).toDouble(),

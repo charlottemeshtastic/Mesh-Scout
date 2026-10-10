@@ -51,7 +51,8 @@ class RadioState {
       this.messagingBusy = false,
       this.messageEvent,
       this.channels = const [],
-      this.channelsLoading = false});
+      this.channelsLoading = false,
+      this.controlsBusy = false});
   final RadioPhase phase;
   final List<RadioDevice> devices;
   final RadioFailure? failure;
@@ -65,6 +66,7 @@ class RadioState {
   final bool messagingBusy;
   final List<RadioChannel> channels;
   final bool channelsLoading;
+  final bool controlsBusy;
   final List<int>? messageEvent;
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
   RadioState copyWith(
@@ -80,7 +82,8 @@ class RadioState {
           bool? messagingBusy,
           List<int>? messageEvent,
           List<RadioChannel>? channels,
-          bool? channelsLoading}) =>
+          bool? channelsLoading,
+          bool? controlsBusy}) =>
       RadioState(
           phase: phase ?? this.phase,
           devices: devices ?? this.devices,
@@ -95,7 +98,8 @@ class RadioState {
           messagingBusy: messagingBusy ?? this.messagingBusy,
           messageEvent: messageEvent ?? this.messageEvent,
           channels: channels ?? this.channels,
-          channelsLoading: channelsLoading ?? this.channelsLoading);
+          channelsLoading: channelsLoading ?? this.channelsLoading,
+          controlsBusy: controlsBusy ?? this.controlsBusy);
 }
 
 class RadioNotifier extends Notifier<RadioState> {
@@ -295,6 +299,7 @@ class RadioNotifier extends Notifier<RadioState> {
         state.syncing ||
         state.messagingBusy ||
         state.channelsLoading ||
+        state.controlsBusy ||
         _target == null) {
       return;
     }
@@ -341,7 +346,8 @@ class RadioNotifier extends Notifier<RadioState> {
     if (state.phase != RadioPhase.ready ||
         state.syncing ||
         state.messagingBusy ||
-        state.channelsLoading) {
+        state.channelsLoading ||
+        state.controlsBusy) {
       return;
     }
     final generation = _generation;
@@ -393,12 +399,22 @@ class RadioNotifier extends Notifier<RadioState> {
     }
   }
 
+  bool beginControls() {
+    if (state.phase != RadioPhase.ready || state.syncing || state.messagingBusy || state.channelsLoading || state.controlsBusy || _syncFailed) return false;
+    state = state.copyWith(controlsBusy: true);
+    return true;
+  }
+  void endControls(int token) {
+    if (_current(token)) state = state.copyWith(controlsBusy: false);
+  }
+
   Future<List<int>> messageCommand(List<int> command, Set<int> replies,
-      {bool allowNotFound = false}) async {
+      {bool allowNotFound = false, bool control = false}) async {
     if (state.phase != RadioPhase.ready ||
         state.syncing ||
         state.messagingBusy ||
         (state.channelsLoading && command.first != 31) ||
+        (state.controlsBusy && !control) ||
         _target == null ||
         _syncFailed) {
       throw StateError(
@@ -466,6 +482,11 @@ class RadioNotifier extends Notifier<RadioState> {
         } else {
           reply.complete(List<int>.unmodifiable(bytes.take(34)));
         }
+      } else if (bytes.first == 13 && bytes.length >= 80) {
+        // DEVICE_INFO includes the Bluetooth PIN; never pass it to controls.
+        final safe = [...bytes];
+        safe.fillRange(4, 8, 0);
+        reply.complete(List<int>.unmodifiable(safe));
       } else {
         reply.complete(List<int>.unmodifiable(bytes));
       }

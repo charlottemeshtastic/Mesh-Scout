@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'ble_service.dart';
 import 'radio_notifier.dart';
+import 'radio_controls.dart';
 
 class RadioScreen extends ConsumerStatefulWidget {
   const RadioScreen({super.key, this.embedded = false});
@@ -109,6 +110,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                   child: const Text('Connect')),
             ),
           const SizedBox(height: 16),
+          const RadioControlsPanel(),
           const Text(
               'Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. GPS routes are available on Map. Record received LoRa metrics with GPS on Map; stored contacts are available on Nodes.'),
         ]),
