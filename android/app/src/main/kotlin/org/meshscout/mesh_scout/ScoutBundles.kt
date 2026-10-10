@@ -94,7 +94,7 @@ class ScoutBundles(private val activity: Activity) {
         }
         async(result) {
             when(operation) {
-                "importMap" -> importMap(uri)
+                "importMap" -> synchronized(lock) { importMap(uri) }
                 "openBundle" -> open(uri,args)
                 else -> synchronized(lock) {
                     val file=create(activity,args["password"] as? String?:"",args["maps"]==true)
@@ -172,7 +172,7 @@ class ScoutBundles(private val activity: Activity) {
                     text("manifest.json",JSONObject().put("format","meshscout-bundle").put("version",2).put("maps",maps).toString())
                     text("data.json",ScoutStorage.readBackup(context))
                     for(name in listOf("field-notes.json","settings.json")){val f=File(root,name);if(f.exists()){require(f.length()<=20L*1024*1024);text(name,f.readText())}}
-                    if(maps){var bytes=0L;var count=0;val maproot=ScoutStorage.mapDirectory(context);if(maproot.exists())for(f in maproot.walkTopDown().filter{it.isFile && !it.relativeTo(maproot).path.startsWith("pending/")}){
+                    if(maps){var bytes=0L;var count=0;val maproot=ScoutStorage.mapDirectory(context);if(maproot.exists())for(f in maproot.walkTopDown().filter{it.isFile && File(maproot,it.relativeTo(maproot).path.substringBefore('/')+"/area.json").exists()}){
                         val name="offline/"+f.relativeTo(maproot).invariantSeparatorsPath
                         if(!Regex("offline/[a-zA-Z0-9-]+/(?:area\\.json|[0-9]+/[0-9]+/[0-9]+\\.tile)").matches(name))continue
                         require(++count<=50000);bytes+=f.length();require(bytes<=500L*1024*1024);zip.putNextEntry(ZipEntry(name));f.inputStream().use{it.copyTo(zip)};zip.closeEntry()
@@ -202,7 +202,8 @@ class ScoutBundles(private val activity: Activity) {
                     }else {val f=if(merge && existing.exists())existing else if(incoming.exists())incoming else existing;if(f.exists())f.copyTo(File(target,name))}
                 }
                 val imported=File(source,"offline")
-                if(imported.exists()) {
+                val includesMaps=JSONObject(File(source,"manifest.json").readText()).getBoolean("maps")
+                if(includesMaps) {
                     val destination=File(target,"offline").apply{mkdir()}
                     if(merge && oldmaps.exists())oldmaps.listFiles()?.filter{File(it,"area.json").exists()}?.forEach{it.copyRecursively(File(destination,it.name))}
                     imported.listFiles()?.forEach{it.copyRecursively(File(destination,"area-${System.nanoTime()}"))};require((destination.listFiles()?.size?:0)<=5){"Merged backup would exceed five map areas"}

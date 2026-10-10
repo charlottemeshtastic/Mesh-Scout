@@ -1,3 +1,4 @@
+import 'diagnostics.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -51,6 +52,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
   String notice = '';
   String? pendingKey;
   int? pendingToken;
+  DateTime? requestedAt;
   bool busy = false;
   Future<void> run(List<int> command, {Set<int> replies = const {0}, bool refresh = false}) async {
     final radio = ref.read(radioProvider.notifier);
@@ -99,6 +101,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
     } else {
       frame = switch(command) { 52 => [52, 0, ...key], 39 => [39, 0, 0, 0, ...key], _ => [command, ...key] };
     }
+    requestedAt = DateTime.now();
     pendingKey = c.key.substring(0, 12);
     pendingToken = ref.read(radioProvider.notifier).sessionToken;
     await run(frame, replies: const {6});
@@ -109,8 +112,11 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
     ref.listen(radioProvider.select((s) => s.remoteEvent), (_, next) {
       if (next == null || next.length < 8 || pendingToken != ref.read(radioProvider.notifier).sessionToken) return;
       final prefix = next.sublist(2, 8).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-      if (prefix != pendingKey) return;
-      setState(() => notice = '${switch(next.first) { 0x85 => "Login accepted", 0x86 => "Login rejected", 0x87 => "Status response received: node reachable now", 0x8b => "Telemetry response received", 0x8d => "Path response received", _ => "Response" }} at ${DateTime.now().toLocal()}. Payload (firmware format): ${next.skip(8).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      if (prefix != pendingKey || state.phase != RadioPhase.ready || requestedAt==null || DateTime.now().difference(requestedAt!).inSeconds>60) return;
+      String details;
+      try { details = next.first==0x8b ? telemetryDescription(next.sublist(8)) : next.first==0x8d ? pathDescription(next) : next.skip(8).map((b)=>b.toRadixString(16).padLeft(2,'0')).join(' '); }
+      on FormatException { setState(()=>notice='Malformed remote response; result unknown.');return; }
+      setState(() => notice = '${switch(next.first) { 0x85 => "Login accepted", 0x86 => "Login rejected", 0x87 => "Status response received: node reachable now", 0x8b => "Telemetry response received", 0x8d => "Path response received", _ => "Response" }} at ${DateTime.now().toLocal()}. Payload (firmware format): ${details}');
     });
     final ready = !busy && state.phase == RadioPhase.ready && !state.controlsBusy && !state.syncing && !state.messagingBusy && !state.channelsLoading;
     return Scaffold(appBar: AppBar(title: const Text('Contacts, channels & diagnostics')), body: ListView(padding: const EdgeInsets.all(16), children: [
@@ -165,7 +171,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
       const Divider(),
       for(final c in state.contacts) ExpansionTile(title:Text(c.name),subtitle:Text(c.typeLabel),children:[
         Wrap(children:[TextButton(onPressed:ready?()=>editContact(c):null,child:const Text('Edit')),TextButton(onPressed:ready?()=>guarded(()async{final yes=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:Text('Delete ${c.name}?'),actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Delete'))]));if(yes==true)await run([15,...publicKey(c.key)],refresh:true);}):null,child:const Text('Delete')),TextButton(onPressed:ready?()=>remote(c,52):null,child:const Text('Discover path')),TextButton(onPressed:ready?()=>remote(c,27):null,child:const Text('Check reachability / status')),TextButton(onPressed:ready?()=>remote(c,39):null,child:const Text('Request telemetry')),if(c.type==2)...[TextButton(onPressed:ready?()=>remote(c,26):null,child:const Text('Log in')),TextButton(onPressed:ready?()=>remote(c,2):null,child:const Text('Send CLI command'))]])]),
-      const Text('A missing reply leaves reachability unknown. Status, path and telemetry payloads are shown as raw firmware bytes; interpretation varies by firmware.'),
+      const Text('A missing reply leaves reachability unknown. Paths show repeater hashes and standard Cayenne telemetry is decoded. Status and unknown telemetry fields remain raw firmware bytes.'),
     ]));
   }
 }
