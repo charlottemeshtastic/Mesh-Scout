@@ -6,8 +6,9 @@ import '../features/radio/ble_service.dart';
 
 /// Android implementation. Plugins remain confined to this boundary.
 class AndroidBleService implements BleService {
-  AndroidBleService() : _ble = FlutterReactiveBle();
-  final FlutterReactiveBle _ble;
+  AndroidBleService();
+  // The plugin initializes on construction; defer it until permissions pass.
+  late final FlutterReactiveBle _ble = FlutterReactiveBle();
   final _service = Uuid.parse(meshCoreService);
 
   @override

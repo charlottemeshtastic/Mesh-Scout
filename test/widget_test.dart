@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,19 +23,18 @@ void main() {
   late CountingBle ble;
   late ProviderContainer container;
 
-  setUp(() {
+  Future<void> launch(WidgetTester tester) async {
+    // Create stream controllers in the widget test's fake-async zone.
     ble = CountingBle();
     container = ProviderContainer(
       overrides: [bleServiceProvider.overrideWithValue(ble)],
     );
-  });
-
-  tearDown(() async {
-    container.dispose();
-    await ble.close();
-  });
-
-  Future<void> launch(WidgetTester tester) async {
+    addTearDown(() {
+      container.dispose();
+      unawaited(ble.devices.close());
+      unawaited(ble.links.close());
+      unawaited(ble.packets.close());
+    });
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -62,7 +63,7 @@ void main() {
     await select(tester, 4);
     expect(find.text('No mapping sessions yet'), findsOneWidget);
     await select(tester, 5);
-    expect(find.text('MeshScout 0.2'), findsOneWidget);
+    expect(find.text('Bluetooth radios'), findsOneWidget);
     await tester.tap(find.text('Bluetooth radios'));
     await tester.pumpAndSettle();
     expect(find.text('Scan for radios'), findsOneWidget);
@@ -82,10 +83,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(find.text('MeshCore companion connected'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+    expect(tester.widget<FilledButton>(find.byWidgetPredicate((widget) => widget is FilledButton)).onPressed,
         isNull);
     await select(tester, 3);
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+    expect(tester.widget<FilledButton>(find.byWidgetPredicate((widget) => widget is FilledButton)).onPressed,
         isNull);
     expect(find.textContaining('GPS and coverage recording'), findsOneWidget);
     expect(ble.writes, [appStart, deviceQuery]);

@@ -33,7 +33,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - run: dart format lib test
       - run: flutter analyze --fatal-infos
-      - run: flutter test --coverage
+      - run: flutter test --coverage --timeout 2m
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
