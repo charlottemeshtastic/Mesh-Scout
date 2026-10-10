@@ -21,24 +21,23 @@ class OfflineControls extends ConsumerWidget {
                     ? actions.cancel
                     : () async {
                         final point = center();
-                        final accepted = await showDialog<bool>(
+                        final side = await showDialog<int>(
                             context: context,
                             builder: (c) => AlertDialog(
                                     title: const Text('Download offline topo?'),
                                     content: Text(
-                                        'Save a 4 × 4 km area around ${point.lat.toStringAsFixed(4)}, ${point.lon.toStringAsFixed(4)} at zoom 12–16. Contiguous U.S. only; up to 50 MB. This replaces the previous offline area after a complete download.'),
+                                        'Save an area around ${point.lat.toStringAsFixed(4)}, ${point.lon.toStringAsFixed(4)} at zoom 12–16. Contiguous U.S. only; up to 150 MB. This replaces the previous offline area after a complete download.'),
                                     actions: [
                                       TextButton(
                                           onPressed: () =>
-                                              Navigator.pop(c, false),
+                                              Navigator.pop(c),
                                           child: const Text('Cancel')),
-                                      FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c, true),
-                                          child: const Text('Download'))
+                                      for (final side in [4, 8, 12])
+                                        TextButton(onPressed: () => Navigator.pop(c, side),
+                                          child: Text('${side} × ${side} km'))
                                     ]));
-                        if (accepted == true) {
-                          await actions.download(point.lat, point.lon);
+                        if (side != null) {
+                          await actions.download(point.lat, point.lon, sideKm: side);
                         }
                       },
                 icon: Icon(offline.busy
@@ -65,7 +64,7 @@ class OfflineControls extends ConsumerWidget {
                                   actions: [
                                     TextButton(
                                         onPressed: () =>
-                                            Navigator.pop(c, false),
+                                            Navigator.pop(c),
                                         child: const Text('Cancel')),
                                     FilledButton(
                                         onPressed: () => Navigator.pop(c, true),
@@ -90,7 +89,7 @@ class OfflineControls extends ConsumerWidget {
         Text(offline.message!, style: Theme.of(context).textTheme.bodySmall),
       if (offline.enabled)
         Text(
-            'Offline topo · zoom 12–16 · saved near ${offline.area!.latitude.toStringAsFixed(3)}, ${offline.area!.longitude.toStringAsFixed(3)}. Outside the downloaded area, no basemap is available.',
+            '${offline.area!.sideKm} × ${offline.area!.sideKm} km offline topo · zoom 12–16 · saved near ${offline.area!.latitude.toStringAsFixed(3)}, ${offline.area!.longitude.toStringAsFixed(3)}. Outside the downloaded area, no basemap is available.',
             style: Theme.of(context).textTheme.bodySmall),
     ]);
   }

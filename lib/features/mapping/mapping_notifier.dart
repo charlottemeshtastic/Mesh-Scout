@@ -223,6 +223,31 @@ class MappingNotifier extends Notifier<MappingState> {
         loading: false, sessions: state.sessions, selected: session);
   }
 
+  Future<void> rename(MappingSession session, String input) async {
+    if (state.recording || state.busy || _loadFailed || state.points.isNotEmpty) return;
+    final value = input.trim();
+    if (value.length > 80 || value.contains(RegExp(r'[\x00-\x1f]'))) {
+      state = MappingState(loading: false, sessions: state.sessions, selected: state.selected,
+        message: 'Use a name of up to 80 characters without control characters.');
+      return;
+    }
+    if (!state.sessions.any((s) => s.id == session.id)) return;
+    final previous = state;
+    final updated = previous.sessions.map((s) => s.id == session.id ? s.renamed(value.isEmpty ? null : value) : s).toList();
+    state = MappingState(loading: false, busy: true, sessions: previous.sessions, selected: previous.selected);
+    try {
+      await _service.save(encodeSessions(updated));
+      if (_disposed) return;
+      state = MappingState(loading: false, sessions: List.unmodifiable(updated),
+        selected: previous.selected?.id == session.id ? updated.firstWhere((s) => s.id == session.id) : previous.selected,
+        message: 'Session name saved.');
+    } catch (_) {
+      if (_disposed) return;
+      state = MappingState(loading: false, sessions: previous.sessions, selected: previous.selected,
+        message: 'Could not rename the session. Try again.');
+    }
+  }
+
   Future<void> delete(MappingSession session) async {
     if (state.recording ||
         state.busy ||

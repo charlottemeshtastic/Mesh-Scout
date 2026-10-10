@@ -60,14 +60,18 @@ class MappingSession {
       required this.started,
       required this.ended,
       required this.points,
-      this.observations = const []});
+      this.observations = const [],
+      this.name});
   final String id;
+  final String? name;
+  MappingSession renamed(String? name) => MappingSession(id: id, started: started, ended: ended, points: points, observations: observations, name: name);
   final DateTime started;
   final DateTime ended;
   final List<GpsPoint> points;
   final List<CoverageObservation> observations;
   Map<String, Object> toJson() => {
         'id': id,
+        if (name != null) 'name': name!,
         'started': started.toUtc().toIso8601String(),
         'ended': ended.toUtc().toIso8601String(),
         'points': points.map((p) => p.toJson()).toList(),
@@ -75,6 +79,7 @@ class MappingSession {
       };
   factory MappingSession.fromJson(Map<String, dynamic> json) => MappingSession(
         id: json['id'] as String,
+        name: json['name'] as String?,
         started: DateTime.parse(json['started'] as String),
         ended: DateTime.parse(json['ended'] as String),
         observations: List.unmodifiable(

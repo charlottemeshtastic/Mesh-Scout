@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef MapTile = ({int z, int x, int y});
-List<MapTile> areaTiles(double latitude, double longitude) {
+List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
   if (!latitude.isFinite ||
       !longitude.isFinite ||
       latitude < 24 ||
@@ -15,7 +15,8 @@ List<MapTile> areaTiles(double latitude, double longitude) {
     throw const FormatException(
         'Offline topo currently supports the contiguous U.S.');
   }
-  final latDelta = 2 / 111.32;
+  if (![4, 8, 12].contains(sideKm)) throw const FormatException('Choose a 4, 8 or 12 km area.');
+  final latDelta = sideKm / 2 / 111.32;
   final lonDelta = latDelta / math.cos(latitude * math.pi / 180);
   int x(double lon, int n) => ((lon + 180) / 360 * n).floor();
   int y(double lat, int n) {
@@ -40,7 +41,7 @@ List<MapTile> areaTiles(double latitude, double longitude) {
       }
     }
   }
-  if (tiles.length > 1000) {
+  if (tiles.length > 5000) {
     throw const FormatException('Area exceeds the download limit.');
   }
   return tiles;
@@ -48,10 +49,10 @@ List<MapTile> areaTiles(double latitude, double longitude) {
 
 class OfflineArea {
   const OfflineArea(
-      this.path, this.latitude, this.longitude, this.tiles, this.bytes);
+      this.path, this.latitude, this.longitude, this.tiles, this.bytes, {this.sideKm = 4});
   final String path;
   final double latitude, longitude;
-  final int tiles, bytes;
+  final int tiles, bytes, sideKm;
 }
 
 final offlineDirectoryProvider = Provider<Future<String> Function()>((ref) =>
@@ -115,7 +116,7 @@ class OfflineMaps extends Notifier<OfflineState> {
               (data['lat'] as num).toDouble(),
               (data['lon'] as num).toDouble(),
               data['tiles'] as int,
-              data['bytes'] as int));
+              data['bytes'] as int, sideKm: data['sideKm'] as int? ?? 4));
     } catch (_) {
       if (!ref.mounted) return;
       state = const OfflineState(
@@ -140,14 +141,14 @@ class OfflineMaps extends Notifier<OfflineState> {
         message: 'Download cancelled; previous area retained.');
   }
 
-  Future<void> download(double lat, double lon) async {
+  Future<void> download(double lat, double lon, {int sideKm = 4}) async {
     if (_running || state.busy) return;
     _running = true;
     final generation = ++_generation;
     final previous = state.area;
     Directory? staging;
     try {
-      final tiles = areaTiles(lat, lon);
+      final tiles = areaTiles(lat, lon, sideKm: sideKm);
       state = OfflineState(area: previous, busy: true, total: tiles.length);
       final root = await _root();
       if (generation != _generation) return;
@@ -166,7 +167,7 @@ class OfflineMaps extends Notifier<OfflineState> {
             .getUrl(Uri.parse(ref.read(offlineTileUrlProvider)(tile)))
             .timeout(const Duration(seconds: 20));
         request.headers.set(
-            'User-Agent', 'MeshScout/0.4 (independent Android mapping app)');
+            'User-Agent', 'MeshScout/0.5 (independent Android mapping app)');
         final response =
             await request.close().timeout(const Duration(seconds: 20));
         if (response.statusCode != 200 ||
@@ -180,8 +181,8 @@ class OfflineMaps extends Notifier<OfflineState> {
             in response.timeout(const Duration(seconds: 20))) {
           data.addAll(chunk);
           if (data.length > 1024 * 1024 ||
-              bytes + data.length > 50 * 1024 * 1024) {
-            throw const FormatException('Download exceeded 50 MB limit.');
+              bytes + data.length > 150 * 1024 * 1024) {
+            throw const FormatException('Download exceeded 150 MB limit.');
           }
         }
         if (data.length < 8 ||
@@ -200,7 +201,7 @@ class OfflineMaps extends Notifier<OfflineState> {
         await Future<void>.delayed(ref.read(offlineThrottleProvider));
       }
       await File('${staging.path}/area.json').writeAsString(
-          jsonEncode({'lat': lat, 'lon': lon, 'tiles': count, 'bytes': bytes}),
+          jsonEncode({'lat': lat, 'lon': lon, 'tiles': count, 'bytes': bytes, 'sideKm': sideKm}),
           flush: true);
       if (generation != _generation) return;
       _committing = true;
@@ -216,7 +217,7 @@ class OfflineMaps extends Notifier<OfflineState> {
       }
       if (!ref.mounted) return;
       state = OfflineState(
-          area: OfflineArea(active.path, lat, lon, count, bytes),
+          area: OfflineArea(active.path, lat, lon, count, bytes, sideKm: sideKm),
           message:
               'Area saved. Enable Offline map to use it without internet.');
       try {

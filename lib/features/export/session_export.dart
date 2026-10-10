@@ -46,6 +46,7 @@ String exportSession(MappingSession session, ExportFormat format) {
     'type': 'FeatureCollection',
     'properties': {
       'session_id': session.id,
+      if (session.name != null) 'session_name': session.name,
       'started': session.started.toUtc().toIso8601String(),
       'ended': session.ended.toUtc().toIso8601String(),
       'measurement_note':

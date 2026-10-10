@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/mesh_data.dart';
 import '../radio/radio_notifier.dart';
+import '../messages/messages.dart';
 
 class NodesScreen extends ConsumerStatefulWidget {
   const NodesScreen({super.key});
@@ -25,8 +26,9 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
       const Text(
           'Contacts stored on your companion radio. A saved contact does not prove current reachability.'),
       const SizedBox(height: 12),
+      OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const MessagesScreen())), icon: const Icon(Icons.message_outlined), label: const Text('Messages')),
       FilledButton.icon(
-          onPressed: radio.phase == RadioPhase.ready && !radio.syncing
+          onPressed: radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy
               ? () async => ref.read(radioProvider.notifier).refreshContacts()
               : null,
           icon: const Icon(Icons.sync),
@@ -48,7 +50,7 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
           value: _repeatersOnly,
           onChanged: (value) => setState(() => _repeatersOnly = value)),
       Text('${contacts.length} contacts'),
-      if (contacts.isEmpty && !radio.syncing)
+      if (contacts.isEmpty && !radio.syncing && !radio.messagingBusy)
         const Padding(
             padding: EdgeInsets.all(16),
             child: Text(

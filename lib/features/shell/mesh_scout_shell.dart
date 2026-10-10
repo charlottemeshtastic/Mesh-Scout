@@ -391,7 +391,7 @@ class HistoryScreen extends ConsumerWidget {
       for (final session in state.sessions)
         ListTile(
           leading: const Icon(Icons.route),
-          title: Text(session.started.toLocal().toString().split('.').first),
+          title: Text(session.name ?? session.started.toLocal().toString().split('.').first),
           subtitle: Text(
               '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
               '${session.ended.difference(session.started).inMinutes} min'),
@@ -402,6 +402,12 @@ class HistoryScreen extends ConsumerWidget {
                   onMap();
                 },
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: const Icon(Icons.edit_outlined), tooltip: 'Name session', onPressed: state.recording || state.busy || state.points.isNotEmpty ? null : () async {
+              final controller = TextEditingController(text: session.name ?? '');
+              final name = await showDialog<String>(context: context, builder: (c) => AlertDialog(title: const Text('Name session'), content: TextField(controller: controller, maxLength: 80, decoration: const InputDecoration(labelText: 'Session name')), actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(c, controller.text), child: const Text('Save'))]));
+              // The dialog's closing animation may still reference its controller.
+              if (name != null) { await actions.rename(session, name); }
+            }),
             IconButton(
                 icon: const Icon(Icons.ios_share),
                 tooltip: 'Export session',
