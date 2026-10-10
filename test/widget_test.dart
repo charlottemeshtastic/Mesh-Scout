@@ -24,6 +24,14 @@ class CountingBle extends FakeBle {
   }
 }
 
+class LoadedMessages extends Messages {
+  @override
+  MessageState build() => const MessageState(loaded: true);
+
+  @override
+  Future<void> load() async {}
+}
+
 class OpenMessageAlerts extends SilentAlerts {
   bool open = true;
   @override
@@ -46,6 +54,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         if (alerts != null) alertServiceProvider.overrideWithValue(alerts),
+        if (alerts != null) messagesProvider.overrideWith(LoadedMessages.new),
         bleServiceProvider.overrideWithValue(ble),
         mappingServiceProvider.overrideWithValue(mapping)
       ],
