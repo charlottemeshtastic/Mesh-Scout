@@ -83,6 +83,47 @@ class CancelErrorBle extends FakeBle {
   }
 }
 
+class ManualTimer implements Timer {
+  ManualTimer(this.due, this.callback);
+  final Duration due;
+  final void Function() callback;
+  @override
+  bool isActive = true;
+  @override
+  int tick = 0;
+  @override
+  void cancel() {
+    isActive = false;
+  }
+
+  void fire() {
+    if (isActive) {
+      isActive = false;
+      tick = 1;
+      callback();
+    }
+  }
+}
+
+class ManualScheduler {
+  Duration elapsed = Duration.zero;
+  final timers = <ManualTimer>[];
+  Timer schedule(Duration duration, void Function() callback) {
+    final timer = ManualTimer(elapsed + duration, callback);
+    timers.add(timer);
+    return timer;
+  }
+
+  void elapse(Duration duration) {
+    elapsed += duration;
+    for (final timer in timers.toList()) {
+      if (timer.isActive && timer.due <= elapsed) {
+        timer.fire();
+      }
+    }
+  }
+}
+
 void main() {
   test('Android permission split occurs exactly at API 31', () {
     expect(permissionPlan(30), [BluetoothAccess.location]);
@@ -242,22 +283,43 @@ void main() {
     }
   });
   test('scan deadline stops after ten seconds', () async {
+    container.dispose();
+    final scheduler = ManualScheduler();
+    container = ProviderContainer(overrides: [
+      bleServiceProvider.overrideWithValue(ble),
+      radioTimerProvider.overrideWithValue(scheduler.schedule),
+    ]);
+    actions = container.read(radioProvider.notifier);
     await actions.scan();
+    scheduler.elapse(const Duration(seconds: 9));
+    await flush();
     expect(container.read(radioProvider).phase, RadioPhase.scanning);
-    await Future<void>.delayed(const Duration(seconds: 11));
+    scheduler.elapse(const Duration(seconds: 1));
+    await flush();
     expect(container.read(radioProvider).phase, RadioPhase.idle);
     expect(ble.devices.hasListener, isFalse);
   });
   test('short and unsolicited packets cannot satisfy identification', () async {
+    container.dispose();
+    final scheduler = ManualScheduler();
+    container = ProviderContainer(overrides: [
+      bleServiceProvider.overrideWithValue(ble),
+      radioTimerProvider.overrideWithValue(scheduler.schedule),
+    ]);
+    actions = container.read(radioProvider.notifier);
     ble.answer = false;
     await findRadio();
     ble.links.add(RadioLink.connected);
     await flush();
     ble.packets.add([5]);
     ble.packets.add([0x83]);
-    await Future<void>.delayed(const Duration(milliseconds: 4200));
+    scheduler.elapse(const Duration(seconds: 2));
+    await flush();
+    scheduler.elapse(const Duration(seconds: 2));
     await flush();
     expect(container.read(radioProvider).phase, RadioPhase.failed);
     expect(container.read(radioProvider).failure, RadioFailure.protocol);
+    expect(ble.writes, [appStart, appStart]);
+    expect(scheduler.timers.any((t) => t.isActive), isFalse);
   });
 }
