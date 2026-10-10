@@ -322,4 +322,35 @@ void main() {
     expect(ble.writes, [appStart, appStart]);
     expect(scheduler.timers.any((t) => t.isActive), isFalse);
   });
+  test('teardown cancels pending discovery deadlines and ignores its late completion', () async {
+    final pendingBle = FakeBle()..discoverGate = Completer<void>();
+    final scheduler = ManualScheduler();
+    final owned = ProviderContainer(overrides: [
+      bleServiceProvider.overrideWithValue(pendingBle),
+      radioTimerProvider.overrideWithValue(scheduler.schedule),
+    ]);
+    var disposed = false;
+    try {
+      final notifier = owned.read(radioProvider.notifier);
+      await notifier.scan();
+      pendingBle.devices.add(const RadioDevice('pending', 'Companion', -60));
+      await flush();
+      await notifier.connect(owned.read(radioProvider).devices.single);
+      pendingBle.links.add(RadioLink.connected);
+      await flush();
+      expect(owned.read(radioProvider).phase, RadioPhase.identifying);
+      owned.dispose();
+      disposed = true;
+      await flush();
+      expect(scheduler.timers.any((timer) => timer.isActive), isFalse);
+      expect(pendingBle.links.hasListener, isFalse);
+      pendingBle.discoverGate!.complete();
+      await flush();
+      expect(pendingBle.writes, isEmpty);
+    } finally {
+      if (!disposed) owned.dispose();
+      await pendingBle.close();
+    }
+  });
+
 }
