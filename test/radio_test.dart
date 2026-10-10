@@ -322,8 +322,10 @@ void main() {
     expect(ble.writes, [appStart, appStart]);
     expect(scheduler.timers.any((t) => t.isActive), isFalse);
   });
-  test('teardown cancels pending discovery deadlines and ignores its late completion', () async {
-    final pendingBle = FakeBle()..discoverGate = Completer<void>();
+  test(
+      'teardown cancels pending discovery deadlines and ignores its late completion',
+      () async {
+    final pendingBle = FakeBle()..discoveryGate = Completer<void>();
     final scheduler = ManualScheduler();
     final owned = ProviderContainer(overrides: [
       bleServiceProvider.overrideWithValue(pendingBle),
@@ -344,7 +346,7 @@ void main() {
       await flush();
       expect(scheduler.timers.any((timer) => timer.isActive), isFalse);
       expect(pendingBle.links.hasListener, isFalse);
-      pendingBle.discoverGate!.complete();
+      pendingBle.discoveryGate!.complete();
       await flush();
       expect(pendingBle.writes, isEmpty);
     } finally {
@@ -352,5 +354,4 @@ void main() {
       await pendingBle.close();
     }
   });
-
 }

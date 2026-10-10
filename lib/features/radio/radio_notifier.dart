@@ -136,8 +136,8 @@ class RadioNotifier extends Notifier<RadioState> {
         };
         state = state.copyWith(devices: List.unmodifiable(devices.values));
       }, onError: (Object e) => unawaited(_fail(generation, e)));
-      _deadline =
-          ref.read(radioTimerProvider)(const Duration(seconds: 10), () => unawaited(stopScan()));
+      _deadline = ref.read(radioTimerProvider)(
+          const Duration(seconds: 10), () => unawaited(stopScan()));
     } catch (e) {
       await _fail(generation, e);
     }
@@ -206,8 +206,8 @@ class RadioNotifier extends Notifier<RadioState> {
     try {
       await _withTimeout(_service.discover(id), const Duration(seconds: 5));
       if (!_current(generation)) return;
-      _mtu =
-          await _withTimeout(_service.negotiateMtu(id), const Duration(seconds: 5));
+      _mtu = await _withTimeout(
+          _service.negotiateMtu(id), const Duration(seconds: 5));
       if (!_current(generation)) return;
       if (_mtu < minimumIdentificationMtu) {
         throw const RadioException(RadioFailure.protocol);
@@ -249,7 +249,8 @@ class RadioNotifier extends Notifier<RadioState> {
       if (!_current(generation)) {
         throw const RadioException(RadioFailure.transport);
       }
-      await _withTimeout(_service.write(id, command), const Duration(seconds: 3));
+      await _withTimeout(
+          _service.write(id, command), const Duration(seconds: 3));
       try {
         return await _withTimeout(response.future, const Duration(seconds: 2));
       } on TimeoutException {
@@ -278,13 +279,15 @@ class RadioNotifier extends Notifier<RadioState> {
     _incoming = {};
     _contactCount = null;
     state = state.copyWith(syncing: true);
-    _contactDeadline = ref.read(radioTimerProvider)(const Duration(seconds: 30), () {
+    _contactDeadline =
+        ref.read(radioTimerProvider)(const Duration(seconds: 30), () {
       if (_current(generation) && state.syncing) {
         _syncError('Contact sync timed out. Reconnect before retrying.');
       }
     });
     try {
-      await _withTimeout(_service.write(_target!.id, const [4]), const Duration(seconds: 3));
+      await _withTimeout(
+          _service.write(_target!.id, const [4]), const Duration(seconds: 3));
     } catch (_) {
       if (_current(generation)) {
         _syncError('Could not request contacts. Reconnect and retry.');
