@@ -118,9 +118,11 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
           NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
           NavigationDestination(icon: Icon(Icons.bluetooth), label: 'Radios'),
           NavigationDestination(icon: Icon(Icons.hub_outlined), label: 'Nodes'),
-          NavigationDestination(icon: Icon(Icons.layers_outlined), label: 'Coverage'),
+          NavigationDestination(
+              icon: Icon(Icons.layers_outlined), label: 'Coverage'),
           NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          NavigationDestination(
+              icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),
     );
@@ -167,27 +169,31 @@ class MapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      const MappingAvailability(),
-      Expanded(
-        child: mapContent ?? FlutterMap(
-          options: const MapOptions(
-            initialCenter: LatLng(39.8283, -98.5795),
-            initialZoom: 4,
+        children: [
+          const MappingAvailability(),
+          Expanded(
+            child: mapContent ??
+                FlutterMap(
+                  options: const MapOptions(
+                    initialCenter: LatLng(39.8283, -98.5795),
+                    initialZoom: 4,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'org.meshscout.mesh_scout',
+                    ),
+                    const RichAttributionWidget(
+                      attributions: [
+                        TextSourceAttribution('OpenStreetMap contributors')
+                      ],
+                    ),
+                  ],
+                ),
           ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'org.meshscout.mesh_scout',
-            ),
-            const RichAttributionWidget(
-              attributions: [TextSourceAttribution('OpenStreetMap contributors')],
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
+        ],
+      );
 }
 
 class MappingAvailability extends StatelessWidget {
@@ -195,23 +201,23 @@ class MappingAvailability extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FilledButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.play_arrow),
-          label: const Text('Start Mapping'),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start Mapping'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Coming soon — GPS and coverage recording are not available yet.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Coming soon — GPS and coverage recording are not available yet.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class FeaturePlaceholder extends StatelessWidget {
@@ -229,17 +235,17 @@ class FeaturePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      Text(title, style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 32),
-      Icon(icon, size: 48),
-      const SizedBox(height: 16),
-      Text(message, style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 12),
-      Text(detail),
-    ],
-  );
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(title, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 32),
+          Icon(icon, size: 48),
+          const SizedBox(height: 16),
+          Text(message, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          Text(detail),
+        ],
+      );
 }
 
 class CoverageScreen extends StatelessWidget {
@@ -247,21 +253,22 @@ class CoverageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 24),
-      const Icon(Icons.layers_outlined, size: 48),
-      const SizedBox(height: 16),
-      Text('No coverage observations yet',
-          style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 12),
-      const Text('GPS capture, LoRa signal observations, and coverage overlays '
-          'are coming soon. Bluetooth signal strength is only the '
-          'phone-to-radio link; it is not LoRa coverage.'),
-      const MappingAvailability(),
-    ],
-  );
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 24),
+          const Icon(Icons.layers_outlined, size: 48),
+          const SizedBox(height: 16),
+          Text('No coverage observations yet',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          const Text(
+              'GPS capture, LoRa signal observations, and coverage overlays '
+              'are coming soon. Bluetooth signal strength is only the '
+              'phone-to-radio link; it is not LoRa coverage.'),
+          const MappingAvailability(),
+        ],
+      );
 }
 
 class SettingsScreen extends ConsumerWidget {
@@ -270,41 +277,45 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 16),
-      ListTile(
-        leading: const Icon(Icons.bluetooth),
-        title: const Text('Bluetooth radios'),
-        subtitle: const Text('Scan, connect, or disconnect a MeshCore companion'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onRadios,
-      ),
-      ListTile(
-        leading: const Icon(Icons.security),
-        title: const Text('App permissions'),
-        subtitle: const Text('Manage Bluetooth access in Android settings'),
-        onTap: () async => ref.read(radioProvider.notifier).openSettings(),
-      ),
-      const ListTile(
-        leading: Icon(Icons.location_off_outlined),
-        title: Text('GPS and recording · coming soon'),
-        subtitle: Text('No GPS capture, background tracking, or saved sessions. '
-            'Older Android requires location permission for Bluetooth scanning.'),
-      ),
-      const ListTile(
-        leading: Icon(Icons.privacy_tip_outlined),
-        title: Text('Privacy'),
-        subtitle: Text('No coverage collection or sharing. Online map tiles '
-            'are requested from OpenStreetMap when the map is displayed.'),
-      ),
-      const ListTile(
-        leading: Icon(Icons.info_outline),
-        title: Text('MeshScout 0.2'),
-        subtitle: Text('Independent MeshCore app. Bluetooth requires testing '
-            'on your Android phone and companion radio.'),
-      ),
-    ],
-  );
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.bluetooth),
+            title: const Text('Bluetooth radios'),
+            subtitle:
+                const Text('Scan, connect, or disconnect a MeshCore companion'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onRadios,
+          ),
+          ListTile(
+            leading: const Icon(Icons.security),
+            title: const Text('App permissions'),
+            subtitle: const Text('Manage Bluetooth access in Android settings'),
+            onTap: () async => ref.read(radioProvider.notifier).openSettings(),
+          ),
+          const ListTile(
+            leading: Icon(Icons.location_off_outlined),
+            title: Text('GPS and recording · coming soon'),
+            subtitle: Text(
+                'No GPS capture, background tracking, or saved sessions. '
+                'Older Android requires location permission for Bluetooth scanning.'),
+          ),
+          const ListTile(
+            leading: Icon(Icons.privacy_tip_outlined),
+            title: Text('Privacy'),
+            subtitle: Text(
+                'No coverage collection or sharing. Online map tiles '
+                'are requested from OpenStreetMap when the map is displayed.'),
+          ),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('MeshScout 0.2'),
+            subtitle:
+                Text('Independent MeshCore app. Bluetooth requires testing '
+                    'on your Android phone and companion radio.'),
+          ),
+        ],
+      );
 }

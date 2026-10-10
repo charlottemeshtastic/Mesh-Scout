@@ -95,16 +95,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(find.text('MeshCore companion connected'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.byWidgetPredicate((widget) => widget is FilledButton)).onPressed,
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.byWidgetPredicate((widget) => widget is FilledButton))
+            .onPressed,
         isNull);
     await select(tester, 3);
-    expect(tester.widget<FilledButton>(find.byWidgetPredicate((widget) => widget is FilledButton)).onPressed,
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.byWidgetPredicate((widget) => widget is FilledButton))
+            .onPressed,
         isNull);
     expect(find.textContaining('GPS and coverage recording'), findsOneWidget);
     expect(ble.writes, [appStart, deviceQuery]);
   });
 
-  testWidgets('leaving Radios cancels scanning but keeps a ready foreground link',
+  testWidgets(
+      'leaving Radios cancels scanning but keeps a ready foreground link',
       (tester) async {
     await launch(tester);
     await select(tester, 1);
@@ -121,8 +130,13 @@ void main() {
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(ble.links.hasListener, isTrue);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    // Cancellation completes across the stream and widget-test async zones.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    }
     await tester.pumpAndSettle();
+    expect(container.read(radioProvider).phase, RadioPhase.idle);
     expect(ble.links.hasListener, isFalse);
     expect(find.text('Radio disconnected'), findsOneWidget);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);

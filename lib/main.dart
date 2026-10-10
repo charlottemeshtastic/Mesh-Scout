@@ -6,15 +6,15 @@ import 'features/shell/mesh_scout_shell.dart';
 import 'native/android_ble_service.dart';
 
 void main() => runApp(
-  ProviderScope(
-    overrides: [
-      bleServiceProvider.overrideWithValue(
-        AndroidBleService(),
+      ProviderScope(
+        overrides: [
+          bleServiceProvider.overrideWithValue(
+            AndroidBleService(),
+          ),
+        ],
+        child: const MeshScoutApp(),
       ),
-    ],
-    child: const MeshScoutApp(),
-  ),
-);
+    );
 
 class MeshScoutApp extends StatelessWidget {
   const MeshScoutApp({super.key, this.mapContent});
@@ -24,13 +24,13 @@ class MeshScoutApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'MeshScout',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorSchemeSeed: const Color(0xff55d4a2),
-    ),
-    home: MeshScoutShell(mapContent: mapContent),
-  );
+        title: 'MeshScout',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          colorSchemeSeed: const Color(0xff55d4a2),
+        ),
+        home: MeshScoutShell(mapContent: mapContent),
+      );
 }
