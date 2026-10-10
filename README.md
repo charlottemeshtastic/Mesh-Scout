@@ -57,3 +57,5 @@ Start Mapping requests precise foreground location and requires enabled GPS. Acc
 Stop and save writes a session atomically into the app's private files. History reopens routes on Map and allows confirmed deletion. Failed saves preserve points for Retry save and block starting a new route. Routes have a 10,000-point limit. Data is local, unencrypted app storage; uninstalling or clearing app data removes it. Export is not implemented. No location collection occurs on launch.
 
 Validation must include a real phone: GPS grant/denial, precise versus approximate location, disabled GPS, first outdoor fix, walk route, stop/save, restart/reopen, deletion, switching apps, radio notification, explicit disconnect, and range loss. Automated fakes cannot verify native location or radio behavior.
+
+CI debug APKs use a stable private test signer supplied through encrypted repository secrets. Subsequent test builds can update in place and preserve saved routes. No private signing key is committed. The older 0.2 APK used an ephemeral CI signer and may require a one-time uninstall before installing 0.2.1. Production distribution still requires production signing configuration.

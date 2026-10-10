@@ -29,6 +29,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // CI supplies private test signing from encrypted repository secrets.
+            // A stable signer lets later APK updates retain saved GPS sessions.
+            System.getenv("MESHSCOUT_TEST_KEYSTORE_PATH")?.let { path ->
+                storeFile = file(path)
+                storeType = "PKCS12"
+                storePassword = System.getenv("MESHSCOUT_TEST_KEYSTORE_PASSWORD")
+                keyAlias = "androiddebugkey"
+                keyPassword = System.getenv("MESHSCOUT_TEST_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

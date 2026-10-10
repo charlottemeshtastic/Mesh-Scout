@@ -33,6 +33,7 @@ class MappingNotifier extends Notifier<MappingState> {
   int _generation = 0;
   bool _disposed = false;
   bool _loadFailed = false;
+  bool _starting = false;
   MappingService get _service => ref.read(mappingServiceProvider);
 
   @override
@@ -73,9 +74,11 @@ class MappingNotifier extends Notifier<MappingState> {
     if (_loadFailed) return;
     final generation = ++_generation;
     _started = null;
+    _starting = true;
     state = MappingState(loading: false, busy: true, sessions: state.sessions);
     try {
       await _service.authorize();
+      _starting = false;
       if (_disposed || generation != _generation) return;
       _started = DateTime.now();
       state = MappingState(
@@ -86,7 +89,8 @@ class MappingNotifier extends Notifier<MappingState> {
       _positions = _service.positions().listen((point) {
         if (_disposed || generation != _generation || !state.recording) return;
         if (!point.valid ||
-            point.time.isBefore(_started!.subtract(const Duration(seconds: 5)))) {
+            point.time
+                .isBefore(_started!.subtract(const Duration(seconds: 5)))) {
           return;
         }
         if (state.points.isNotEmpty &&
@@ -110,6 +114,7 @@ class MappingNotifier extends Notifier<MappingState> {
         }
       });
     } catch (error) {
+      _starting = false;
       if (_disposed || generation != _generation) return;
       state = MappingState(
           loading: false, sessions: state.sessions, message: error.toString());
@@ -164,7 +169,8 @@ class MappingNotifier extends Notifier<MappingState> {
 
   Future<void> background() async {
     // GPS recording is foreground-only; cancel a pending permission start too.
-    if (state.busy && !state.recording && _started == null) {
+    if (_starting) {
+      _starting = false;
       ++_generation;
       state = MappingState(
           loading: false,
@@ -184,7 +190,10 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> delete(MappingSession session) async {
-    if (state.recording || state.busy || _loadFailed || state.points.isNotEmpty) {
+    if (state.recording ||
+        state.busy ||
+        _loadFailed ||
+        state.points.isNotEmpty) {
       return;
     }
     final previous = state;

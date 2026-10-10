@@ -42,10 +42,20 @@ jobs:
           cp /tmp/meshscout-pubspec.lock pubspec.lock
           cp /tmp/meshscout-analysis.yaml analysis_options.yaml
       - run: flutter pub get --enforce-lockfile
-      - run: dart format lib test
+      - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --timeout 2m
-      - run: flutter build apk --debug
+      - name: Build installable debug APK with persistent test signing
+        env:
+          MESHSCOUT_TEST_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_BASE64 }}
+          MESHSCOUT_TEST_KEYSTORE_PASSWORD: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$MESHSCOUT_TEST_KEYSTORE_BASE64"
+          export MESHSCOUT_TEST_KEYSTORE_PATH="$RUNNER_TEMP/meshscout-test.p12"
+          printf '%s' "$MESHSCOUT_TEST_KEYSTORE_BASE64" | base64 --decode > "$MESHSCOUT_TEST_KEYSTORE_PATH"
+          chmod 600 "$MESHSCOUT_TEST_KEYSTORE_PATH"
+          flutter build apk --debug
+          rm -f "$MESHSCOUT_TEST_KEYSTORE_PATH"
       - uses: actions/upload-artifact@v4
         with:
           name: meshscout-debug-apk
