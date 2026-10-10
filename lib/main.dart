@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'features/alerts/message_alerts.dart';
+import 'native/android_alert_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/radio/radio_notifier.dart';
@@ -10,6 +12,7 @@ import 'features/mapping/mapping_notifier.dart';
 void main() => runApp(
       ProviderScope(
         overrides: [
+          alertServiceProvider.overrideWithValue(AndroidAlertService()),
           mappingServiceProvider.overrideWithValue(AndroidMappingService()),
           bleServiceProvider.overrideWithValue(
             AndroidBleService(),

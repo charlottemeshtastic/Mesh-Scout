@@ -1,4 +1,4 @@
-# MeshScout 0.6
+# MeshScout 0.7
 
 Independent Android-first MeshCore field-mapping application. No BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
@@ -22,9 +22,15 @@ The map can show stored contacts with advertised coordinates as purple markers. 
 
 Nodes → Messages opens a private on-phone inbox and composer. Refresh contacts first, then select a chat node to send plain direct text. Recipient prefixes must uniquely match the companion's contact table. Sends are bounded to 133 UTF-8 bytes and the negotiated MTU, have a single outstanding command, and are never automatically repeated. Radio acceptance is shown as delivery unconfirmed; only a matching SEND_CONFIRMED acknowledgement for an accepted send in this live app process establishes delivery. Ambiguous acknowledgement tags remain unconfirmed. Uncertain commands require reconnect before another request. Configured channels can be loaded from the companion and selected for plain channel sending. Only channel index/name are retained; the key portion of GET_CHANNEL is discarded before returning the response to the UI. Discovery uses the reported slot count, bounded to 64, and expected missing slots do not invalidate the connection. Channel sends are limited to 99 UTF-8 bytes to reserve space for the firmware sender-name prefix and prevent silent truncation. Radio OK confirms acceptance only; channel messages have no direct delivery ACK and remain unconfirmed. Channel configuration/key editing, CLI commands and radio clock changes remain unimplemented.
 
-Fetch messages explicitly drains at most 100 queued messages per tap, stopping at 1,000 stored messages. Every supported contact/channel message is persisted before requesting the next. Queued-message retrieval removes it from the companion immediately; a process crash between retrieval and persistence can lose it. Unsupported queued types stop retrieval with a notice after the radio has already removed that item. Forwarded messages have unverified original origin. Fetch requires MTU ≥175. Incoming notifications only indicate waiting mail; there is no automatic queue draining or push notification service.
+Fetch messages explicitly drains at most 100 queued messages per tap, stopping at 1,000 stored messages. Every supported contact/channel message is persisted before requesting the next. Queued-message retrieval removes it from the companion immediately; a process crash between retrieval and persistence can lose it. Unsupported queued types stop retrieval with a notice after the radio has already removed that item. Forwarded messages have unverified original origin. Fetch requires MTU ≥175. Incoming notifications only indicate waiting mail; there is no automatic queue draining or automatic queue retrieval.
 
 Local history is written atomically to private, unencrypted app storage. Failed writes retain pending data in memory, block further sends/fetches, and offer Retry saving. Restarting the app does not resend messages or infer delivery from old acceptance. Clear history requires confirmation. There is no message backup/export or guaranteed lossless recovery from phone termination.
+
+## Background message alerts
+
+Settings → Background message alerts is an opt-in, persisted on this phone. Enabling it requests Android notification permission; refusal does not block Bluetooth or the connected-device foreground service. While the existing identified radio session and Flutter process remain alive, a valid MSG_WAITING push produces a generic notification only when the Activity is backgrounded. Notifications contain no message body, sender, channel keys or asserted message count. One alert is coalesced until the app returns to foreground, alerts are disabled, or the radio leaves Ready. Tapping opens MeshScout; fetch explicitly through Nodes → Messages. No radio queue items are retrieved automatically.
+
+Returning to foreground cancels the alert. Explicit disconnect/lost-ready state clears it. Android notification/channel settings can suppress alerts. There is no scheduled polling, alert recovery after process death, or background GPS recording. Real permission dialogs, lock-screen delivery and device/OEM behavior require hardware testing. The radio foreground service retains its separate ongoing connection notification.
 
 ## Export and sharing
 
