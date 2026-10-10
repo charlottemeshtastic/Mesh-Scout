@@ -16,11 +16,14 @@ import java.io.File
 import org.json.JSONArray
 
 class MainActivity : FlutterActivity() {
+    private val scoutFiles by lazy { ScoutFiles(this) }
     private var listener: LocationListener? = null
     private val locations by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
 
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/files")
+            .setMethodCallHandler { call, result -> scoutFiles.handle(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/radio_session")
             .setMethodCallHandler { call, result ->
                 try {
@@ -98,7 +101,13 @@ class MainActivity : FlutterActivity() {
         listener?.let { locations.removeUpdates(it) }
         listener = null
     }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!scoutFiles.activityResult(requestCode, resultCode, data)) {
+            super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
     override fun onDestroy() {
+        scoutFiles.dispose()
         stopLocations()
         stopService(Intent(this, RadioConnectionService::class.java))
         super.onDestroy()

@@ -1,0 +1,79 @@
+package org.meshscout.mesh_scout
+
+import android.app.Activity
+import android.content.Intent
+import androidx.core.content.FileProvider
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import java.io.File
+
+class ScoutFiles(private val activity: Activity) {
+    private var pending: MethodChannel.Result? = null
+    private var content: String? = null
+    fun handle(call: MethodCall, result: MethodChannel.Result) {
+        try {
+            if (call.method == "directory") {
+                result.success(activity.filesDir.absolutePath)
+                return
+            }
+            if (call.method != "save" && call.method != "share") { result.notImplemented(); return }
+            val name = call.argument<String>("name") ?: throw Exception("Missing name")
+            val text = call.argument<String>("content") ?: throw Exception("Missing content")
+            val mime = call.argument<String>("mime") ?: throw Exception("Missing type")
+            require(Regex("MeshScout-[0-9]+\\.(csv|geojson)").matches(name))
+            require(text.toByteArray().size <= 20 * 1024 * 1024)
+            if (call.method == "save") {
+                if (pending != null) throw Exception("A save dialog is already open")
+                pending = result
+                content = text
+                activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = mime
+                    putExtra(Intent.EXTRA_TITLE, name)
+                }, 804)
+            } else {
+                val directory = File(activity.cacheDir, "exports").apply { mkdirs() }
+                // Keep at most 20 exports; avoid revoking a just-shared attachment.
+                directory.listFiles()?.sortedBy { it.lastModified() }?.dropLast(19)?.forEach { it.delete() }
+                val file = File(directory, name)
+                file.writeText(text)
+                val uri = FileProvider.getUriForFile(activity, activity.packageName + ".exports", file)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = mime
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = android.content.ClipData.newRawUri("MeshScout session", uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                activity.startActivity(Intent.createChooser(send, "Share MeshScout session"))
+                result.success(true) // Chooser opened; delivery is controlled by the user/receiving app.
+            }
+        } catch (e: Exception) {
+            if (pending === result) { pending = null; content = null }
+            result.error("files", e.message, null)
+        }
+    }
+    fun activityResult(request: Int, code: Int, data: Intent?): Boolean {
+        if (request != 804) return false
+        val result = pending ?: return true
+        val text = content
+        pending = null
+        content = null
+        if (code != Activity.RESULT_OK || data?.data == null || text == null) {
+            result.success(false)
+            return true
+        }
+        val uri = data.data!!
+        Thread {
+            try {
+                activity.contentResolver.openOutputStream(uri, "wt")?.use {
+                    it.write(text.toByteArray(Charsets.UTF_8))
+                } ?: throw Exception("Could not open destination")
+                activity.runOnUiThread { result.success(true) }
+            } catch (e: Exception) {
+                activity.runOnUiThread { result.error("files", "Save failed: ${e.message}", null) }
+            }
+        }.start()
+        return true
+    }
+    fun dispose() { pending?.error("closed", "Save interrupted", null); pending = null; content = null }
+}
