@@ -69,6 +69,12 @@ class AndroidBleService implements BleService {
     if (matches.length != 1) {
       throw const RadioException(RadioFailure.protocol);
     }
+    // SELF_INFO can include a 32-byte node name (90 bytes total).
+    // DEVICE_INFO is currently 82 bytes. ATT adds three bytes of overhead.
+    final mtu = await _ble.requestMtu(deviceId: id, mtu: 512);
+    if (mtu < 93) {
+      throw const RadioException(RadioFailure.protocol);
+    }
     final characteristics = matches.single.characteristics;
     final rx = characteristics.where((c) => c.id == Uuid.parse(meshCoreRx));
     final tx = characteristics.where((c) => c.id == Uuid.parse(meshCoreTx));

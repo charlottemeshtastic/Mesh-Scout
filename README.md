@@ -8,7 +8,7 @@ Open the Bluetooth button on the map. Scan requests Nearby Devices on Android 12
 
 A scan is bounded to ten seconds and filters the Nordic UART service. Results are deduplicated by device ID and update BLE RSSI. Stop scanning before selecting a candidate. This UUID is shared by unrelated products: candidates are **not** identified as MeshCore by their name or UUID alone.
 
-Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands are short enough for the default 20-byte ATT payload. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
+Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, requests MTU 512 (requires at least 93 for identity replies), subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands are short enough for the default 20-byte ATT payload. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
 
 Cancellation, errors, connection loss, route exit, backgrounding, and disposal release owned streams and timers. Reconnection is explicit: scan and select again. Background BLE and automatic reconnect are deferred until hardware behavior is measured.
 
@@ -24,7 +24,7 @@ The app currently owns its Android manifest; the rest of the Android scaffold is
 
 - Android 11: grant/deny location, location services off, Bluetooth off, scan timeout and repeated scans.
 - Android 12+: Nearby Devices grant/deny/permanent denial and return from settings.
-- Real MeshCore companion: advertised UUID, pairing/PIN flow, GATT properties, notification setup, handshake responses, connection timeout, range loss, reconnect, screen exit/background/resume.
+- Real MeshCore companion: advertised UUID, pairing/PIN flow, GATT properties, negotiated MTU, notification setup, handshake responses, connection timeout, range loss, reconnect, screen exit/background/resume.
 - UART device with unrelated firmware: fails identification; no LoRa coverage data invented.
 - Two Android OEMs and at least two companion firmware/hardware variants; confirm neverForLocation does not hide the companion advertisements.
 
