@@ -206,6 +206,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final points = mapping.displayedPoints;
     final observations = mapping.displayedObservations;
     return Column(children: [
+      Flexible(child: SingleChildScrollView(child: Column(children: [
       const MappingAvailability(),
       OfflineControls(center: () {
         final center = _mapReady
@@ -217,7 +218,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         Checkbox(
             value: _showNodes,
             onChanged: (v) => setState(() => _showNodes = v ?? false)),
-        Expanded(
+        ]))),
+      Expanded(
             child: Text(
                 'Advertised nodes: ${nodes.length} · locations may be stale',
                 style: Theme.of(context).textTheme.bodySmall)),
@@ -415,18 +417,20 @@ class HistoryScreen extends ConsumerWidget {
                   try {
                     final done = await SessionExportService()
                         .send(session, choice.format, share: choice.share);
-                    if (context.mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text(done
                               ? choice.share
                                   ? 'Share menu opened'
                                   : 'Session saved'
                               : 'Save cancelled')));
+                    }
                   } catch (_) {
-                    if (context.mounted)
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content:
                               Text('Export failed. Try another destination.')));
+                    }
                   }
                 }),
             IconButton(

@@ -40,8 +40,9 @@ List<MapTile> areaTiles(double latitude, double longitude) {
       }
     }
   }
-  if (tiles.length > 1000)
+  if (tiles.length > 1000) {
     throw const FormatException('Area exceeds the download limit.');
+  }
   return tiles;
 }
 
@@ -100,8 +101,9 @@ class OfflineMaps extends Notifier<OfflineState> {
       final root = await _root();
       final active = Directory('${root.path}/active');
       final backup = Directory('${root.path}/backup');
-      if (!active.existsSync() && backup.existsSync())
+      if (!active.existsSync() && backup.existsSync()) {
         await backup.rename(active.path);
+      }
       final metadata = File('${root.path}/active/area.json');
       if (!metadata.existsSync()) return;
       final data =
@@ -230,8 +232,9 @@ class OfflineMaps extends Notifier<OfflineState> {
       _committing = false;
       _client?.close(force: true);
       _client = null;
-      if (staging != null && staging.existsSync())
+      if (staging != null && staging.existsSync()) {
         await staging.delete(recursive: true);
+      }
     }
   }
 

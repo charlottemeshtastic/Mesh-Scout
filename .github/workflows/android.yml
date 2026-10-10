@@ -45,7 +45,6 @@ jobs:
           cp /tmp/meshscout-pubspec.lock pubspec.lock
           cp /tmp/meshscout-analysis.yaml analysis_options.yaml
       - run: flutter pub get --enforce-lockfile
-      - run: dart fix --apply
       - run: dart format lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --timeout 2m

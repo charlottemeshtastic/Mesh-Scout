@@ -37,8 +37,9 @@ class OfflineControls extends ConsumerWidget {
                                               Navigator.pop(c, true),
                                           child: const Text('Download'))
                                     ]));
-                        if (accepted == true)
+                        if (accepted == true) {
                           await actions.download(point.lat, point.lon);
+                        }
                       },
                 icon: Icon(offline.busy
                     ? Icons.cancel_outlined
@@ -74,11 +75,12 @@ class OfflineControls extends ConsumerWidget {
                         try {
                           await actions.delete();
                         } catch (_) {
-                          if (context.mounted)
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content: Text(
                                         'Could not delete offline area.')));
+                          }
                         }
                       }
                     },
