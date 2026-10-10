@@ -411,7 +411,9 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   void endControls(int token) {
-    if (_current(token)) state = state.copyWith(controlsBusy: false);
+    if (_current(token)) {
+      state = state.copyWith(controlsBusy: false);
+    }
   }
 
   Future<List<int>> messageCommand(List<int> command, Set<int> replies,

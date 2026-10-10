@@ -113,13 +113,15 @@ class OfflineMaps extends Notifier<OfflineState> {
       if (!active.existsSync() && backup.existsSync()) {
         await backup.rename(active.path);
       }
-      if (active.existsSync() && backup.existsSync())
+      if (active.existsSync() && backup.existsSync()) {
         await backup.delete(recursive: true);
+      }
       final areas = <OfflineArea>[];
       if (root.existsSync()) {
         for (final entry in root.listSync().whereType<Directory>()) {
-          if (entry.path.endsWith('/pending') || entry.path.endsWith('/backup'))
+          if (entry.path.endsWith('/pending') || entry.path.endsWith('/backup')) {
             continue;
+          }
           final metadata = File('${entry.path}/area.json');
           if (!metadata.existsSync()) continue;
           final data =
@@ -174,9 +176,10 @@ class OfflineMaps extends Notifier<OfflineState> {
     final saved = state.areas;
     Directory? staging;
     try {
-      if (saved.length >= 5)
+      if (saved.length >= 5) {
         throw const FormatException(
             'Keep up to five offline areas. Delete one first.');
+      }
       if (name != null &&
           (name.trim().length > 60 || name.contains(RegExp(r'[\x00-\x1f]')))) {
         throw const FormatException('Use a name of up to 60 characters.');

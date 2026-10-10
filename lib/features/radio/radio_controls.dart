@@ -31,16 +31,18 @@ class RadioDetails {
         device.length < 80 ||
         device.first != 13 ||
         ![3, 11].contains(battery.length) ||
-        battery.first != 12)
+        battery.first != 12) {
       throw const FormatException('Invalid radio status response.');
+    }
     final data = ByteData.sublistView(Uint8List.fromList(self));
     final batt = ByteData.sublistView(Uint8List.fromList(battery));
     String text(List<int> bytes) =>
         utf8.decode(bytes.takeWhile((b) => b != 0).toList());
     final power = self[2] > 127 ? self[2] - 256 : self[2];
     final max = self[3];
-    if (max > 40 || power < -9 || power > max)
+    if (max > 40 || power < -9 || power > max) {
       throw const FormatException('Invalid radio power range.');
+    }
     return RadioDetails(
         name: text(self.sublist(58)),
         txPower: power,
@@ -62,15 +64,17 @@ List<int> radioNameCommand(String name) {
   final bytes = utf8.encode(value);
   if (bytes.isEmpty ||
       bytes.length > 31 ||
-      value.contains(RegExp(r'[\x00-\x1f\x7f]')))
+      value.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
     throw const FormatException(
         'Use 1–31 UTF-8 bytes without control characters.');
+  }
   return [8, ...bytes];
 }
 
 List<int> radioPowerCommand(int power, int maximum) {
-  if (maximum > 40 || power < -9 || power > maximum)
+  if (maximum > 40 || power < -9 || power > maximum) {
     throw const FormatException('Power is outside the radio range.');
+  }
   return [12, power & 255];
 }
 
@@ -126,25 +130,28 @@ class RadioControls extends Notifier<ControlState> {
     final previous = state.details;
     state = ControlState(details: previous, busy: true);
     try {
-      if (change != null)
+      if (change != null) {
         await radio.messageCommand(change, {0}, control: true);
+      }
       final self = await radio.messageCommand(appStart, {5}, control: true);
       final device =
           await radio.messageCommand(deviceQuery, {13}, control: true);
       final battery = await radio.messageCommand([20], {12}, control: true);
       final details = RadioDetails.parse(self, device, battery);
-      if (ref.mounted && radio.sessionToken == token)
+      if (ref.mounted && radio.sessionToken == token) {
         state = ControlState(
             details: details,
             notice: change == null
                 ? 'Status refreshed.'
                 : 'Radio accepted the change; status refreshed.');
+      }
     } catch (e) {
-      if (ref.mounted && radio.sessionToken == token)
+      if (ref.mounted && radio.sessionToken == token) {
         state = ControlState(
             details: previous,
             notice:
                 'Request failed or result uncertain. Reconnect before retrying. $e');
+      }
     } finally {
       if (ref.mounted) radio.endControls(token);
     }
@@ -199,13 +206,15 @@ class RadioControlsPanel extends ConsumerWidget {
                             numeric: true));
                     if (power != null) {
                       final value = int.tryParse(power);
-                      if (value != null)
+                      if (value != null) {
                         await actions.setPower(value);
-                      else if (context.mounted)
+                      }
+                      else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content:
                                     Text('Enter a whole-number power value.')));
+                      }
                     }
                   }
                 : null,

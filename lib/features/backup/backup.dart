@@ -27,19 +27,22 @@ class ScoutBackup {
         'messages': messages
       });
   factory ScoutBackup.decode(String text) {
-    if (utf8.encode(text).length > 20 * 1024 * 1024)
+    if (utf8.encode(text).length > 20 * 1024 * 1024) {
       throw const FormatException('Backup exceeds 20 MB.');
+    }
     final json = jsonDecode(text);
     if (json is! Map<String, dynamic> ||
         json['format'] != 'meshscout-backup' ||
         json['version'] != 1 ||
         json['sessions'] is! List ||
-        json['messages'] is! List)
+        json['messages'] is! List) {
       throw const FormatException('Choose a MeshScout backup, version 1.');
+    }
     final sessions = decodeSessions(jsonEncode(json['sessions']));
     if (sessions.length > 1000 ||
-        sessions.map((s) => s.id).toSet().length != sessions.length)
+        sessions.map((s) => s.id).toSet().length != sessions.length) {
       throw const FormatException('Invalid session count or duplicate IDs.');
+    }
     for (final s in sessions) {
       if (s.id.isEmpty ||
           s.id.length > 120 ||
@@ -72,8 +75,9 @@ class ScoutBackup {
           (m['body'] as String).length > 4096 ||
           (m['peer'] as String).length > 200 ||
           (m['radio'] as String).length > 200 ||
-          (m['status'] as String).length > 200)
+          (m['status'] as String).length > 200) {
         throw const FormatException('Invalid message data.');
+      }
       messages.add({
         for (final key in [
           'body',

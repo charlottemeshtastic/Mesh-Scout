@@ -60,9 +60,10 @@ class OfflineControls extends ConsumerWidget {
                           final name = await showDialog<String>(
                               context: context,
                               builder: (_) => const _AreaNameDialog());
-                          if (name != null)
+                          if (name != null) {
                             await actions.download(point.lat, point.lon,
                                 sideKm: side, name: name);
+                          }
                         }
                       },
                 icon: Icon(offline.busy
