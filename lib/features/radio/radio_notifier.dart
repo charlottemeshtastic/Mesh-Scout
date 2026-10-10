@@ -400,10 +400,16 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   bool beginControls() {
-    if (state.phase != RadioPhase.ready || state.syncing || state.messagingBusy || state.channelsLoading || state.controlsBusy || _syncFailed) return false;
+    if (state.phase != RadioPhase.ready ||
+        state.syncing ||
+        state.messagingBusy ||
+        state.channelsLoading ||
+        state.controlsBusy ||
+        _syncFailed) return false;
     state = state.copyWith(controlsBusy: true);
     return true;
   }
+
   void endControls(int token) {
     if (_current(token)) state = state.copyWith(controlsBusy: false);
   }

@@ -106,8 +106,11 @@ void main() {
       await directory.delete(recursive: true);
     }
   });
-  test('separate named areas survive reload, selection and deletion of one area', () async {
-    final directory = await Directory.systemTemp.createTemp('meshscout-multi-map');
+  test(
+      'separate named areas survive reload, selection and deletion of one area',
+      () async {
+    final directory =
+        await Directory.systemTemp.createTemp('meshscout-multi-map');
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       request.response.headers.contentType = ContentType('image', 'png');
@@ -117,22 +120,32 @@ void main() {
     final container = ProviderContainer(overrides: [
       offlineDirectoryProvider.overrideWithValue(() async => directory.path),
       offlineThrottleProvider.overrideWithValue(Duration.zero),
-      offlineTileUrlProvider.overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile')]);
+      offlineTileUrlProvider
+          .overrideWithValue((tile) => 'http://127.0.0.1:${server.port}/tile')
+    ]);
     try {
       final actions = container.read(offlineProvider.notifier);
       await actions.download(35.2, -80.8, name: 'Home');
       await actions.download(35.3, -80.9, name: 'Trail');
       expect(container.read(offlineProvider).areas.length, 2);
       await actions.initialize();
-      final home = container.read(offlineProvider).areas.firstWhere((a) => a.name == 'Home');
-      actions.select(home); actions.enable(true);
+      final home = container
+          .read(offlineProvider)
+          .areas
+          .firstWhere((a) => a.name == 'Home');
+      actions.select(home);
+      actions.enable(true);
       expect(container.read(offlineProvider).area!.name, 'Home');
       await actions.delete();
       expect(container.read(offlineProvider).areas.single.name, 'Trail');
       expect(File('${home.path}/area.json').existsSync(), isFalse);
       await actions.initialize();
       expect(container.read(offlineProvider).areas.single.name, 'Trail');
-    } finally { container.dispose(); await server.close(force: true); await directory.delete(recursive: true); }
+    } finally {
+      container.dispose();
+      await server.close(force: true);
+      await directory.delete(recursive: true);
+    }
   });
   test('failed replacement preserves previous complete area', () async {
     final directory =

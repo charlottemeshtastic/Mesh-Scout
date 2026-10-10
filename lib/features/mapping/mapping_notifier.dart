@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mapping_service.dart';
 import '../../common/mesh_data.dart';
 
-final backgroundGpsProvider = NotifierProvider<BackgroundGps, bool>(BackgroundGps.new);
+final backgroundGpsProvider =
+    NotifierProvider<BackgroundGps, bool>(BackgroundGps.new);
+
 class BackgroundGps extends Notifier<bool> {
   @override
   bool build() => false;
@@ -98,7 +100,8 @@ class MappingNotifier extends Notifier<MappingState> {
       _keepBackground = background;
       final service = _service;
       if (service is BackgroundMappingService) {
-        await (service as BackgroundMappingService).configureRecording(background, _started!);
+        await (service as BackgroundMappingService)
+            .configureRecording(background, _started!);
       } else if (background) {
         throw StateError('Background GPS is unavailable on this platform.');
       }

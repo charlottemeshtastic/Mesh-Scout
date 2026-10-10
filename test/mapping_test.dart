@@ -7,7 +7,10 @@ import 'package:mesh_scout/features/mapping/mapping_service.dart';
 class FakeMapping implements MappingService, BackgroundMappingService {
   bool backgroundEnabled = false;
   @override
-  Future<void> configureRecording(bool background, DateTime started) async { backgroundEnabled = background; }
+  Future<void> configureRecording(bool background, DateTime started) async {
+    backgroundEnabled = background;
+  }
+
   final updates = StreamController<GpsPoint>.broadcast(sync: true);
   String? stored;
   bool denied = false;
@@ -50,14 +53,16 @@ void main() {
   GpsPoint point({double accuracy = 5}) =>
       GpsPoint(35.2, -80.8, accuracy, DateTime.now());
 
-  test('opted-in route survives app backgrounding and explicit stop saves it', () async {
+  test('opted-in route survives app backgrounding and explicit stop saves it',
+      () async {
     await actions.start(background: true);
     service.updates.add(point());
     await actions.background();
     expect(service.backgroundEnabled, isTrue);
     expect(container.read(mappingProvider).recording, isTrue);
     expect(service.updates.hasListener, isTrue);
-    service.updates.add(GpsPoint(35.21, -80.81, 5, DateTime.now().add(const Duration(seconds: 1))));
+    service.updates.add(GpsPoint(
+        35.21, -80.81, 5, DateTime.now().add(const Duration(seconds: 1))));
     await actions.stop();
     expect(decodeSessions(service.stored).single.points.length, 2);
     expect(service.updates.hasListener, isFalse);

@@ -12,13 +12,22 @@ class OfflineControls extends ConsumerWidget {
     return Column(children: [
       if (offline.areas.isNotEmpty)
         DropdownButtonFormField<String>(
-          key: ValueKey(offline.area?.path),
-          initialValue: offline.area?.path,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Saved offline area'),
-          items: [for (final area in offline.areas) DropdownMenuItem(value: area.path,
-            child: Text('${area.name ?? "Topo"} · ${area.sideKm} km · ${area.latitude.toStringAsFixed(3)}, ${area.longitude.toStringAsFixed(3)}', overflow: TextOverflow.ellipsis))],
-          onChanged: offline.busy ? null : (path) => actions.select(offline.areas.firstWhere((a) => a.path == path))),
+            key: ValueKey(offline.area?.path),
+            initialValue: offline.area?.path,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Saved offline area'),
+            items: [
+              for (final area in offline.areas)
+                DropdownMenuItem(
+                    value: area.path,
+                    child: Text(
+                        '${area.name ?? "Topo"} · ${area.sideKm} km · ${area.latitude.toStringAsFixed(3)}, ${area.longitude.toStringAsFixed(3)}',
+                        overflow: TextOverflow.ellipsis))
+            ],
+            onChanged: offline.busy
+                ? null
+                : (path) => actions
+                    .select(offline.areas.firstWhere((a) => a.path == path))),
       if (offline.busy)
         LinearProgressIndicator(
             value:
@@ -48,9 +57,12 @@ class OfflineControls extends ConsumerWidget {
                                     ]));
                         if (side != null) {
                           if (!context.mounted) return;
-                          final name = await showDialog<String>(context: context,
+                          final name = await showDialog<String>(
+                              context: context,
                               builder: (_) => const _AreaNameDialog());
-                          if (name != null) await actions.download(point.lat, point.lon, sideKm: side, name: name);
+                          if (name != null)
+                            await actions.download(point.lat, point.lon,
+                                sideKm: side, name: name);
                         }
                       },
                 icon: Icon(offline.busy
@@ -112,13 +124,29 @@ class _AreaNameDialog extends StatefulWidget {
   @override
   State<_AreaNameDialog> createState() => _AreaNameState();
 }
+
 class _AreaNameState extends State<_AreaNameDialog> {
   final text = TextEditingController();
   @override
-  void dispose() { text.dispose(); super.dispose(); }
+  void dispose() {
+    text.dispose();
+    super.dispose();
+  }
+
   @override
-  Widget build(BuildContext context) => AlertDialog(title: const Text('Name offline area'),
-    content: TextField(controller: text, maxLength: 60, decoration: const InputDecoration(labelText: 'Area name (optional)')),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-      FilledButton(onPressed: () => Navigator.pop(context, text.text), child: const Text('Download'))]);
+  Widget build(BuildContext context) => AlertDialog(
+          title: const Text('Name offline area'),
+          content: TextField(
+              controller: text,
+              maxLength: 60,
+              decoration:
+                  const InputDecoration(labelText: 'Area name (optional)')),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, text.text),
+                child: const Text('Download'))
+          ]);
 }

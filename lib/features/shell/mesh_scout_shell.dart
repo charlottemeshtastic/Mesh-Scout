@@ -120,56 +120,62 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
         ref.read(mappingProvider.notifier).capture(next.lastRx!);
       }
     });
-    return AbsorbPointer(absorbing: ref.watch(maintenanceProvider), child: Scaffold(
-      appBar: AppBar(
-        title: const Text('MeshScout'),
-        actions: [
-          IconButton(
-            tooltip: 'Radio connection',
-            onPressed: () => _select(ScoutTab.radios.index),
-            icon: const Icon(Icons.bluetooth),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            RadioStatusBar(state: radio, onTap: () => _select(1)),
-            Expanded(
-              child: IndexedStack(
-                index: _tab.index,
-                children: [
-                  MapScreen(mapContent: widget.mapContent),
-                  const RadioScreen(embedded: true),
-                  const NodesScreen(),
-                  const CoverageScreen(),
-                  HistoryScreen(onMap: () => _select(0)),
-                  SettingsScreen(onRadios: () => _select(1)),
-                ],
+    return AbsorbPointer(
+        absorbing: ref.watch(maintenanceProvider),
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('MeshScout'),
+            actions: [
+              IconButton(
+                tooltip: 'Radio connection',
+                onPressed: () => _select(ScoutTab.radios.index),
+                icon: const Icon(Icons.bluetooth),
               ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                RadioStatusBar(state: radio, onTap: () => _select(1)),
+                Expanded(
+                  child: IndexedStack(
+                    index: _tab.index,
+                    children: [
+                      MapScreen(mapContent: widget.mapContent),
+                      const RadioScreen(embedded: true),
+                      const NodesScreen(),
+                      const CoverageScreen(),
+                      HistoryScreen(onMap: () => _select(0)),
+                      SettingsScreen(onRadios: () => _select(1)),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab.index,
-        onDestinationSelected: _select,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        labelTextStyle: WidgetStatePropertyAll(
-          Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10),
-        ),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
-          NavigationDestination(icon: Icon(Icons.bluetooth), label: 'Radios'),
-          NavigationDestination(icon: Icon(Icons.hub_outlined), label: 'Nodes'),
-          NavigationDestination(
-              icon: Icon(Icons.layers_outlined), label: 'Coverage'),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(
-              icon: Icon(Icons.settings_outlined), label: 'Settings'),
-        ],
-      ),
-    ));
+          ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _tab.index,
+            onDestinationSelected: _select,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            labelTextStyle: WidgetStatePropertyAll(
+              Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10),
+            ),
+            destinations: const [
+              NavigationDestination(
+                  icon: Icon(Icons.map_outlined), label: 'Map'),
+              NavigationDestination(
+                  icon: Icon(Icons.bluetooth), label: 'Radios'),
+              NavigationDestination(
+                  icon: Icon(Icons.hub_outlined), label: 'Nodes'),
+              NavigationDestination(
+                  icon: Icon(Icons.layers_outlined), label: 'Coverage'),
+              NavigationDestination(
+                  icon: Icon(Icons.history), label: 'History'),
+              NavigationDestination(
+                  icon: Icon(Icons.settings_outlined), label: 'Settings'),
+            ],
+          ),
+        ));
   }
 }
 
@@ -385,7 +391,8 @@ class MappingAvailability extends ConsumerWidget {
                       if (state.recording || retry) {
                         await actions.stop();
                       } else {
-                        await actions.start(background: ref.read(backgroundGpsProvider));
+                        await actions.start(
+                            background: ref.read(backgroundGpsProvider));
                       }
                     },
               icon: Icon(state.recording ? Icons.stop : Icons.play_arrow),
@@ -679,10 +686,15 @@ class SettingsScreen extends ConsumerWidget {
           if (ref.watch(messageAlertsProvider).notice != null)
             Text(ref.watch(messageAlertsProvider).notice!),
           SwitchListTile(
-            title: const Text('Keep GPS recording in background'),
-            subtitle: const Text('Applies to the next route. Start while the app is open, then lock the phone or switch apps. An ongoing notification marks recording. Stop and save in Map. Android may stop the process; checkpointed GPS points are recovered on reopening.'),
-            value: ref.watch(backgroundGpsProvider),
-            onChanged: ref.watch(mappingProvider).recording || ref.watch(mappingProvider).busy ? null : (value) => ref.read(backgroundGpsProvider.notifier).set(value)),
+              title: const Text('Keep GPS recording in background'),
+              subtitle: const Text(
+                  'Applies to the next route. Start while the app is open, then lock the phone or switch apps. An ongoing notification marks recording. Stop and save in Map. Android may stop the process; checkpointed GPS points are recovered on reopening.'),
+              value: ref.watch(backgroundGpsProvider),
+              onChanged: ref.watch(mappingProvider).recording ||
+                      ref.watch(mappingProvider).busy
+                  ? null
+                  : (value) =>
+                      ref.read(backgroundGpsProvider.notifier).set(value)),
           const BackupControls(),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
