@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'ble_service.dart';
+import 'radio_observation.dart';
+
+final clockProvider = Provider<Clock>((ref) => const Clock());
+const maxRadioObservations = 200;
 
 final bleServiceProvider =
     Provider<BleService>((ref) => throw UnimplementedError());
@@ -22,10 +27,35 @@ enum RadioPhase {
 
 class RadioState {
   const RadioState(
-      {this.phase = RadioPhase.idle, this.devices = const [], this.failure});
+      {this.phase = RadioPhase.idle,
+      this.devices = const [],
+      this.failure,
+      this.collecting = false,
+      this.observations = const [],
+      this.receivedCount = 0,
+      this.malformedCount = 0});
   final RadioPhase phase;
   final List<RadioDevice> devices;
   final RadioFailure? failure;
+  final bool collecting;
+  final List<RadioObservation> observations;
+  final int receivedCount;
+  final int malformedCount;
+
+  RadioState withCollection({
+    bool? collecting,
+    List<RadioObservation>? observations,
+    int? receivedCount,
+    int? malformedCount,
+  }) => RadioState(
+        phase: phase,
+        devices: devices,
+        failure: failure,
+        collecting: collecting ?? this.collecting,
+        observations: observations ?? this.observations,
+        receivedCount: receivedCount ?? this.receivedCount,
+        malformedCount: malformedCount ?? this.malformedCount,
+      );
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
 }
 
@@ -127,6 +157,9 @@ class RadioNotifier extends Notifier<RadioState> {
       if (!_current(generation)) return;
       _notifications = _service.notifications(id).listen((bytes) {
         if (!_current(generation) || bytes.isEmpty) return;
+        if (state.phase == RadioPhase.ready && state.collecting) {
+          _collect(bytes);
+        }
         final minimum = _expected == 5 ? 58 : 80;
         if (bytes.first == _expected && bytes.length >= minimum) {
           final response = _response;
@@ -148,6 +181,38 @@ class RadioNotifier extends Notifier<RadioState> {
     } catch (e) {
       await _fail(generation, e);
     }
+  }
+
+  /// Collection is opt-in, live and foreground-only; no radio writes occur.
+  void startCollection() {
+    if (state.phase == RadioPhase.ready) {
+      state = state.withCollection(collecting: true);
+    }
+  }
+
+  void stopCollection() {
+    state = state.withCollection(collecting: false);
+  }
+
+  void clearObservations() {
+    state = state.withCollection(
+        observations: const [], receivedCount: 0, malformedCount: 0);
+  }
+
+  void _collect(List<int> bytes) {
+    // Advert/contact notifications alone have no RF measurements. Do not
+    // fabricate metrics or pair them with an unrelated raw reception event.
+    if (bytes.first != 0x88) return;
+    final observation =
+        parseRadioObservation(bytes, ref.read(clockProvider).now());
+    if (observation == null) {
+      state = state.withCollection(malformedCount: state.malformedCount + 1);
+      return;
+    }
+    final recent = [observation, ...state.observations];
+    state = state.withCollection(
+        observations: List.unmodifiable(recent.take(maxRadioObservations)),
+        receivedCount: state.receivedCount + 1);
   }
 
   Future<List<int>> _exchange(
@@ -213,6 +278,9 @@ class RadioNotifier extends Notifier<RadioState> {
     if (_current(cleanupGeneration)) {
       state = RadioState(
           phase: RadioPhase.failed,
+          observations: state.observations,
+          receivedCount: state.receivedCount,
+          malformedCount: state.malformedCount,
           failure:
               error is RadioException ? error.failure : RadioFailure.transport);
     }
@@ -222,9 +290,12 @@ class RadioNotifier extends Notifier<RadioState> {
     final generation = ++_generation;
     final failure = await _cleanup();
     if (_current(generation)) {
-      state = failure == null
-          ? const RadioState()
-          : RadioState(phase: RadioPhase.failed, failure: failure);
+      state = RadioState(
+          phase: failure == null ? RadioPhase.idle : RadioPhase.failed,
+          failure: failure,
+          observations: state.observations,
+          receivedCount: state.receivedCount,
+          malformedCount: state.malformedCount);
     }
   }
 

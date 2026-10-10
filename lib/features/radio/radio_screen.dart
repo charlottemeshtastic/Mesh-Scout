@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'ble_service.dart';
 import 'radio_notifier.dart';
+import 'observation_panel.dart';
 
 class RadioScreen extends ConsumerStatefulWidget {
   const RadioScreen({super.key});
@@ -96,9 +97,10 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                       : null,
                   child: const Text('Connect')),
             ),
+          ObservationPanel(state: state, actions: actions),
           const SizedBox(height: 16),
           const Text(
-              'Bluetooth signal strength describes the phone-to-radio link. LoRa coverage recording and GPS capture are not available yet.'),
+              'Bluetooth signal strength describes the phone-to-radio link. Live LoRa receptions are separate; GPS coverage mapping is not available yet.'),
         ]),
       ),
     );

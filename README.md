@@ -8,11 +8,23 @@ Open the Bluetooth button on the map. Scan requests Nearby Devices on Android 12
 
 A scan is bounded to ten seconds and filters the Nordic UART service. Results are deduplicated by device ID and update BLE RSSI. Stop scanning before selecting a candidate. This UUID is shared by unrelated products: candidates are **not** identified as MeshCore by their name or UUID alone.
 
-Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, requests MTU 512 (requires at least 93 for identity replies), subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands are short enough for the default 20-byte ATT payload. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
+Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, requests MTU 512 (requires at least 179 for complete 176-byte reception reports), subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands are short enough for the default 20-byte ATT payload. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
 
 Cancellation, errors, connection loss, route exit, backgrounding, and disposal release owned streams and timers. Reconnection is explicit: scan and select again. Background BLE and automatic reconnect are deferred until hardware behavior is measured.
 
-BLE RSSI measures the phone-to-companion link, **not LoRa coverage**. GPS collection, radio observations, storage, coverage overlays, message sync, protocol version feature negotiation and public sharing remain future work.
+BLE RSSI measures the phone-to-companion link, **not LoRa coverage**. GPS collection, saved observations, coverage overlays, message sync, protocol version feature negotiation and public sharing remain future work.
+
+## Live LoRa observations
+
+After connecting, tap **Start collecting**. MeshScout passively parses live `PUSH_CODE_LOG_RX_DATA` (0x88) notifications: UTC phone receipt time, signed LoRa RSSI (dBm), quarter-dB SNR, route type, packet type/version, encoded path hash count/size, and packet byte length. Advertisements are included when their raw reception is reported. Contact/advertisement notifications without RF measurements are ignored; no invented RSSI or association with nearby packets.
+
+The newest 200 receptions are kept in memory, with the latest 20 shown. Repeated receptions are retained: they may be real relays/retransmissions, and metadata alone cannot identify duplicates. Stop pauses collection; clear resets data and counters. Disconnect, backgrounding, and screen exit stop collection but retain results until a new scan or app restart. Malformed RF reports are counted and skipped. Unknown unrelated notifications are ignored.
+
+No additional radio commands are sent for collection. No queue is drained, messages are not fetched, and radio configuration is unchanged. Raw packet bytes, message contents, sender keys and path hashes are discarded after extracting metadata. No GPS, disk storage, export, coverage score or map pins are generated. Receipt time is the phone arrival time, not an on-air timestamp; RSSI/SNR describe the reception at the companion, not necessarily a direct link to the originating sender. Path hash count is route metadata, not a guaranteed observed hop count. Raw logs establish RF activity, not authenticated sender identity or successful delivery.
+
+Firmware must emit RF reception logs over the connected companion interface. Silence cannot establish lack of coverage, and firmware may omit packets that exceed its frame limit. The native adapter requires MTU >=179 to carry the current maximum 176-byte companion frame; no fragmentation/reassembly is assumed.
+
+The parser follows official `MyMesh::logRxRaw`, `Packet::writeTo/readFrom`, and encoded-path rules, including four transport-code bytes and 1–3 byte path hashes with a 64-byte path limit. Wire fixtures test these layouts; they are not captured hardware evidence.
 
 ## Validation
 
@@ -24,6 +36,7 @@ The app currently owns its Android manifest and app Gradle settings (compile SDK
 
 - Android 11: grant/deny location, location services off, Bluetooth off, scan timeout and repeated scans.
 - Android 12+: Nearby Devices grant/deny/permanent denial and return from settings.
+- Live observation pass: generate known RF traffic including adverts, verify signed RSSI/SNR against companion logs, max-sized and transport/multi-byte-path packets, start/stop/clear, bounded history, link loss and background cleanup; verify no message contents appear.
 - Real MeshCore companion: advertised UUID, pairing/PIN flow, GATT properties, negotiated MTU, notification setup, handshake responses, connection timeout, range loss, reconnect, screen exit/background/resume.
 - UART device with unrelated firmware: fails identification; no LoRa coverage data invented.
 - Two Android OEMs and at least two companion firmware/hardware variants; confirm neverForLocation does not hide the companion advertisements.
@@ -33,6 +46,7 @@ Tests use injected BLE fakes. They establish state behavior and wire sequencing,
 ## Sources
 
 - [Official MeshCore companion protocol](https://github.com/meshcore-dev/MeshCore/blob/main/docs/companion_protocol.md)
+- [Official packet framing](https://github.com/meshcore-dev/MeshCore/blob/main/src/Packet.cpp)
 - [Official companion firmware implementation](https://github.com/meshcore-dev/MeshCore/blob/main/examples/companion_radio/MyMesh.cpp)
 - [Flutter reactive BLE guidance](https://pub.dev/packages/flutter_reactive_ble)
 - [Android Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
