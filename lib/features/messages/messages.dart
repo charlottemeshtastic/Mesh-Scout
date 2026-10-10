@@ -184,11 +184,11 @@ class Messages extends Notifier<MessageState> {
       }
     }
     if (changed) {
-      unawaitedSave(updated);
+      unawaited(_persistChange(updated));
     }
   }
 
-  void unawaitedSave(List<Map<String, dynamic>> items) async {
+  Future<void> _persistChange(List<Map<String, dynamic>> items) async {
     state = MessageState(items: state.items, loaded: true, busy: true);
     try {
       await _save(items);
@@ -210,14 +210,14 @@ class Messages extends Notifier<MessageState> {
     }
     _live.clear();
     _acks.clear();
-    unawaitedSave([]);
+    await _persistChange([]);
   }
 
   Future<void> retrySave() async {
     if (_unsaved == null || state.busy) {
       return;
     }
-    unawaitedSave(_unsaved!);
+    await _persistChange(_unsaved!);
   }
 
   bool get available =>
@@ -266,7 +266,9 @@ class Messages extends Notifier<MessageState> {
       }
       final tag = ByteData.sublistView(Uint8List.fromList(reply))
           .getUint32(2, Endian.little);
-      _live.add('${radio.companionId}:$tag');
+      if (tag != 0) {
+        _live.add('${radio.companionId}:$tag');
+      }
       await _save([
         ...state.items.take(state.items.length - 1),
         {
@@ -339,6 +341,7 @@ class Messages extends Notifier<MessageState> {
             notice: _unsaved != null
                 ? 'Save failed. Retry saving before fetching more.'
                 : state.notice);
+        _confirm();
       }
     }
   }

@@ -15,8 +15,9 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
     throw const FormatException(
         'Offline topo currently supports the contiguous U.S.');
   }
-  if (![4, 8, 12].contains(sideKm))
+  if (![4, 8, 12].contains(sideKm)) {
     throw const FormatException('Choose a 4, 8 or 12 km area.');
+  }
   final latDelta = sideKm / 2 / 111.32;
   final lonDelta = latDelta / math.cos(latitude * math.pi / 180);
   int x(double lon, int n) => ((lon + 180) / 360 * n).floor();

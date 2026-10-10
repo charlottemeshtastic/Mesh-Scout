@@ -35,7 +35,7 @@ class OfflineControls extends ConsumerWidget {
                                         TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(c, side),
-                                            child: Text('${side} × ${side} km'))
+                                            child: Text('$side × $side km'))
                                     ]));
                         if (side != null) {
                           await actions.download(point.lat, point.lon,
