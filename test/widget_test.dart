@@ -137,6 +137,8 @@ void main() {
     await select(tester, 0);
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(ble.links.hasListener, isTrue);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     // Cancellation completes across the stream and widget-test async zones.
     for (var i = 0; i < 5; i++) {
@@ -147,6 +149,8 @@ void main() {
     expect(container.read(radioProvider).phase, RadioPhase.ready);
     expect(ble.links.hasListener, isTrue);
     // Resume must continue showing the actual live connection.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
     expect(find.text('MeshCore companion connected'), findsOneWidget);
