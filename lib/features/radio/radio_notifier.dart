@@ -100,7 +100,7 @@ class RadioNotifier extends Notifier<RadioState> {
         final minimum = _expected == 5 ? 58 : 80;
         if (bytes.first == _expected && bytes.length >= minimum) {
           final response = _response;
-          if (response != null && !response.isCompleted) response.complete(bytes);
+          if (response != null && !response.isCompleted) { response.complete(bytes); }
         }
       }, onError: (Object e) => unawaited(_fail(generation, e)));
       // APP_START is harmless and retried once if notification setup races it.

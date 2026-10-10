@@ -199,10 +199,10 @@ class MappingAvailability extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FilledButton.icon(
+        FilledButton.icon(
           onPressed: null,
-          icon: Icon(Icons.play_arrow),
-          label: Text('Start Mapping'),
+          icon: const Icon(Icons.play_arrow),
+          label: const Text('Start Mapping'),
         ),
         const SizedBox(height: 8),
         Text(
