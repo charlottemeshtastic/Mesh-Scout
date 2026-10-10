@@ -23,6 +23,7 @@ class ScoutBundles(private val activity: Activity) {
     private var action = ""
     private var arguments: Map<String,Any?> = emptyMap()
     private var staged: File? = null
+    fun dispose() { pending?.error("closed","File operation interrupted",null);pending=null;staged?.deleteRecursively();staged=null }
     private fun async(result: MethodChannel.Result, task: () -> Any?) {
         Thread { try { val value=task(); activity.runOnUiThread { result.success(value) } }
             catch(e:Exception) { activity.runOnUiThread { result.error("bundle",e.message,null) } } }.start()
@@ -109,7 +110,7 @@ class ScoutBundles(private val activity: Activity) {
         val stage=File(activity.cacheDir,"bundle-${System.nanoTime()}").apply{mkdir()}
         try {
             activity.contentResolver.openInputStream(uri)!!.use{input->copy.outputStream().use{output->copyBounded(input,output,550L*1024*1024)}}
-            val encrypted=copy.inputStream().use { it.readNBytesCompat(8).contentEquals("MSCENC01".toByteArray()) }
+            val encrypted=copy.inputStream().use { it.readNBytesCompat(8).contentEquals("MSCENC02".toByteArray()) }
             if(encrypted)BackupCrypto.transform(copy,plain,args["password"] as? String?:"",false)
             val source=if(encrypted)plain else copy
             var bytes=0L;var count=0

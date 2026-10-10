@@ -1,3 +1,4 @@
+import '../backup/preferences.dart';
 import '../backup/full_backup.dart';
 import '../mapping/field_tools.dart';
 import 'dart:async';
@@ -43,6 +44,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
         unawaited(_openMessages());
         unawaited(ref.read(mappingProvider.notifier).initialize());
         unawaited(ref.read(offlineProvider.notifier).initialize());
+        unawaited(ref.read(preferencesProvider.notifier).initialize());
       }
     });
   }
@@ -295,7 +297,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       key: ValueKey(offline.area),
                       urlTemplate: '${offline.area!.path}/{z}/{x}/{y}.tile',
                       tileProvider: FileTileProvider(),
-                      minZoom: 12,
+                      minZoom: offline.area!.minZoom.toDouble(),
                       minNativeZoom: offline.area!.minZoom,
                       maxNativeZoom: offline.area!.maxZoom,
                       errorTileCallback: (tile, error, stack) {},
@@ -305,6 +307,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         urlTemplate:
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'org.meshscout.mesh_scout'),
+                  MarkerLayer(markers:[for(final note in ref.watch(fieldNotesProvider).value ?? <Map<String,dynamic>>[])Marker(width:44,height:44,point:LatLng((note['lat'] as num).toDouble(),(note['lon'] as num).toDouble()),child:IconButton(tooltip:note['name'] as String,icon:const Icon(Icons.flag,color:Colors.cyan),onPressed:()=>showDialog<void>(context:context,builder:(c)=>AlertDialog(title:Text(note['name'] as String),content:Text(note['note'] as String),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Close'))]))))]),
                   if (_showNodes)
                     MarkerLayer(markers: [
                       for (final node in nodes)
@@ -700,6 +703,7 @@ class SettingsScreen extends ConsumerWidget {
                       ref.read(backgroundGpsProvider.notifier).set(value)),
           const BackupControls(),
           const FullBackupControls(),
+          if(ref.watch(preferencesProvider)!=null)Text(ref.watch(preferencesProvider)!),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),
@@ -716,7 +720,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 0.9'),
+            title: Text('MeshScout 1.0'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),

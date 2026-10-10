@@ -1,3 +1,4 @@
+import 'preferences.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -50,8 +51,8 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
         if(mode==null)return;
         final data=mode=='merge'?mergeBackups(ScoutBackup.decode((await files.invokeMethod<String>('readBackup'))!),incoming):incoming;
         await files.invokeMethod<bool>('restoreBundle',{'data':data.encode(),'merge':mode=='merge'});
-        ref.invalidate(mappingProvider);ref.invalidate(messagesProvider);ref.invalidate(fieldNotesProvider);ref.invalidate(offlineProvider);
-        await ref.read(mappingProvider.notifier).initialize();await ref.read(messagesProvider.notifier).load();await ref.read(offlineProvider.notifier).initialize();
+        ref.invalidate(mappingProvider);ref.invalidate(messagesProvider);ref.invalidate(fieldNotesProvider);ref.invalidate(offlineProvider);ref.invalidate(preferencesProvider);
+        await ref.read(mappingProvider.notifier).initialize();await ref.read(messagesProvider.notifier).load();await ref.read(offlineProvider.notifier).initialize();await ref.read(preferencesProvider.notifier).initialize();
         notice='Backup restored. Restart MeshScout to apply restored preferences.';
       }else{notice=method=='scheduleBackup'?'Daily encrypted backups enabled while charging and online. Android and the document provider may delay writes.':'Completed.';}
       await refresh();
@@ -64,7 +65,7 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
     ref.watch(mappingProvider);ref.watch(messagesProvider);ref.watch(radioProvider);ref.watch(offlineProvider);
     return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       const Divider(),const Text('Full backup, merge and cloud document'),
-      const Text('Includes history, waypoints, notes and app preferences; optionally saved raster maps. Radio passwords, channel keys, provider permissions and in-progress recordings are excluded. Stop recording/downloads and disconnect first. Maximum 500 MB of maps and five map areas.'),
+      const Text('Includes history, waypoints, notes and reconnect and background-GPS preferences; optionally saved raster maps. Radio passwords, channel keys, provider permissions and in-progress recordings are excluded. Stop recording/downloads and disconnect first. Maximum 500 MB of maps and five map areas.'),
       SwitchListTile(title:const Text('Include offline maps'),value:maps,onChanged:busy?null:(v)=>setState(()=>maps=v)),
       SwitchListTile(title:const Text('Encrypt with passphrase'),subtitle:const Text('Keep the passphrase: it cannot be recovered. Restore can open an unencrypted backup with an empty passphrase.'),value:encrypted,onChanged:busy?null:(v)=>setState(()=>encrypted=v)),
       Wrap(children:[OutlinedButton(onPressed:available&&!busy?()=>perform('saveBundle'):null,child:const Text('Save full backup')),OutlinedButton(onPressed:available&&!busy?()=>perform('openBundle'):null,child:const Text('Open / merge / restore'))]),

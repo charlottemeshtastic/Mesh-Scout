@@ -63,6 +63,8 @@ jobs:
           chmod 600 "$MESHSCOUT_TEST_KEYSTORE_PATH"
           flutter build apk --debug
           rm -f "$MESHSCOUT_TEST_KEYSTORE_PATH"
+      - name: Verify native backup authentication
+        run: cd android && ./gradlew testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
           name: meshscout-debug-apk

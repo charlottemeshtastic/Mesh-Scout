@@ -126,5 +126,5 @@ class ScoutFiles(private val activity: Activity) {
         }.start()
         return true
     }
-    fun dispose() { pending?.error("closed", "Save interrupted", null); pending = null; content = null }
+    fun dispose() { bundles.dispose(); pending?.error("closed", "Save interrupted", null); pending = null; content = null }
 }

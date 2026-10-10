@@ -61,7 +61,7 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
     throw const FormatException('Truncated message.');
   }
   final type = bytes[typeOffset];
-  if (type != 0 && type != 1 && type != 2) {
+  if ((type != 0 && type != 1 && type != 2) || channel && type == 1) {
     throw const FormatException('Unsupported message type.');
   }
   final offset = typeOffset + 5 + (type == 2 ? 4 : 0);
@@ -80,7 +80,7 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
     'time': data.getUint32(typeOffset + 1, Endian.little),
     'status': type == 2
         ? 'Received forwarded message · origin unverified'
-        : 'Received',
+        : type == 1 ? 'Received repeater CLI response' : 'Received',
     'outgoing': false
   };
 }
