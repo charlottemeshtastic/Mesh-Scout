@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../radio/radio_notifier.dart';
+import '../mapping/mapping_notifier.dart';
+import '../mapping/mapping_service.dart';
 import '../radio/radio_screen.dart';
 
 enum ScoutTab { map, radios, nodes, coverage, history, settings }
@@ -26,14 +28,19 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Future<void>.microtask(() {
+      if (mounted) unawaited(ref.read(mappingProvider.notifier).initialize());
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // The app owns a foreground connection even when the Radios tab is hidden.
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused) {
+      unawaited(ref.read(radioProvider.notifier).background());
+      unawaited(ref.read(mappingProvider.notifier).background());
+    } else if (state == AppLifecycleState.detached) {
       unawaited(ref.read(radioProvider.notifier).disconnect());
+      unawaited(ref.read(mappingProvider.notifier).background());
     }
   }
 
@@ -93,13 +100,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
                         'this list in version 0.2.',
                   ),
                   const CoverageScreen(),
-                  const FeaturePlaceholder(
-                    icon: Icons.history,
-                    title: 'History',
-                    message: 'No mapping sessions yet',
-                    detail: 'Recording and saved sessions are coming soon. '
-                        'Version 0.2 does not collect or save coverage data.',
-                  ),
+                  HistoryScreen(onMap: () => _select(0)),
                   SettingsScreen(onRadios: () => _select(1)),
                 ],
               ),
@@ -163,61 +164,121 @@ class RadioStatusBar extends StatelessWidget {
   }
 }
 
-class MapScreen extends StatelessWidget {
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key, this.mapContent});
   final Widget? mapContent;
-
   @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          const MappingAvailability(),
-          Expanded(
-            child: mapContent ??
-                FlutterMap(
-                  options: const MapOptions(
-                    initialCenter: LatLng(39.8283, -98.5795),
-                    initialZoom: 4,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'org.meshscout.mesh_scout',
-                    ),
-                    const RichAttributionWidget(
-                      attributions: [
-                        TextSourceAttribution('OpenStreetMap contributors')
-                      ],
-                    ),
-                  ],
-                ),
-          ),
-        ],
-      );
+  ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class MappingAvailability extends StatelessWidget {
-  const MappingAvailability({super.key});
-
+class _MapScreenState extends ConsumerState<MapScreen> {
+  final _controller = MapController();
+  bool _mapReady = false;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            FilledButton.icon(
-              onPressed: null,
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start Mapping'),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Coming soon — GPS and coverage recording are not available yet.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    final mapping = ref.watch(mappingProvider);
+    ref.listen(mappingProvider, (previous, next) {
+      if (!_mapReady || next.displayedPoints.isEmpty) return;
+      if (previous?.displayedPoints == next.displayedPoints) return;
+      final point = next.displayedPoints.last;
+      _controller.move(LatLng(point.latitude, point.longitude), 16);
+    });
+    final points = mapping.displayedPoints;
+    return Column(children: [
+      const MappingAvailability(),
+      Expanded(child: widget.mapContent ?? FlutterMap(
+        mapController: _controller,
+        options: MapOptions(initialCenter: const LatLng(39.8283, -98.5795),
+          initialZoom: 4, onMapReady: () => _mapReady = true),
+        children: [
+          TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'org.meshscout.mesh_scout'),
+          if (points.length > 1) PolylineLayer(polylines: [Polyline(
+            points: points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+            strokeWidth: 4, color: Theme.of(context).colorScheme.primary)]),
+          if (points.isNotEmpty) MarkerLayer(markers: [Marker(
+            point: LatLng(points.last.latitude, points.last.longitude),
+            child: const Icon(Icons.my_location, color: Colors.blue, size: 30))]),
+          const RichAttributionWidget(attributions: [
+            TextSourceAttribution('OpenStreetMap contributors')]),
+        ],
+      )),
+    ]);
+  }
+}
+
+class MappingAvailability extends ConsumerWidget {
+  const MappingAvailability({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(mappingProvider);
+    final actions = ref.read(mappingProvider.notifier);
+    final retry = !state.recording && state.points.isNotEmpty;
+    return Padding(padding: const EdgeInsets.all(12), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        FilledButton.icon(
+          onPressed: state.loading || state.busy ? null : () async {
+            if (state.recording || retry) { await actions.stop(); }
+            else { await actions.start(); }
+          },
+          icon: Icon(state.recording ? Icons.stop : Icons.play_arrow),
+          label: Text(state.busy ? 'Please wait…' : state.recording
+            ? 'Stop and save route' : retry ? 'Retry save' : 'Start Mapping'),
         ),
-      );
+        const SizedBox(height: 6),
+        Text(state.recording ? '${state.points.length} GPS points · recording route'
+          : 'GPS routes save on this phone. LoRa coverage is not recorded.',
+          style: Theme.of(context).textTheme.bodySmall),
+        if (state.message != null) Text(state.message!),
+      ],
+    ));
+  }
+}
+
+class HistoryScreen extends ConsumerWidget {
+  const HistoryScreen({super.key, required this.onMap});
+  final VoidCallback onMap;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(mappingProvider);
+    final actions = ref.read(mappingProvider.notifier);
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Text('History', style: Theme.of(context).textTheme.headlineSmall),
+      const SizedBox(height: 12),
+      const Text('Saved GPS routes · stored only on this phone'),
+      if (state.loading) const LinearProgressIndicator(),
+      if (!state.loading && state.sessions.isEmpty) const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Text('No mapping sessions yet. Start Mapping on the Map tab.')),
+      if (state.message != null) Text(state.message!),
+      for (final session in state.sessions) ListTile(
+        leading: const Icon(Icons.route),
+        title: Text(session.started.toLocal().toString().split('.').first),
+        subtitle: Text('${session.points.length} GPS points · '
+          '${session.ended.difference(session.started).inMinutes} min'),
+        onTap: state.recording || state.busy || state.points.isNotEmpty ? null : () {
+          actions.select(session); onMap();
+        },
+        trailing: IconButton(icon: const Icon(Icons.delete_outline),
+          tooltip: 'Delete session',
+          onPressed: state.recording || state.busy || state.points.isNotEmpty ? null : () async {
+            final confirmed = await showDialog<bool>(context: context,
+              builder: (context) => AlertDialog(title: const Text('Delete this route?'),
+                content: const Text('This removes the saved GPS route from this phone.'),
+                actions: [TextButton(onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+                  FilledButton(onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Delete'))]));
+            if (confirmed == true) await actions.delete(session);
+          }),
+      ),
+    ]);
+  }
 }
 
 class FeaturePlaceholder extends StatelessWidget {
@@ -263,8 +324,8 @@ class CoverageScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           const Text(
-              'GPS capture, LoRa signal observations, and coverage overlays '
-              'are coming soon. Bluetooth signal strength is only the '
+              'GPS route recording is available on Map. LoRa observations and '
+              'coverage overlays are not implemented. Bluetooth signal strength is only the '
               'phone-to-radio link; it is not LoRa coverage.'),
           const MappingAvailability(),
         ],
@@ -297,24 +358,24 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
-            title: Text('GPS and recording · coming soon'),
+            title: Text('GPS route recording'),
             subtitle: Text(
-                'No GPS capture, background tracking, or saved sessions. '
-                'Older Android requires location permission for Bluetooth scanning.'),
+                'Precise location is requested when you start a route. '
+                'Routes save on this phone; recording stops when you leave the app.'),
           ),
           const ListTile(
             leading: Icon(Icons.privacy_tip_outlined),
             title: Text('Privacy'),
             subtitle: Text(
-                'No coverage collection or sharing. Online map tiles '
+                'GPS routes stay on this phone. No LoRa coverage or sharing. Online map tiles '
                 'are requested from OpenStreetMap when the map is displayed.'),
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 0.2'),
+            title: Text('MeshScout 0.2.1'),
             subtitle:
-                Text('Independent MeshCore app. Bluetooth requires testing '
-                    'on your Android phone and companion radio.'),
+                Text('Radio connections stay active while switching apps. '
+                    'Android may still end them if the process is stopped.'),
           ),
         ],
       );

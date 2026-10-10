@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/radio/radio_notifier.dart';
 import 'features/shell/mesh_scout_shell.dart';
 import 'native/android_ble_service.dart';
+import 'native/android_mapping_service.dart';
+import 'features/mapping/mapping_notifier.dart';
 
 void main() => runApp(
       ProviderScope(
         overrides: [
+          mappingServiceProvider.overrideWithValue(AndroidMappingService()),
           bleServiceProvider.overrideWithValue(
             AndroidBleService(),
           ),

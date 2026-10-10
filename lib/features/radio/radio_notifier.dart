@@ -26,7 +26,7 @@ class RadioState {
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
 }
 
-/// Owns one foreground session. A generation invalidates every stale callback.
+/// Owns one radio session. A generation invalidates every stale callback.
 class RadioNotifier extends Notifier<RadioState> {
   StreamSubscription<RadioDevice>? _scan;
   StreamSubscription<RadioLink>? _link;
@@ -188,6 +188,17 @@ class RadioNotifier extends Notifier<RadioState> {
           phase: RadioPhase.failed,
           failure:
               error is RadioException ? error.failure : RadioFailure.transport);
+    }
+  }
+
+  Future<void> background() async {
+    if (state.phase == RadioPhase.ready) return;
+    if (state.phase == RadioPhase.scanning) {
+      await stopScan();
+    } else if (state.phase == RadioPhase.authorizing ||
+        state.phase == RadioPhase.connecting ||
+        state.phase == RadioPhase.identifying) {
+      await disconnect();
     }
   }
 

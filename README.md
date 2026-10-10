@@ -2,13 +2,13 @@
 
 Independent Android-first MeshCore coverage mapping application. This repository has no BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
 
-## Version 0.2 interface
+## Version 0.2.1 GPS routes and radio continuity
 
-The bottom navigation opens Map, Radios, Nodes, Coverage, History, and Settings. A connection status bar is visible on every tab and opens Radios. Start Mapping is deliberately disabled: GPS and coverage recording do not exist yet. Nodes, Coverage, and History explain their current limitations instead of presenting sample observations as real data. Settings links to Radios and Android app permissions and explains map/network and recording behavior.
+The bottom navigation opens Map, Radios, Nodes, Coverage, History, and Settings. A connection status bar is visible on every tab and opens Radios. Start Mapping records a foreground GPS route independently of radio connection. Stop and save persists GPS points on this phone; History reopens and deletes saved routes. GPS routes are not LoRa coverage observations. Nodes and Coverage explain their limitations; History shows real saved GPS sessions. Settings links to Radios and Android app permissions and explains map/network and recording behavior.
 
-Switching away from Radios stops an active scan or cancels a pending connection/permission request. An identified companion stays connected across tabs while the app is in the foreground; backgrounding disconnects it on every tab. Scanning and connecting require an explicit user action, never app launch or tab selection. Map position/zoom survive tab changes. All six navigation labels remain visible. Map tiles require internet; no offline map cache is implemented.
+Switching away from Radios stops an active scan or cancels a pending connection/permission request. An identified companion stays connected across tabs and app switching. Android uses a connectedDevice foreground service with an ongoing notification; explicit disconnect, link loss or process shutdown releases it. Pending scans/connections are cancelled when backgrounded. There is no automatic reconnect. Scanning and connecting require an explicit user action, never app launch or tab selection. Map position/zoom survive tab changes. All six navigation labels remain visible. Map tiles require internet; no offline map cache is implemented.
 
-Interface tests navigate all six tabs, verify no launch-time Bluetooth authorization, confirm mapping stays disabled after identification, exercise scan cancellation and connected/background state across tabs, and check narrow-screen navigation with enlarged text.
+Interface tests navigate all six tabs, verify no launch-time Bluetooth authorization, record/save/reopen a GPS route, exercise scan cancellation and connection retention through app switching, and check narrow-screen navigation with enlarged text.
 
 ## Phase 2 Bluetooth foundation
 
@@ -18,15 +18,15 @@ A scan is bounded to ten seconds and filters the Nordic UART service. Results ar
 
 Connection uses a bounded prescan and connection timeout, discovers RX/TX and checks write-with-response and notify properties, requests MTU 185 and requires at least 93 bytes to fit identification replies including ATT overhead, subscribes to TX, then performs sequential APP_START / SELF_INFO and DEVICE_QUERY / DEVICE_INFO exchanges. Short, empty, and unrelated push packets cannot satisfy the handshake. Only protocol-compatible replies reach ready. This is compatibility detection, not cryptographic authentication. Commands fit the default 20-byte ATT payload, but identification replies do not; the connection explicitly negotiates MTU before sending commands. Initialization may retry the same read-only query once to tolerate notification setup; all setup is bounded by a 20-second deadline. No radio settings, channels, messages, keys, or clock are changed. No raw replies (which can include BLE PINs) are displayed, logged or persisted.
 
-Cancellation, errors, connection loss, standalone radio route exit, backgrounding, and disposal release owned streams and timers. Reconnection is explicit: scan and select again. Background BLE and automatic reconnect are deferred until hardware behavior is measured.
+Cancellation, errors, connection loss, standalone radio route exit and disposal release owned streams and timers. Reconnection is explicit: scan and select again. An Android connectedDevice foreground service supports app switching; process death and OEM restrictions can still end a connection. Automatic reconnect remains deferred.
 
-BLE RSSI measures the phone-to-companion link, **not LoRa coverage**. GPS collection, radio observations, storage, coverage overlays, message sync, protocol version feature negotiation and public sharing remain future work.
+BLE RSSI measures the phone-to-companion link, **not LoRa coverage**. LoRa radio observations and coverage overlays, message sync, protocol version feature negotiation and public sharing remain future work.
 
 ## Validation
 
 CI pins Flutter 3.47.7, restores the owned Android manifest after generating the native scaffold, enforces the dependency lockfile, checks Dart formatting and analysis, runs unit/widget tests with coverage, builds an Android debug APK, and uploads both artifacts.
 
-The app currently owns its Android manifest; the rest of the Android scaffold is generated by `flutter create --platforms=android --org org.meshscout --project-name mesh_scout .` (preserve the manifest). Run `flutter pub get`, `flutter analyze`, and `flutter test` locally.
+The app owns its manifest, Kotlin activity/service and Gradle configuration; CI preserves these while the remaining scaffold is generated by `flutter create --platforms=android --org org.meshscout --project-name mesh_scout .` (preserve the manifest). Run `flutter pub get`, `flutter analyze`, and `flutter test` locally.
 
 ### Hardware acceptance pass — not yet performed
 
@@ -49,3 +49,11 @@ Tests use injected BLE fakes. They establish state behavior and wire sequencing,
 `neverForLocation` applies only to companion discovery in this phase. Future GPS coverage capture requires its own consent and permission design; do not infer physical location from BLE scans without revisiting this declaration.
 
 The owned Android build configuration uses compile SDK 37, Android Gradle Plugin 9.2.1, Gradle 9.4.1, and Java 17 to meet the BLE plugin requirements. CI preserves these files when generating the remaining Flutter Android scaffolding. See the [official AGP 9.2 compatibility table](https://developer.android.com/build/releases/agp-9-2-0-release-notes).
+
+## GPS route recording
+
+Start Mapping requests precise foreground location and requires enabled GPS. Accepted fixes have valid coordinates and accuracy at most 100 m; stale, duplicate-time and inaccurate fixes are ignored. The native GPS listener requests updates at 5 seconds / 5 metres. A first fix can take time outdoors. The map shows the route and latest fix; this is GPS movement, not measured LoRa coverage. Recording stops and saves when the app is backgrounded. No background location permission is requested.
+
+Stop and save writes a session atomically into the app's private files. History reopens routes on Map and allows confirmed deletion. Failed saves preserve points for Retry save and block starting a new route. Routes have a 10,000-point limit. Data is local, unencrypted app storage; uninstalling or clearing app data removes it. Export is not implemented. No location collection occurs on launch.
+
+Validation must include a real phone: GPS grant/denial, precise versus approximate location, disabled GPS, first outdoor fix, walk route, stop/save, restart/reopen, deletion, switching apps, radio notification, explicit disconnect, and range loss. Automated fakes cannot verify native location or radio behavior.

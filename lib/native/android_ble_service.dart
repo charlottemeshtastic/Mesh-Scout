@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -49,18 +50,24 @@ class AndroidBleService implements BleService {
       ).map((d) => RadioDevice(d.id, d.name, d.rssi));
 
   @override
-  Stream<RadioLink> connect(String id) => _ble
-      .connectToAdvertisingDevice(
-        id: id,
-        withServices: [_service],
+  Stream<RadioLink> connect(String id) async* {
+    const session = MethodChannel('org.meshscout/radio_session');
+    try {
+      // Start from the user's foreground Connect action, before app switching.
+      await session.invokeMethod<void>('start');
+      yield* _ble.connectToAdvertisingDevice(
+        id: id, withServices: [_service],
         prescanDuration: const Duration(seconds: 3),
         connectionTimeout: const Duration(seconds: 10),
-      )
-      .map((u) => switch (u.connectionState) {
-            DeviceConnectionState.connected => RadioLink.connected,
-            DeviceConnectionState.disconnected => RadioLink.disconnected,
-            _ => RadioLink.connecting,
-          });
+      ).map((u) => switch (u.connectionState) {
+        DeviceConnectionState.connected => RadioLink.connected,
+        DeviceConnectionState.disconnected => RadioLink.disconnected,
+        _ => RadioLink.connecting,
+      });
+    } finally {
+      await session.invokeMethod<void>('stop');
+    }
+  }
 
   @override
   Future<void> discover(String id) async {

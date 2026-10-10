@@ -8,6 +8,9 @@ import 'package:mesh_scout/features/radio/radio_notifier.dart';
 import 'package:mesh_scout/main.dart';
 
 import 'radio_test.dart' show FakeBle;
+import 'mapping_test.dart' show FakeMapping;
+import 'package:mesh_scout/features/mapping/mapping_notifier.dart';
+import 'package:mesh_scout/features/mapping/mapping_service.dart';
 
 class CountingBle extends FakeBle {
   int authorizationCalls = 0;
@@ -22,15 +25,19 @@ class CountingBle extends FakeBle {
 void main() {
   late CountingBle ble;
   late ProviderContainer container;
+  late FakeMapping mapping;
 
   Future<void> launch(WidgetTester tester) async {
     // Create stream controllers in the widget test's fake-async zone.
     ble = CountingBle();
+    mapping = FakeMapping();
     container = ProviderContainer(
-      overrides: [bleServiceProvider.overrideWithValue(ble)],
+      overrides: [bleServiceProvider.overrideWithValue(ble),
+        mappingServiceProvider.overrideWithValue(mapping)],
     );
     addTearDown(() {
       container.dispose();
+      unawaited(mapping.updates.close());
       unawaited(ble.devices.close());
       unawaited(ble.links.close());
       unawaited(ble.packets.close());
@@ -41,6 +48,7 @@ void main() {
         child: const MeshScoutApp(mapContent: ColoredBox(color: Colors.black)),
       ),
     );
+    await tester.pumpAndSettle();
   }
 
   Future<void> select(WidgetTester tester, int tab) async {
@@ -79,7 +87,7 @@ void main() {
     await select(tester, 3);
     expect(find.text('No coverage observations yet'), findsOneWidget);
     await select(tester, 4);
-    expect(find.text('No mapping sessions yet'), findsOneWidget);
+    expect(find.textContaining('No mapping sessions yet'), findsOneWidget);
     await select(tester, 5);
     expect(find.text('Bluetooth radios'), findsOneWidget);
     await tester.tap(find.text('Bluetooth radios'));
@@ -88,32 +96,29 @@ void main() {
     expect(ble.authorizationCalls, 0);
   });
 
-  testWidgets('mapping remains disabled even after MeshCore identification',
-      (tester) async {
+  testWidgets('GPS route records, saves and reopens from History', (tester) async {
     await launch(tester);
-    await identify(tester);
+    expect(mapping.authorizations, 0);
+    await tester.tap(find.text('Start Mapping').first);
     await tester.pumpAndSettle();
-    expect(container.read(radioProvider).phase, RadioPhase.ready);
-    expect(find.text('MeshCore companion connected'), findsOneWidget);
-    expect(
-        tester
-            .widget<FilledButton>(
-                find.byWidgetPredicate((widget) => widget is FilledButton))
-            .onPressed,
-        isNull);
-    await select(tester, 3);
-    expect(
-        tester
-            .widget<FilledButton>(
-                find.byWidgetPredicate((widget) => widget is FilledButton))
-            .onPressed,
-        isNull);
-    expect(find.textContaining('GPS and coverage recording'), findsOneWidget);
-    expect(ble.writes, [appStart, deviceQuery]);
+    expect(mapping.authorizations, 1);
+    expect(find.text('Stop and save route'), findsOneWidget);
+    mapping.updates.add(GpsPoint(35.2, -80.8, 5, DateTime.now()));
+    await tester.pumpAndSettle();
+    expect(find.text('1 GPS points · recording route'), findsOneWidget);
+    await tester.tap(find.text('Stop and save route'));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+    await select(tester, 4);
+    expect(find.textContaining('1 GPS points'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.route));
+    await tester.pumpAndSettle();
+    expect(container.read(mappingProvider).selected?.points.length, 1);
+    expect(find.text('Start Mapping'), findsOneWidget);
   });
 
   testWidgets(
-      'leaving Radios cancels scanning but keeps a ready foreground link',
+      'app switching preserves an identified link; explicit disconnect releases it',
       (tester) async {
     await launch(tester);
     await select(tester, 1);
@@ -136,11 +141,15 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     }
     await tester.pumpAndSettle();
-    expect(container.read(radioProvider).phase, RadioPhase.idle);
-    expect(ble.links.hasListener, isFalse);
-    // Paused apps do not redraw; verify the status after foreground resume.
+    expect(container.read(radioProvider).phase, RadioPhase.ready);
+    expect(ble.links.hasListener, isTrue);
+    // Resume must continue showing the actual live connection.
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
+    expect(find.text('MeshCore companion connected'), findsOneWidget);
+    await tester.runAsync(() => container.read(radioProvider.notifier).disconnect());
+    await tester.pumpAndSettle();
+    expect(ble.links.hasListener, isFalse);
     expect(find.text('Radio disconnected'), findsOneWidget);
   });
 

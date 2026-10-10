@@ -23,9 +23,9 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Foreground-only foundation: always release scan/GATT on background.
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused) {
+      unawaited(ref.read(radioProvider.notifier).background());
+    } else if (state == AppLifecycleState.detached) {
       unawaited(ref.read(radioProvider.notifier).disconnect());
     }
   }
