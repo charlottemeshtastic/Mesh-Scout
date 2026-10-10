@@ -58,21 +58,25 @@ class AndroidBleService implements BleService {
       await session.invokeMethod<void>('start');
       _sessionRunning = true;
     }
-    yield* _ble.connectToAdvertisingDevice(
-      id: id, withServices: [_service],
-      prescanDuration: const Duration(seconds: 3),
-      connectionTimeout: const Duration(seconds: 10),
-    ).map((u) => switch (u.connectionState) {
-      DeviceConnectionState.connected => RadioLink.connected,
-      DeviceConnectionState.disconnected => RadioLink.disconnected,
-      _ => RadioLink.connecting,
-    });
+    yield* _ble
+        .connectToAdvertisingDevice(
+          id: id,
+          withServices: [_service],
+          prescanDuration: const Duration(seconds: 3),
+          connectionTimeout: const Duration(seconds: 10),
+        )
+        .map((u) => switch (u.connectionState) {
+              DeviceConnectionState.connected => RadioLink.connected,
+              DeviceConnectionState.disconnected => RadioLink.disconnected,
+              _ => RadioLink.connecting,
+            });
   }
 
   @override
   Future<void> endSession() async {
     if (!_sessionRunning) return;
-    await const MethodChannel('org.meshscout/radio_session').invokeMethod<void>('stop');
+    await const MethodChannel('org.meshscout/radio_session')
+        .invokeMethod<void>('stop');
     _sessionRunning = false;
   }
 

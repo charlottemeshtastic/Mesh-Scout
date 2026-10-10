@@ -140,7 +140,8 @@ class RadioStatusBar extends StatelessWidget {
       RadioPhase.authorizing => 'Checking Bluetooth permissions…',
       RadioPhase.scanning => 'Scanning for radios…',
       RadioPhase.connecting => 'Connecting radio…',
-      RadioPhase.reconnecting => 'Reconnecting radio · attempt ${state.retryAttempt}/5',
+      RadioPhase.reconnecting =>
+        'Reconnecting radio · attempt ${state.retryAttempt}/5',
       RadioPhase.identifying => 'Checking MeshCore compatibility…',
       RadioPhase.ready => 'MeshCore companion connected',
       RadioPhase.failed => 'Radio unavailable · tap to retry',
@@ -154,7 +155,8 @@ class RadioStatusBar extends StatelessWidget {
             : Icons.bluetooth),
         title: Text(status),
         subtitle: state.phase == RadioPhase.ready
-            ? const Text('Bluetooth connected · GPS-tagged LoRa reception available')
+            ? const Text(
+                'Bluetooth connected · GPS-tagged LoRa reception available')
             : null,
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
@@ -222,13 +224,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           child: const Icon(Icons.my_location,
                               color: Colors.blue, size: 30))
                     ]),
-                  if (observations.isNotEmpty) CircleLayer(circles: [
-            for (final observation in observations) CircleMarker(
-              point: LatLng(observation.point.latitude, observation.point.longitude),
-              radius: 6, color: signalColor(observation.rssi).withValues(alpha: 0.7),
-              borderColor: Colors.white, borderStrokeWidth: 1),
-          ]),
-          const RichAttributionWidget(attributions: [
+                  if (observations.isNotEmpty)
+                    CircleLayer(circles: [
+                      for (final observation in observations)
+                        CircleMarker(
+                            point: LatLng(observation.point.latitude,
+                                observation.point.longitude),
+                            radius: 6,
+                            color: signalColor(observation.rssi)
+                                .withValues(alpha: 0.7),
+                            borderColor: Colors.white,
+                            borderStrokeWidth: 1),
+                    ]),
+                  const RichAttributionWidget(attributions: [
                     TextSourceAttribution('OpenStreetMap contributors')
                   ]),
                 ],
@@ -302,7 +310,8 @@ class HistoryScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.route),
           title: Text(session.started.toLocal().toString().split('.').first),
-          subtitle: Text('${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
+          subtitle: Text(
+              '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
               '${session.ended.difference(session.started).inMinutes} min'),
           onTap: state.recording || state.busy || state.points.isNotEmpty
               ? null
@@ -368,8 +377,11 @@ class FeaturePlaceholder extends StatelessWidget {
       );
 }
 
-Color signalColor(int rssi) => rssi >= -90 ? Colors.green
-    : rssi >= -110 ? Colors.orange : Colors.red;
+Color signalColor(int rssi) => rssi >= -90
+    ? Colors.green
+    : rssi >= -110
+        ? Colors.orange
+        : Colors.red;
 
 class CoverageScreen extends ConsumerWidget {
   const CoverageScreen({super.key});
@@ -380,19 +392,31 @@ class CoverageScreen extends ConsumerWidget {
     final observations = mapping.displayedObservations;
     return ListView(padding: const EdgeInsets.all(16), children: [
       Text('Coverage', style: Theme.of(context).textTheme.headlineSmall),
-      const Text('Received LoRa signal observations at your GPS location. These are last-hop reception metrics, not proof of sender reachability or two-way coverage.'),
+      const Text(
+          'Received LoRa signal observations at your GPS location. These are last-hop reception metrics, not proof of sender reachability or two-way coverage.'),
       const SizedBox(height: 12),
       Text('${observations.length} GPS-tagged LoRa observations'),
-      const Text('Map dots: green ≥ −90 dBm · orange ≥ −110 dBm · red below −110 dBm. No interpolation between points.'),
-      if (radio.lastRx != null) Text('Latest reception: ${radio.lastRx!.rssi} dBm · SNR ${radio.lastRx!.snr.toStringAsFixed(2)} dB'),
-      if (radio.phase != RadioPhase.ready) const Text('Connect your companion radio to receive LoRa metrics.'),
-      if (observations.isEmpty) const Text('No coverage observations yet. Start Mapping outdoors while connected. Only received radio packets with a GPS fix from the last 15 seconds are recorded.'),
+      const Text(
+          'Map dots: green ≥ −90 dBm · orange ≥ −110 dBm · red below −110 dBm. No interpolation between points.'),
+      if (radio.lastRx != null)
+        Text(
+            'Latest reception: ${radio.lastRx!.rssi} dBm · SNR ${radio.lastRx!.snr.toStringAsFixed(2)} dB'),
+      if (radio.phase != RadioPhase.ready)
+        const Text('Connect your companion radio to receive LoRa metrics.'),
+      if (observations.isEmpty)
+        const Text(
+            'No coverage observations yet. Start Mapping outdoors while connected. Only received radio packets with a GPS fix from the last 15 seconds are recorded.'),
       const MappingAvailability(),
-      for (final observation in observations.reversed.take(100)) ListTile(
-        leading: Icon(Icons.circle, color: signalColor(observation.rssi)),
-        title: Text('${observation.rssi} dBm · SNR ${observation.snr.toStringAsFixed(2)} dB'),
-        subtitle: Text('${observation.time.toLocal().toString().split('.').first} · GPS ±${observation.point.accuracy.round()} m')),
-      if (observations.length > 100) const Text('Latest 100 listed; the session and map contain all saved observations.'),
+      for (final observation in observations.reversed.take(100))
+        ListTile(
+            leading: Icon(Icons.circle, color: signalColor(observation.rssi)),
+            title: Text(
+                '${observation.rssi} dBm · SNR ${observation.snr.toStringAsFixed(2)} dB'),
+            subtitle: Text(
+                '${observation.time.toLocal().toString().split('.').first} · GPS ±${observation.point.accuracy.round()} m')),
+      if (observations.length > 100)
+        const Text(
+            'Latest 100 listed; the session and map contain all saved observations.'),
     ]);
   }
 }
@@ -421,10 +445,13 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('Manage Bluetooth access in Android settings'),
             onTap: () async => ref.read(radioProvider.notifier).openSettings(),
           ),
-          SwitchListTile(title: const Text('Automatic radio reconnect'),
-            subtitle: const Text('Retry the same identified radio up to five times after link loss. Manual disconnect stops retries.'),
-            value: ref.watch(radioProvider).autoReconnect,
-            onChanged: (enabled) async => ref.read(radioProvider.notifier).setAutoReconnect(enabled)),
+          SwitchListTile(
+              title: const Text('Automatic radio reconnect'),
+              subtitle: const Text(
+                  'Retry the same identified radio up to five times after link loss. Manual disconnect stops retries.'),
+              value: ref.watch(radioProvider).autoReconnect,
+              onChanged: (enabled) async =>
+                  ref.read(radioProvider.notifier).setAutoReconnect(enabled)),
           const ListTile(
             leading: Icon(Icons.location_off_outlined),
             title: Text('GPS route recording'),

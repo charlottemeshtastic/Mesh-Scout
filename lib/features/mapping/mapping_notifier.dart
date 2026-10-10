@@ -25,8 +25,10 @@ class MappingState {
   final List<MappingSession> sessions;
   final MappingSession? selected;
   final List<CoverageObservation> observations;
-  List<CoverageObservation> get displayedObservations => recording || points.isNotEmpty
-      ? observations : selected?.observations ?? const [];
+  List<CoverageObservation> get displayedObservations =>
+      recording || points.isNotEmpty
+          ? observations
+          : selected?.observations ?? const [];
   final String? message;
   List<GpsPoint> get displayedPoints =>
       recording || points.isNotEmpty ? points : selected?.points ?? const [];
@@ -135,7 +137,11 @@ class MappingNotifier extends Notifier<MappingState> {
     final observations = state.observations;
     final sessions = state.sessions;
     state = MappingState(
-        loading: false, busy: true, points: points, observations: observations, sessions: sessions);
+        loading: false,
+        busy: true,
+        points: points,
+        observations: observations,
+        sessions: sessions);
     try {
       final subscription = _positions;
       _positions = null;
@@ -154,7 +160,8 @@ class MappingNotifier extends Notifier<MappingState> {
           id: started.microsecondsSinceEpoch.toString(),
           started: started,
           ended: DateTime.now(),
-          points: points, observations: observations);
+          points: points,
+          observations: observations);
       final updated = [session, ...sessions];
       await _service.save(encodeSessions(updated));
       if (_disposed) return;
@@ -176,13 +183,20 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   void capture(RxObservation rx) {
-    if (!state.recording || state.points.isEmpty || state.observations.length >= 10000) return;
+    if (!state.recording ||
+        state.points.isEmpty ||
+        state.observations.length >= 10000) return;
     final point = state.points.last;
     final age = rx.time.difference(point.time);
     if (age.isNegative || age > const Duration(seconds: 15)) return;
-    final observation = CoverageObservation(point: point, rssi: rx.rssi, snr: rx.snr, time: rx.time);
-    state = MappingState(loading: false, recording: true, points: state.points,
-      sessions: state.sessions, observations: List.unmodifiable([...state.observations, observation]));
+    final observation = CoverageObservation(
+        point: point, rssi: rx.rssi, snr: rx.snr, time: rx.time);
+    state = MappingState(
+        loading: false,
+        recording: true,
+        points: state.points,
+        sessions: state.sessions,
+        observations: List.unmodifiable([...state.observations, observation]));
   }
 
   Future<void> background() async {

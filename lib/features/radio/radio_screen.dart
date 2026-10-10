@@ -59,7 +59,8 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
             RadioPhase.authorizing => 'Checking Bluetooth permissions…',
             RadioPhase.scanning => 'Scanning for nearby radios…',
             RadioPhase.connecting => 'Connecting…',
-            RadioPhase.reconnecting => 'Reconnecting to your radio (attempt ${state.retryAttempt}/5)…',
+            RadioPhase.reconnecting =>
+              'Reconnecting to your radio (attempt ${state.retryAttempt}/5)…',
             RadioPhase.identifying => 'Checking MeshCore companion protocol…',
             RadioPhase.ready => 'MeshCore companion connected',
             RadioPhase.failed => switch (state.failure) {
