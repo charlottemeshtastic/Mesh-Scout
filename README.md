@@ -47,3 +47,5 @@ Tests use injected BLE fakes. They establish state behavior and wire sequencing,
 - [Flutter platform integration guidance](https://docs.flutter.dev/platform-integration/platform-channels)
 
 `neverForLocation` applies only to companion discovery in this phase. Future GPS coverage capture requires its own consent and permission design; do not infer physical location from BLE scans without revisiting this declaration.
+
+The owned Android build configuration uses compile SDK 37, Android Gradle Plugin 9.2.1, Gradle 9.4.1, and Java 17 to meet the BLE plugin requirements. CI preserves these files when generating the remaining Flutter Android scaffolding. See the [official AGP 9.2 compatibility table](https://developer.android.com/build/releases/agp-9-2-0-release-notes).
