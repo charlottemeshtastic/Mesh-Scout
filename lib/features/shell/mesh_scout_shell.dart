@@ -7,7 +7,6 @@ import 'package:latlong2/latlong.dart';
 
 import '../radio/radio_notifier.dart';
 import '../mapping/mapping_notifier.dart';
-import '../mapping/mapping_service.dart';
 import '../radio/radio_screen.dart';
 
 enum ScoutTab { map, radios, nodes, coverage, history, settings }
@@ -179,6 +178,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _controller.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final mapping = ref.watch(mappingProvider);
@@ -191,23 +191,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final points = mapping.displayedPoints;
     return Column(children: [
       const MappingAvailability(),
-      Expanded(child: widget.mapContent ?? FlutterMap(
-        mapController: _controller,
-        options: MapOptions(initialCenter: const LatLng(39.8283, -98.5795),
-          initialZoom: 4, onMapReady: () => _mapReady = true),
-        children: [
-          TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'org.meshscout.mesh_scout'),
-          if (points.length > 1) PolylineLayer(polylines: [Polyline(
-            points: points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
-            strokeWidth: 4, color: Theme.of(context).colorScheme.primary)]),
-          if (points.isNotEmpty) MarkerLayer(markers: [Marker(
-            point: LatLng(points.last.latitude, points.last.longitude),
-            child: const Icon(Icons.my_location, color: Colors.blue, size: 30))]),
-          const RichAttributionWidget(attributions: [
-            TextSourceAttribution('OpenStreetMap contributors')]),
-        ],
-      )),
+      Expanded(
+          child: widget.mapContent ??
+              FlutterMap(
+                mapController: _controller,
+                options: MapOptions(
+                    initialCenter: const LatLng(39.8283, -98.5795),
+                    initialZoom: 4,
+                    onMapReady: () => _mapReady = true),
+                children: [
+                  TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'org.meshscout.mesh_scout'),
+                  if (points.length > 1)
+                    PolylineLayer(polylines: [
+                      Polyline(
+                          points: points
+                              .map((p) => LatLng(p.latitude, p.longitude))
+                              .toList(),
+                          strokeWidth: 4,
+                          color: Theme.of(context).colorScheme.primary)
+                    ]),
+                  if (points.isNotEmpty)
+                    MarkerLayer(markers: [
+                      Marker(
+                          point: LatLng(
+                              points.last.latitude, points.last.longitude),
+                          child: const Icon(Icons.my_location,
+                              color: Colors.blue, size: 30))
+                    ]),
+                  const RichAttributionWidget(attributions: [
+                    TextSourceAttribution('OpenStreetMap contributors')
+                  ]),
+                ],
+              )),
     ]);
   }
 }
@@ -219,24 +237,39 @@ class MappingAvailability extends ConsumerWidget {
     final state = ref.watch(mappingProvider);
     final actions = ref.read(mappingProvider.notifier);
     final retry = !state.recording && state.points.isNotEmpty;
-    return Padding(padding: const EdgeInsets.all(12), child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        FilledButton.icon(
-          onPressed: state.loading || state.busy ? null : () async {
-            if (state.recording || retry) { await actions.stop(); }
-            else { await actions.start(); }
-          },
-          icon: Icon(state.recording ? Icons.stop : Icons.play_arrow),
-          label: Text(state.busy ? 'Please wait…' : state.recording
-            ? 'Stop and save route' : retry ? 'Retry save' : 'Start Mapping'),
-        ),
-        const SizedBox(height: 6),
-        Text(state.recording ? '${state.points.length} GPS points · recording route'
-          : 'GPS routes save on this phone. LoRa coverage is not recorded.',
-          style: Theme.of(context).textTheme.bodySmall),
-        if (state.message != null) Text(state.message!),
-      ],
-    ));
+    return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              onPressed: state.loading || state.busy
+                  ? null
+                  : () async {
+                      if (state.recording || retry) {
+                        await actions.stop();
+                      } else {
+                        await actions.start();
+                      }
+                    },
+              icon: Icon(state.recording ? Icons.stop : Icons.play_arrow),
+              label: Text(state.busy
+                  ? 'Please wait…'
+                  : state.recording
+                      ? 'Stop and save route'
+                      : retry
+                          ? 'Retry save'
+                          : 'Start Mapping'),
+            ),
+            const SizedBox(height: 6),
+            Text(
+                state.recording
+                    ? '${state.points.length} GPS points · recording route'
+                    : 'GPS routes save on this phone. LoRa coverage is not recorded.',
+                style: Theme.of(context).textTheme.bodySmall),
+            if (state.message != null) Text(state.message!),
+          ],
+        ));
   }
 }
 
@@ -252,31 +285,50 @@ class HistoryScreen extends ConsumerWidget {
       const SizedBox(height: 12),
       const Text('Saved GPS routes · stored only on this phone'),
       if (state.loading) const LinearProgressIndicator(),
-      if (!state.loading && state.sessions.isEmpty) const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Text('No mapping sessions yet. Start Mapping on the Map tab.')),
+      if (!state.loading && state.sessions.isEmpty)
+        const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child:
+                Text('No mapping sessions yet. Start Mapping on the Map tab.')),
       if (state.message != null) Text(state.message!),
-      for (final session in state.sessions) ListTile(
-        leading: const Icon(Icons.route),
-        title: Text(session.started.toLocal().toString().split('.').first),
-        subtitle: Text('${session.points.length} GPS points · '
-          '${session.ended.difference(session.started).inMinutes} min'),
-        onTap: state.recording || state.busy || state.points.isNotEmpty ? null : () {
-          actions.select(session); onMap();
-        },
-        trailing: IconButton(icon: const Icon(Icons.delete_outline),
-          tooltip: 'Delete session',
-          onPressed: state.recording || state.busy || state.points.isNotEmpty ? null : () async {
-            final confirmed = await showDialog<bool>(context: context,
-              builder: (context) => AlertDialog(title: const Text('Delete this route?'),
-                content: const Text('This removes the saved GPS route from this phone.'),
-                actions: [TextButton(onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel')),
-                  FilledButton(onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Delete'))]));
-            if (confirmed == true) await actions.delete(session);
-          }),
-      ),
+      for (final session in state.sessions)
+        ListTile(
+          leading: const Icon(Icons.route),
+          title: Text(session.started.toLocal().toString().split('.').first),
+          subtitle: Text('${session.points.length} GPS points · '
+              '${session.ended.difference(session.started).inMinutes} min'),
+          onTap: state.recording || state.busy || state.points.isNotEmpty
+              ? null
+              : () {
+                  actions.select(session);
+                  onMap();
+                },
+          trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete session',
+              onPressed:
+                  state.recording || state.busy || state.points.isNotEmpty
+                      ? null
+                      : () async {
+                          final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                      title: const Text('Delete this route?'),
+                                      content: const Text(
+                                          'This removes the saved GPS route from this phone.'),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Cancel')),
+                                        FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Delete'))
+                                      ]));
+                          if (confirmed == true) await actions.delete(session);
+                        }),
+        ),
     ]);
   }
 }

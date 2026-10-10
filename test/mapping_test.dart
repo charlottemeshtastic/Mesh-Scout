@@ -17,6 +17,7 @@ class FakeMapping implements MappingService {
     await permissionGate?.future;
     if (denied) throw Exception('Permission denied');
   }
+
   @override
   Stream<GpsPoint> positions() => updates.stream;
   @override
@@ -34,14 +35,20 @@ void main() {
   late MappingNotifier actions;
   setUp(() async {
     service = FakeMapping();
-    container = ProviderContainer(overrides: [mappingServiceProvider.overrideWithValue(service)]);
+    container = ProviderContainer(
+        overrides: [mappingServiceProvider.overrideWithValue(service)]);
     actions = container.read(mappingProvider.notifier);
     await actions.initialize();
   });
-  tearDown(() async { container.dispose(); await service.updates.close(); });
-  GpsPoint point({double accuracy = 5}) => GpsPoint(35.2, -80.8, accuracy, DateTime.now());
+  tearDown(() async {
+    container.dispose();
+    await service.updates.close();
+  });
+  GpsPoint point({double accuracy = 5}) =>
+      GpsPoint(35.2, -80.8, accuracy, DateTime.now());
 
-  test('start requests location only on action and saves a real GPS session', () async {
+  test('start requests location only on action and saves a real GPS session',
+      () async {
     expect(service.authorizations, 0);
     await actions.start();
     service.updates.add(point());
@@ -51,7 +58,8 @@ void main() {
     expect(saved.single.points.single.latitude, 35.2);
     expect(container.read(mappingProvider).recording, false);
     expect(service.updates.hasListener, false);
-    final reopened = ProviderContainer(overrides: [mappingServiceProvider.overrideWithValue(service)]);
+    final reopened = ProviderContainer(
+        overrides: [mappingServiceProvider.overrideWithValue(service)]);
     await reopened.read(mappingProvider.notifier).initialize();
     expect(reopened.read(mappingProvider).sessions.single.id, saved.single.id);
     reopened.dispose();
@@ -61,13 +69,17 @@ void main() {
     await actions.start();
     expect(container.read(mappingProvider).recording, false);
     expect(service.updates.hasListener, false);
-    expect(container.read(mappingProvider).message, contains('Permission denied'));
+    expect(
+        container.read(mappingProvider).message, contains('Permission denied'));
   });
-  test('invalid inaccurate and stale fixes are ignored; empty route is not saved', () async {
+  test(
+      'invalid inaccurate and stale fixes are ignored; empty route is not saved',
+      () async {
     await actions.start();
     service.updates.add(point(accuracy: 500));
     service.updates.add(GpsPoint(91, 0, 5, DateTime.now()));
-    service.updates.add(GpsPoint(35, -80, 5, DateTime.now().subtract(const Duration(minutes: 1))));
+    service.updates.add(GpsPoint(
+        35, -80, 5, DateTime.now().subtract(const Duration(minutes: 1))));
     await actions.stop();
     expect(service.stored, isNull);
     expect(container.read(mappingProvider).sessions, isEmpty);
@@ -88,7 +100,8 @@ void main() {
     expect(container.read(mappingProvider).recording, false);
     expect(service.updates.hasListener, false);
   });
-  test('failed save retains route for retry and blocks destructive new start', () async {
+  test('failed save retains route for retry and blocks destructive new start',
+      () async {
     await actions.start();
     service.updates.add(point());
     service.saveFails = true;
@@ -102,7 +115,9 @@ void main() {
     expect(container.read(mappingProvider).points, isEmpty);
   });
   test('delete persists and clears selected route', () async {
-    await actions.start(); service.updates.add(point()); await actions.stop();
+    await actions.start();
+    service.updates.add(point());
+    await actions.stop();
     final session = container.read(mappingProvider).sessions.single;
     await actions.delete(session);
     expect(decodeSessions(service.stored), isEmpty);

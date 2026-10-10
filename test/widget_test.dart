@@ -32,8 +32,10 @@ void main() {
     ble = CountingBle();
     mapping = FakeMapping();
     container = ProviderContainer(
-      overrides: [bleServiceProvider.overrideWithValue(ble),
-        mappingServiceProvider.overrideWithValue(mapping)],
+      overrides: [
+        bleServiceProvider.overrideWithValue(ble),
+        mappingServiceProvider.overrideWithValue(mapping)
+      ],
     );
     addTearDown(() {
       container.dispose();
@@ -96,7 +98,8 @@ void main() {
     expect(ble.authorizationCalls, 0);
   });
 
-  testWidgets('GPS route records, saves and reopens from History', (tester) async {
+  testWidgets('GPS route records, saves and reopens from History',
+      (tester) async {
     await launch(tester);
     expect(mapping.authorizations, 0);
     await tester.tap(find.text('Start Mapping').first);
@@ -147,7 +150,8 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
     expect(find.text('MeshCore companion connected'), findsOneWidget);
-    await tester.runAsync(() => container.read(radioProvider.notifier).disconnect());
+    await tester
+        .runAsync(() => container.read(radioProvider.notifier).disconnect());
     await tester.pumpAndSettle();
     expect(ble.links.hasListener, isFalse);
     expect(find.text('Radio disconnected'), findsOneWidget);

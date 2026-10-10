@@ -9,23 +9,33 @@ class AndroidMappingService implements MappingService {
 
   @override
   Future<void> authorize() async {
-    if (!Platform.isAndroid) throw Exception('GPS recording is available on Android.');
+    if (!Platform.isAndroid) {
+      throw Exception('GPS recording is available on Android.');
+    }
     final status = await Permission.locationWhenInUse.request();
     if (!status.isGranted) {
-      throw Exception('Location permission is required. Enable precise location in App permissions.');
+      throw Exception(
+          'Location permission is required. Enable precise location in App permissions.');
     }
     final enabled = await _methods.invokeMethod<bool>('locationEnabled');
-    if (enabled != true) throw Exception('Enable GPS/location services and try again.');
+    if (enabled != true) {
+      throw Exception('Enable GPS/location services and try again.');
+    }
   }
+
   @override
   Stream<GpsPoint> positions() => _events.receiveBroadcastStream().map((event) {
-    final data = event as Map<dynamic, dynamic>;
-    return GpsPoint((data['lat'] as num).toDouble(), (data['lon'] as num).toDouble(),
-      (data['accuracy'] as num).toDouble(),
-      DateTime.fromMillisecondsSinceEpoch((data['time'] as num).toInt(), isUtc: true));
-  });
+        final data = event as Map<dynamic, dynamic>;
+        return GpsPoint(
+            (data['lat'] as num).toDouble(),
+            (data['lon'] as num).toDouble(),
+            (data['accuracy'] as num).toDouble(),
+            DateTime.fromMillisecondsSinceEpoch((data['time'] as num).toInt(),
+                isUtc: true));
+      });
   @override
   Future<String?> load() => _methods.invokeMethod<String>('loadSessions');
   @override
-  Future<void> save(String json) => _methods.invokeMethod<void>('saveSessions', json);
+  Future<void> save(String json) =>
+      _methods.invokeMethod<void>('saveSessions', json);
 }

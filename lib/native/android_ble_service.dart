@@ -55,15 +55,18 @@ class AndroidBleService implements BleService {
     try {
       // Start from the user's foreground Connect action, before app switching.
       await session.invokeMethod<void>('start');
-      yield* _ble.connectToAdvertisingDevice(
-        id: id, withServices: [_service],
-        prescanDuration: const Duration(seconds: 3),
-        connectionTimeout: const Duration(seconds: 10),
-      ).map((u) => switch (u.connectionState) {
-        DeviceConnectionState.connected => RadioLink.connected,
-        DeviceConnectionState.disconnected => RadioLink.disconnected,
-        _ => RadioLink.connecting,
-      });
+      yield* _ble
+          .connectToAdvertisingDevice(
+            id: id,
+            withServices: [_service],
+            prescanDuration: const Duration(seconds: 3),
+            connectionTimeout: const Duration(seconds: 10),
+          )
+          .map((u) => switch (u.connectionState) {
+                DeviceConnectionState.connected => RadioLink.connected,
+                DeviceConnectionState.disconnected => RadioLink.disconnected,
+                _ => RadioLink.connecting,
+              });
     } finally {
       await session.invokeMethod<void>('stop');
     }
