@@ -49,7 +49,9 @@ class RadioState {
       this.autoReconnect = true,
       this.retryAttempt = 0,
       this.messagingBusy = false,
-      this.messageEvent, this.channels = const [], this.channelsLoading = false});
+      this.messageEvent,
+      this.channels = const [],
+      this.channelsLoading = false});
   final RadioPhase phase;
   final List<RadioDevice> devices;
   final RadioFailure? failure;
@@ -76,7 +78,9 @@ class RadioState {
           bool? autoReconnect,
           int? retryAttempt,
           bool? messagingBusy,
-          List<int>? messageEvent, List<RadioChannel>? channels, bool? channelsLoading}) =>
+          List<int>? messageEvent,
+          List<RadioChannel>? channels,
+          bool? channelsLoading}) =>
       RadioState(
           phase: phase ?? this.phase,
           devices: devices ?? this.devices,
@@ -89,7 +93,9 @@ class RadioState {
           autoReconnect: autoReconnect ?? this.autoReconnect,
           retryAttempt: retryAttempt ?? this.retryAttempt,
           messagingBusy: messagingBusy ?? this.messagingBusy,
-          messageEvent: messageEvent ?? this.messageEvent, channels: channels ?? this.channels, channelsLoading: channelsLoading ?? this.channelsLoading);
+          messageEvent: messageEvent ?? this.messageEvent,
+          channels: channels ?? this.channels,
+          channelsLoading: channelsLoading ?? this.channelsLoading);
 }
 
 class RadioNotifier extends Notifier<RadioState> {
@@ -332,33 +338,63 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> refreshChannels() async {
-    if (state.phase != RadioPhase.ready || state.syncing || state.messagingBusy || state.channelsLoading) { return; }
+    if (state.phase != RadioPhase.ready ||
+        state.syncing ||
+        state.messagingBusy ||
+        state.channelsLoading) {
+      return;
+    }
     final generation = _generation;
     state = state.copyWith(channelsLoading: true);
     final channels = <RadioChannel>[];
     try {
-      if (_channelCapacity == 0) { throw StateError('Radio reports no supported channel slots.'); }
+      if (_channelCapacity == 0) {
+        throw StateError('Radio reports no supported channel slots.');
+      }
       for (var index = 0; index < _channelCapacity; index++) {
-        if (!_current(generation)) { return; }
-        final reply = await messageCommand([31, index], {18}, allowNotFound: true);
-        if (reply.first == 1) { continue; }
+        if (!_current(generation)) {
+          return;
+        }
+        final reply =
+            await messageCommand([31, index], {18}, allowNotFound: true);
+        if (reply.first == 1) {
+          continue;
+        }
         if (reply.length != 34 || reply[1] != index) {
           _syncFailed = true;
-          throw const FormatException('Invalid channel index. Reconnect before retrying.');
+          throw const FormatException(
+              'Invalid channel index. Reconnect before retrying.');
         }
-        final name = utf8.decode(reply.sublist(2, 34).takeWhile((b) => b != 0).toList());
+        final name =
+            utf8.decode(reply.sublist(2, 34).takeWhile((b) => b != 0).toList());
         // Empty names indicate unused slots; expose configured names only.
-        if (name.isNotEmpty) { channels.add(RadioChannel(index, name)); }
+        if (name.isNotEmpty) {
+          channels.add(RadioChannel(index, name));
+        }
       }
-      if (_current(generation)) { state = state.copyWith(channels: List.unmodifiable(channels), contactMessage: channels.isEmpty ? 'No named channels configured on the radio.' : 'Channels loaded.'); }
+      if (_current(generation)) {
+        state = state.copyWith(
+            channels: List.unmodifiable(channels),
+            contactMessage: channels.isEmpty
+                ? 'No named channels configured on the radio.'
+                : 'Channels loaded.');
+      }
     } catch (_) {
-      if (_current(generation)) { _syncFailed = true; state = state.copyWith(contactMessage: 'Could not load channels. Reconnect and retry.'); }
+      if (_current(generation)) {
+        _syncFailed = true;
+        state = state.copyWith(
+            contactMessage: 'Could not load channels. Reconnect and retry.');
+      }
     } finally {
-      if (_current(generation)) { state = state.copyWith(channelsLoading: false, contactMessage: state.contactMessage); }
+      if (_current(generation)) {
+        state = state.copyWith(
+            channelsLoading: false, contactMessage: state.contactMessage);
+      }
     }
   }
 
-  Future<List<int>> messageCommand(List<int> command, Set<int> replies, {bool allowNotFound = false}) async {
+  Future<List<int>> messageCommand(List<int> command, Set<int> replies,
+      {bool allowNotFound = false}) async {
     if (state.phase != RadioPhase.ready ||
         state.syncing ||
         state.messagingBusy ||
@@ -380,13 +416,19 @@ class RadioNotifier extends Notifier<RadioState> {
       await _withTimeout(
           _service.write(_target!.id, command), const Duration(seconds: 3));
       final bytes = await response;
-      if (bytes.first == 1 && allowNotFound && command.first == 31 && bytes.length == 2 && bytes[1] == 2) {
+      if (bytes.first == 1 &&
+          allowNotFound &&
+          command.first == 31 &&
+          bytes.length == 2 &&
+          bytes[1] == 2) {
         return bytes;
       }
       if (bytes.first == 1) {
         throw StateError('Radio rejected the request.');
       }
-      if (bytes.first == 0 && bytes.length != 1) { throw const FormatException('Invalid acceptance.'); }
+      if (bytes.first == 0 && bytes.length != 1) {
+        throw const FormatException('Invalid acceptance.');
+      }
       if (bytes.first == 6 && bytes.length != 10) {
         throw const FormatException('Invalid radio acceptance.');
       }
@@ -419,7 +461,8 @@ class RadioNotifier extends Notifier<RadioState> {
       if (bytes.first == 18) {
         // GET_CHANNEL includes a secret after byte 33. Never publish that key.
         if (bytes.length != 50) {
-          reply.completeError(const FormatException('Invalid channel response.'));
+          reply.completeError(
+              const FormatException('Invalid channel response.'));
         } else {
           reply.complete(List<int>.unmodifiable(bytes.take(34)));
         }
@@ -523,7 +566,8 @@ class RadioNotifier extends Notifier<RadioState> {
           phase: RadioPhase.reconnecting,
           syncing: false,
           messagingBusy: false,
-          channels: const [], channelsLoading: false,
+          channels: const [],
+          channelsLoading: false,
           retryAttempt: _attempt,
           contactMessage:
               'Radio disconnected; previously loaded contacts may be stale.');

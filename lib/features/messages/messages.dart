@@ -32,8 +32,14 @@ List<int> directMessage(String key, String text, int timestamp, int mtu) {
 List<int> channelMessage(int channel, String text, int timestamp, int mtu) {
   final body = utf8.encode(text);
   // Reserve 34 bytes for the firmware's sender-name prefix to avoid truncation.
-  if (channel < 0 || channel > 63 || body.isEmpty || body.length > 99 || body.length + 10 > mtu || RegExp(r'[\x00-\x1f]').hasMatch(text)) {
-    throw const FormatException('Channel text supports 1–99 UTF-8 bytes without control characters.');
+  if (channel < 0 ||
+      channel > 63 ||
+      body.isEmpty ||
+      body.length > 99 ||
+      body.length + 10 > mtu ||
+      RegExp(r'[\x00-\x1f]').hasMatch(text)) {
+    throw const FormatException(
+        'Channel text supports 1–99 UTF-8 bytes without control characters.');
   }
   final stamp = ByteData(4)..setUint32(0, timestamp, Endian.little);
   return [3, 0, channel, ...stamp.buffer.asUint8List(), ...body];
@@ -242,15 +248,19 @@ class Messages extends Notifier<MessageState> {
     final radio = ref.read(radioProvider.notifier);
     final token = radio.sessionToken;
     final contacts = ref.read(radioProvider).contacts;
-    if (channel == null && (contacts
-                .where((c) => c.key
-                    .startsWith(key.length >= 12 ? key.substring(0, 12) : key))
-                .length !=
-            1 ||
-        !contacts.any((c) => c.key == key && c.type == 1))) {
+    if (channel == null &&
+        (contacts
+                    .where((c) => c.key.startsWith(
+                        key.length >= 12 ? key.substring(0, 12) : key))
+                    .length !=
+                1 ||
+            !contacts.any((c) => c.key == key && c.type == 1))) {
       return;
     }
-    if (channel != null && !ref.read(radioProvider).channels.any((c) => c.index == channel)) { return; }
+    if (channel != null &&
+        !ref.read(radioProvider).channels.any((c) => c.index == channel)) {
+      return;
+    }
     state = MessageState(items: state.items, loaded: true, busy: true);
     try {
       var stamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -258,7 +268,9 @@ class Messages extends Notifier<MessageState> {
         stamp = _lastTimestamp + 1;
       }
       _lastTimestamp = stamp;
-      final command = channel == null ? directMessage(key, text, stamp, radio.mtu) : channelMessage(channel, text, stamp, radio.mtu);
+      final command = channel == null
+          ? directMessage(key, text, stamp, radio.mtu)
+          : channelMessage(channel, text, stamp, radio.mtu);
       final record = <String, dynamic>{
         'peer': channel == null ? key.substring(0, 12) : 'Channel $channel',
         'body': text,
@@ -271,10 +283,19 @@ class Messages extends Notifier<MessageState> {
       if (radio.sessionToken != token) {
         throw StateError('Radio changed before send.');
       }
-      final reply = await radio.messageCommand(command, channel == null ? {6} : {0});
+      final reply =
+          await radio.messageCommand(command, channel == null ? {6} : {0});
       if (channel != null) {
-        if (reply.length != 1) { throw const FormatException('Invalid channel acceptance.'); }
-        await _save([...state.items.take(state.items.length - 1), {...record, 'status': 'Accepted by radio · channel delivery unconfirmed'}]);
+        if (reply.length != 1) {
+          throw const FormatException('Invalid channel acceptance.');
+        }
+        await _save([
+          ...state.items.take(state.items.length - 1),
+          {
+            ...record,
+            'status': 'Accepted by radio · channel delivery unconfirmed'
+          }
+        ]);
         return;
       }
       if (reply.length != 10) {
@@ -440,38 +461,76 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           FilledButton(
               onPressed: ready ? actions.fetch : null,
               child: const Text('Fetch messages')),
-          SwitchListTile(title: const Text('Send to a channel'), value: _channelMode, onChanged: state.busy ? null : (value) => setState(() => _channelMode = value)),
+          SwitchListTile(
+              title: const Text('Send to a channel'),
+              value: _channelMode,
+              onChanged: state.busy
+                  ? null
+                  : (value) => setState(() => _channelMode = value)),
           if (_channelMode) ...[
-            OutlinedButton(onPressed: radio.phase == RadioPhase.ready && !state.busy && !radio.syncing && !radio.messagingBusy && !radio.channelsLoading ? ref.read(radioProvider.notifier).refreshChannels : null, child: Text(radio.channelsLoading ? 'Loading channels…' : 'Load configured channels')),
+            OutlinedButton(
+                onPressed: radio.phase == RadioPhase.ready &&
+                        !state.busy &&
+                        !radio.syncing &&
+                        !radio.messagingBusy &&
+                        !radio.channelsLoading
+                    ? ref.read(radioProvider.notifier).refreshChannels
+                    : null,
+                child: Text(radio.channelsLoading
+                    ? 'Loading channels…'
+                    : 'Load configured channels')),
             if (radio.contactMessage != null) Text(radio.contactMessage!),
-            DropdownButtonFormField<int>(key: ValueKey(radio.channels), initialValue: radio.channels.any((c) => c.index == _channel) ? _channel : null, isExpanded: true, decoration: const InputDecoration(labelText: 'Configured channel'), items: [for (final c in radio.channels) DropdownMenuItem(value: c.index, child: Text('${c.name} · ${c.index}', overflow: TextOverflow.ellipsis))], onChanged: (value) => setState(() => _channel = value)),
-            const Text('Channel sends have no delivery acknowledgement. Limit: 99 UTF-8 bytes.'),
+            DropdownButtonFormField<int>(
+                key: ValueKey(radio.channels),
+                initialValue: radio.channels.any((c) => c.index == _channel)
+                    ? _channel
+                    : null,
+                isExpanded: true,
+                decoration:
+                    const InputDecoration(labelText: 'Configured channel'),
+                items: [
+                  for (final c in radio.channels)
+                    DropdownMenuItem(
+                        value: c.index,
+                        child: Text('${c.name} · ${c.index}',
+                            overflow: TextOverflow.ellipsis))
+                ],
+                onChanged: (value) => setState(() => _channel = value)),
+            const Text(
+                'Channel sends have no delivery acknowledgement. Limit: 99 UTF-8 bytes.'),
           ],
-          if (!_channelMode) DropdownButtonFormField<String>(
-              initialValue: contacts.any((c) => c.key == _key) ? _key : null,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Chat contact'),
-              items: [
-                for (final c in contacts)
-                  DropdownMenuItem(
-                      value: c.key,
-                      child: Text(
-                          c.name.isEmpty ? c.key.substring(0, 12) : c.name,
-                          overflow: TextOverflow.ellipsis))
-              ],
-              onChanged: (value) => setState(() => _key = value)),
+          if (!_channelMode)
+            DropdownButtonFormField<String>(
+                initialValue: contacts.any((c) => c.key == _key) ? _key : null,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Chat contact'),
+                items: [
+                  for (final c in contacts)
+                    DropdownMenuItem(
+                        value: c.key,
+                        child: Text(
+                            c.name.isEmpty ? c.key.substring(0, 12) : c.name,
+                            overflow: TextOverflow.ellipsis))
+                ],
+                onChanged: (value) => setState(() => _key = value)),
           TextField(
               controller: _text,
               maxLength: 133,
               decoration: const InputDecoration(
                   labelText: 'Message (up to 133 UTF-8 bytes)')),
           FilledButton(
-              onPressed: ready && (_channelMode ? radio.channels.any((c) => c.index == _channel) : contacts.any((c) => c.key == _key))
+              onPressed: ready &&
+                      (_channelMode
+                          ? radio.channels.any((c) => c.index == _channel)
+                          : contacts.any((c) => c.key == _key))
                   ? () async {
-                      await actions.send(_key ?? '', _text.text, channel: _channelMode ? _channel : null);
+                      await actions.send(_key ?? '', _text.text,
+                          channel: _channelMode ? _channel : null);
                     }
                   : null,
-              child: Text(_channelMode ? 'Send channel message' : 'Send direct message')),
+              child: Text(_channelMode
+                  ? 'Send channel message'
+                  : 'Send direct message')),
           for (final item in state.items.reversed)
             ListTile(
                 title: Text(item['body'] as String),

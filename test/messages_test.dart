@@ -21,13 +21,16 @@ void main() {
         () => directMessage(key, 'bad\ntext', 1, 185), throwsFormatException);
     expect(() => directMessage(key, '', 1, 185), throwsFormatException);
   });
-  test('channel frame encodes selected slot and enforces prefix-safe byte limit', () {
-    final bytes = channelMessage(2,'hello',0x04030201,185);
-    expect(bytes.take(7),[3,0,2,1,2,3,4]);
-    expect(utf8.decode(bytes.sublist(7)),'hello');
-    expect(() => channelMessage(2,List.filled(50,'é').join(),1,185),throwsFormatException);
-    expect(() => channelMessage(-1,'hello',1,185),throwsFormatException);
-    expect(() => channelMessage(2,'hello',1,14),throwsFormatException);
+  test(
+      'channel frame encodes selected slot and enforces prefix-safe byte limit',
+      () {
+    final bytes = channelMessage(2, 'hello', 0x04030201, 185);
+    expect(bytes.take(7), [3, 0, 2, 1, 2, 3, 4]);
+    expect(utf8.decode(bytes.sublist(7)), 'hello');
+    expect(() => channelMessage(2, List.filled(50, 'é').join(), 1, 185),
+        throwsFormatException);
+    expect(() => channelMessage(-1, 'hello', 1, 185), throwsFormatException);
+    expect(() => channelMessage(2, 'hello', 1, 14), throwsFormatException);
   });
   test('incoming legacy direct message preserves sender prefix and timestamp',
       () {
