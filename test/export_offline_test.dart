@@ -130,8 +130,7 @@ void main() {
       expect(container.read(offlineProvider).area!.latitude, 35.2);
       expect(container.read(offlineProvider).message, contains('failed'));
       expect(File('${active.path}/area.json').existsSync(), isTrue);
-      expect(Directory('${directory.path}/offline/pending').existsSync(),
-          isFalse);
+      expect(Directory('${directory.path}/offline/pending').existsSync(), isFalse);
     } finally {
       container.dispose();
       await server.close(force: true);
@@ -162,8 +161,7 @@ void main() {
       expect(container.read(offlineProvider).message, contains('cancelled'));
       expect(
           Directory('${directory.path}/offline/active').existsSync(), isFalse);
-      expect(Directory('${directory.path}/offline/pending').existsSync(),
-          isFalse);
+      expect(Directory('${directory.path}/offline/pending').existsSync(), isFalse);
     } finally {
       container.dispose();
       await server.close(force: true);
