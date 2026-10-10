@@ -6,8 +6,9 @@ import '../features/radio/ble_service.dart';
 
 /// Android implementation. Plugins remain confined to this boundary.
 class AndroidBleService implements BleService {
-  AndroidBleService(this._ble);
-  final FlutterReactiveBle _ble;
+  AndroidBleService();
+  // The plugin initializes on construction; defer it until permissions pass.
+  late final FlutterReactiveBle _ble = FlutterReactiveBle();
   final _service = Uuid.parse(meshCoreService);
 
   @override
@@ -16,9 +17,11 @@ class AndroidBleService implements BleService {
       throw const RadioException(RadioFailure.unavailable);
     }
     final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
-    final permissions = sdk >= 31
-        ? [Permission.bluetoothScan, Permission.bluetoothConnect]
-        : [Permission.locationWhenInUse];
+    final permissions = permissionPlan(sdk).map((access) => switch (access) {
+      BluetoothAccess.scan => Permission.bluetoothScan,
+      BluetoothAccess.connect => Permission.bluetoothConnect,
+      BluetoothAccess.location => Permission.locationWhenInUse,
+    }).toList();
     final statuses = await permissions.request();
     if (statuses.values.any((s) => s.isPermanentlyDenied)) {
       throw const RadioException(RadioFailure.permanentlyDenied);
@@ -53,18 +56,23 @@ class AndroidBleService implements BleService {
 
   @override
   Future<void> discover(String id) async {
-    final services = await _ble.discoverServices(id);
-    final matches = services.where((s) => s.serviceId == _service);
+    await _ble.discoverAllServices(id);
+    final services = await _ble.getDiscoveredServices(id);
+    final matches = services.where((s) => s.id == _service);
     if (matches.length != 1) {
       throw const RadioException(RadioFailure.protocol);
     }
     final characteristics = matches.single.characteristics;
-    final rx = characteristics.where((c) => c.characteristicId == Uuid.parse(meshCoreRx));
-    final tx = characteristics.where((c) => c.characteristicId == Uuid.parse(meshCoreTx));
+    final rx = characteristics.where((c) => c.id == Uuid.parse(meshCoreRx));
+    final tx = characteristics.where((c) => c.id == Uuid.parse(meshCoreTx));
     if (rx.length != 1 || tx.length != 1 || !rx.single.isWritableWithResponse || !tx.single.isNotifiable) {
       throw const RadioException(RadioFailure.protocol);
     }
   }
+
+  @override
+  Future<int> negotiateMtu(String id) =>
+      _ble.requestMtu(deviceId: id, mtu: requestedCompanionMtu);
 
   QualifiedCharacteristic _characteristic(String id, String uuid) =>
       QualifiedCharacteristic(deviceId: id, serviceId: _service, characteristicId: Uuid.parse(uuid));
