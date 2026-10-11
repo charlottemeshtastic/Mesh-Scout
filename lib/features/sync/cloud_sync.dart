@@ -67,7 +67,8 @@ class CloudSync extends Notifier<CloudSyncState> {
         !m.recording &&
         !m.busy &&
         m.points.isEmpty &&
-        ref.read(messagesProvider).loaded && !ref.read(messagesProvider).busy &&
+        ref.read(messagesProvider).loaded &&
+        !ref.read(messagesProvider).busy &&
         !ref.read(messagesProvider.notifier).hasUnsaved &&
         !ref.read(offlineProvider).busy &&
         !ref.read(fieldNotesProvider).isLoading &&

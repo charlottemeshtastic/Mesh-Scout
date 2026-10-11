@@ -1,4 +1,4 @@
-# MeshScout 1.4.0
+# MeshScout 1.5.0
 
 Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
 
@@ -37,7 +37,7 @@ Waypoints and notes persist privately, appear as cyan flags on Map and can be de
 - **Node markers:** neutral markers with an edge colour by advert age (green ≤24 h, amber ≤7 d, grey older). Nodes within ~11 m share one marker with a count; tapping zooms in, and tapping again lists them by full public key.
 - **Quick guide and settings folders:** a 12-page guide appears once after preferences load and reopens from Settings → About and support. Settings are grouped into Radio and alerts, Recording, Map, Backup and storage, and About and support.
 
-Not included because MeshScout has no server or iOS build: active pings, server sessions/keepalives, Anonymous Mode, Custom API forwarding, regional CARpeater lists, server device catalog, Flood Off regions, administrator site info, Siri, CarPlay, Live Activities and Apple Watch.
+Not included because MeshScout has no server or iOS build: MeshMapper server ping protocol, server sessions/keepalives, Anonymous Mode, Custom API forwarding, regional CARpeater lists, server device catalog, Flood Off regions, administrator-verified site info, Siri, CarPlay, Live Activities and Apple Watch.
 
 ## Offline maps
 
@@ -49,7 +49,7 @@ Import MBTiles supports worldwide user-provided PNG/JPEG raster and OpenMapTiles
 
 ## Backup, merge and cloud document
 
-Legacy JSON backup/restore remains compatible. Settings → Full backup supports a version-2 ZIP bundle containing completed routes, observations, message history, waypoints/notes and preferred-radio/reconnect/background-GPS/automatic-inbox preferences. Saved raster maps are optional (maximum 500 MB / 50,000 entries and five areas). Radio secrets, notification grants, cloud-provider permissions, scheduling secrets and in-progress recordings are excluded.
+Legacy JSON backup/restore remains compatible. Settings → Full backup supports a version-2 ZIP bundle containing completed routes, observations, message history, waypoints/notes, user-entered repeater details and preferred-radio/reconnect/background-GPS/automatic-inbox preferences. Saved raster/vector maps are optional (maximum 500 MB / 50,000 entries and five areas). Radio secrets, notification grants, cloud-provider permissions, scheduling secrets and in-progress recordings are excluded.
 
 Encryption uses PBKDF2-HMAC-SHA256 (150,000 iterations, random 128-bit salt) and AES-256-GCM authenticated 64 KiB records, distinct indexed nonces and an authenticated terminal record. A 12-character minimum passphrase is required for encryption. Missing/tampered/reordered records, trailing bytes and wrong passwords reject the entire file before extraction or restore. Keep the passphrase: the app cannot recover it.
 
@@ -57,7 +57,7 @@ Restore first stages bounded entries in private storage, rejects unexpected path
 
 Stop recording/downloads, wait for saves and disconnect the radio before backup/restore. Reconnect/background-GPS preferences persist and are applied after restore. Restored notification permissions are never silently granted.
 
-Cloud backup uses Android's Storage Access Framework. Choose a **dedicated backup document** in an installed cloud provider (or local storage). Explicit Upload overwrites that document; Download previews before merge/replace. Document-provider access is user-granted and provider-dependent. Provider failure during overwrite can leave the remote file incomplete, so keep a separate local backup. This is manual document synchronization, not automatic two-way merge or a MeshScout account.
+Cloud backup uses Android's Storage Access Framework. Choose a **dedicated backup document** in an installed cloud provider (or local storage). Explicit Upload overwrites that document; Download previews before merge/replace. Document-provider access is user-granted and provider-dependent. Provider failure during overwrite can leave the remote file incomplete, so keep a separate local backup. This document backup remains available separately from the shared-folder synchronization below.
 
 Daily encrypted backups are explicitly enabled after choosing a target. Android JobScheduler runs them while charging and online, approximately daily and potentially delayed. GPS recording defers the job. The scheduling passphrase is protected by Android Keystore on this phone, excluded from portable backups, and removed when scheduling is disabled. Settings displays the latest job status. Re-enable scheduling on a restored/new phone; no provider URI is restored from a bundle.
 
@@ -89,3 +89,17 @@ CI now produces an optimized release-mode **test-signed candidate**, preserving 
 ## Live reception metadata
 
 Radios → Start collecting provides an opt-in foreground live view of up to 200 reception reports (latest 20 shown), with UTC phone arrival time, signed RSSI, quarter-dB SNR, packet type and bounded routing metadata. Raw payloads, message contents and hashes are discarded. App switching stops this live list while preserving the connected radio and separately opted-in GPS recording. Start Mapping saves valid receptions associated with a recent GPS fix. Malformed/truncated reports are rejected before coverage association. Complete RF reports require MTU at least 179; the native adapter requests 185. This is framing validation, not authenticated sender identity or proof of delivery.
+
+## Smart discovery and repeater details (1.5)
+
+Recording settings offer opt-in smart discovery pinging: MeshCore command 7 with zero-hop advertisements, every 2/5/10 minutes at most, only while recording with the app open, a fresh accurate GPS fix, an identified idle radio and a known preset. Recently measured cells on that same preset are skipped using a configurable 7/14/30/90-day window. Planned routes and advertisements alone never count as measured coverage. A manual ping bypasses the coverage hold but retains the interval limit. The command uses the radio's existing advertised name/location policy; it does not update that location. Companion acceptance does not confirm another radio received it. Failures pause automatic pinging until reconnecting, and a command already written cannot be withdrawn.
+
+Tap a repeater in Nodes to view its advertised identity/location and save site, hardware, antenna, transmit power, preset and notes by full public key. These details are user-entered, not verified administrator claims or radio configuration. They travel in encrypted backups and shared-folder sync. Diagnostics remain explicit radio commands.
+
+## Automatic shared-folder synchronization (1.5)
+
+Settings → Backup and storage offers a dedicated shared folder and a shared passphrase of at least 12 characters. Each phone publishes immutable encrypted snapshots of saved sessions, messages, waypoints and repeater details. Maps, device preferences, credentials and in-progress recordings stay local. Sync runs approximately once a minute while the app is open, idle and disconnected from the radio. It does not run in the background. The Android document provider must support persistent folder access, file creation and rename; provider support has not been physically verified. Some cloud apps do not expose usable folders in Android's picker.
+
+Logical revisions and permanent deletion markers merge devices without resurrecting stale records. Concurrent changes pause automatic sync for review; applying the proposed merge requires an explicit choice and retains conflict alternatives locally for export. A failed publication never applies the incoming data locally. Edits and restores are blocked during maintenance. Each device retains its latest two successful snapshots; other devices' files are never removed. Use a dedicated folder, at most eight devices and 8,000 records including deletion markers. Each snapshot has a 20 MB plaintext limit. Changing a group's passphrase requires a fresh folder because old snapshots cannot be decrypted with the new passphrase.
+
+Automated checks cover stale-device deletion, deterministic conflict merging, provider failure, background deferral, unchanged-data write avoidance, smart-ping pacing/cancellation and narrow screens at 200% text. Physical acceptance for two phones, document providers, background GPS, BLE, real-world vector packs, TalkBack, battery and performance remains pending. See the device checklist before treating a candidate as field-verified.

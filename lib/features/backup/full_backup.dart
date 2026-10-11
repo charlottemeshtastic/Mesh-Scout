@@ -47,12 +47,15 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
     final m = ref.read(mappingProvider),
         r = ref.read(radioProvider),
         messages = ref.read(messagesProvider);
-    return !ref.read(maintenanceProvider) && !ref.read(fieldNotesProvider).isLoading &&
-        !ref.read(repeaterDetailsProvider).isLoading && !m.loading &&
+    return !ref.read(maintenanceProvider) &&
+        !ref.read(fieldNotesProvider).isLoading &&
+        !ref.read(repeaterDetailsProvider).isLoading &&
+        !m.loading &&
         !m.recording &&
         !m.busy &&
         m.points.isEmpty &&
-        messages.loaded && !messages.busy &&
+        messages.loaded &&
+        !messages.busy &&
         !ref.read(messagesProvider.notifier).hasUnsaved &&
         !ref.read(offlineProvider).busy &&
         (r.phase == RadioPhase.idle || r.phase == RadioPhase.failed);
@@ -193,7 +196,9 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(maintenanceProvider); ref.watch(fieldNotesProvider); ref.watch(repeaterDetailsProvider);
+    ref.watch(maintenanceProvider);
+    ref.watch(fieldNotesProvider);
+    ref.watch(repeaterDetailsProvider);
     ref.watch(mappingProvider);
     ref.watch(messagesProvider);
     ref.watch(radioProvider);

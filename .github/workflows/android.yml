@@ -59,8 +59,6 @@ jobs:
             echo "Unexpected dependency in MeshScout"
             exit 1
           fi
-      - name: Apply pending Dart style fixes (temporary)
-        run: dart fix --apply --code=curly_braces_in_flow_control_structures
       - name: Check Dart formatting
         id: format
         run: |

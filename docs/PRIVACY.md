@@ -21,3 +21,9 @@ Delete sessions, messages, notes and maps individually, or use confirmed storage
 ## Reporting issues
 
 Use the repository issue tracker: https://github.com/charlottemeshtastic/Mesh-Scout/issues. Remove private message text, exact coordinates, passwords, channel keys and signing material from public reports. This document describes the repository's implemented behavior; device and provider behavior still needs field validation.
+
+## Shared-folder sync and discovery
+
+Opt-in sync uploads encrypted saved sessions, messages, waypoints and user-entered repeater details to the chosen document-provider folder. The shared passphrase is protected by Android Keystore on this phone and excluded from portable backups. Other devices with folder access and the passphrase can read those records. Deletions propagate as permanent markers; older retained snapshots, conflict alternatives and private restore profiles can still contain prior values. Deleting a record does not securely erase every copy. Maps, radio secrets, device preferences and in-progress recordings are excluded from sync. Sync runs only while the app is foreground, idle and disconnected. Cloud provider permissions and behavior remain provider-dependent.
+
+Opt-in smart discovery sends zero-hop advertisements with the radio's current advertised identity and location policy. It does not set or hide the radio's advertised location, and does not claim confirmed reception or measured coverage.

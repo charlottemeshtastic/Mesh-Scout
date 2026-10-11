@@ -123,7 +123,9 @@ class FieldNotes extends AsyncNotifier<List<Map<String, dynamic>>> {
   }
 
   Future<void> save(List<Map<String, dynamic>> notes) async {
-    if (ref.read(maintenanceProvider)) throw StateError('Wait for sync or restore to finish.');
+    if (ref.read(maintenanceProvider)) {
+      throw StateError('Wait for sync or restore to finish.');
+    }
     final previous = state;
     if (state.isLoading) {
       throw StateError('Wait for waypoint saving to finish.');

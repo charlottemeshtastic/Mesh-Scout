@@ -48,11 +48,13 @@ class RepeaterDetails extends AsyncNotifier<List<Map<String, String>>> {
   Future<List<Map<String, String>>> build() async {
     final f = await file();
     if (!await f.exists()) return [];
-    if (await f.length() > 4 * 1024 * 1024)
+    if (await f.length() > 4 * 1024 * 1024) {
       throw const FormatException('Repeater information exceeds limit.');
+    }
     final raw = jsonDecode(await f.readAsString()) as List;
-    if (raw.length > 1000)
+    if (raw.length > 1000) {
       throw const FormatException('Repeater information limit reached.');
+    }
     return raw
         .map(
             (v) => validateRepeaterDetails(Map<String, dynamic>.from(v as Map)))
@@ -60,9 +62,12 @@ class RepeaterDetails extends AsyncNotifier<List<Map<String, String>>> {
   }
 
   Future<void> save(Map<String, dynamic> value) async {
-    if (ref.read(maintenanceProvider)) throw StateError('Wait for sync or restore to finish.');
-    if (state.isLoading || state.hasError)
+    if (ref.read(maintenanceProvider)) {
+      throw StateError('Wait for sync or restore to finish.');
+    }
+    if (state.isLoading || state.hasError) {
       throw StateError('Wait for repeater information to load.');
+    }
     final row = validateRepeaterDetails(value);
     final previous = state;
     final rows = [
@@ -70,8 +75,9 @@ class RepeaterDetails extends AsyncNotifier<List<Map<String, String>>> {
       row
     ];
     if (rows.length > 1000 ||
-        utf8.encode(jsonEncode(rows)).length > 4 * 1024 * 1024)
+        utf8.encode(jsonEncode(rows)).length > 4 * 1024 * 1024) {
       throw const FormatException('Repeater information limit reached.');
+    }
     state = const AsyncLoading();
     try {
       final f = await file(), temp = File('${(await file()).path}.tmp');
@@ -158,7 +164,10 @@ class _RepeaterDetailsState extends ConsumerState<RepeaterDetailsScreen> {
                                 : null,
                       )),
                 FilledButton(
-                    onPressed: !blocked && loaded && !details.isLoading && !details.hasError
+                    onPressed: !blocked &&
+                            loaded &&
+                            !details.isLoading &&
+                            !details.hasError
                         ? () async {
                             if (!form.currentState!.validate()) return;
                             try {
@@ -169,23 +178,27 @@ class _RepeaterDetailsState extends ConsumerState<RepeaterDetailsScreen> {
                                 for (final field in controllers.entries)
                                   field.key: field.value.text.trim()
                               });
-                              if (mounted)
+                              if (mounted) {
                                 setState(() => notice =
                                     'Saved on this phone. Included in full backup and enabled folder sync.');
+                              }
                             } catch (_) {
-                              if (mounted)
+                              if (mounted) {
                                 setState(() => notice =
                                     'Could not save repeater information.');
+                              }
                             }
                           }
                         : null,
                     child: const Text('Save repeater information')),
                 OutlinedButton(
-                    onPressed: blocked ? null : () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) =>
-                                AdvancedRadioScreen(contactKey: c.key))),
+                    onPressed: blocked
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    AdvancedRadioScreen(contactKey: c.key))),
                     child: const Text(
                         'Path, status, telemetry and radio controls')),
                 if (notice.isNotEmpty) Text(notice),

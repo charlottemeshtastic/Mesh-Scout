@@ -46,12 +46,14 @@ class _SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: AbsorbPointer(absorbing: ref.watch(maintenanceProvider), child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: children,
-          ),
-        )),
+        body: AbsorbPointer(
+            absorbing: ref.watch(maintenanceProvider),
+            child: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: children,
+              ),
+            )),
       );
 }
 
