@@ -286,7 +286,11 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('All conversations'),
       180,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: find
+          .descendant(
+              of: find.byType(MessagesScreen),
+              matching: find.byType(Scrollable))
+          .first,
     );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const MaterialApp(home: HelpScreen()));

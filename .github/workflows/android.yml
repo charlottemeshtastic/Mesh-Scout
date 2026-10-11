@@ -88,7 +88,7 @@ jobs:
                   tests[e['test']['id']] = e['test']
               elif e.get('type') == 'error':
                   errors.setdefault(e['testID'], []).append(e['error'] + '\n' + e.get('stackTrace', ''))
-              elif e.get('type') == 'print':
+              elif e.get('type') == 'print' and 'warnIfMissed' not in e.get('message', ''):
                   prints.setdefault(e['testID'], []).append(e.get('message', ''))
           for tid, errs in errors.items():
               t = tests.get(tid, {})
