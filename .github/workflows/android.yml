@@ -78,7 +78,7 @@ jobs:
           [ -f test-results.json ] || exit 0
           python3 - <<'PY'
           import json
-          tests, errors = {}, {}
+          tests, errors, prints = {}, {}, {}
           for line in open('test-results.json'):
               try:
                   e = json.loads(line)
@@ -88,9 +88,11 @@ jobs:
                   tests[e['test']['id']] = e['test']
               elif e.get('type') == 'error':
                   errors.setdefault(e['testID'], []).append(e['error'] + '\n' + e.get('stackTrace', ''))
+              elif e.get('type') == 'print':
+                  prints.setdefault(e['testID'], []).append(e.get('message', ''))
           for tid, errs in errors.items():
               t = tests.get(tid, {})
-              msg = ('\n'.join(errs))[:3000].replace('%', '%25').replace('\r', '').replace('\n', '%0A')
+              msg = ('\n'.join(prints.get(tid, [])[:40] + errs))[:6000].replace('%', '%25').replace('\r', '').replace('\n', '%0A')
               url = (t.get('root_url') or t.get('url') or '').replace('file://', '')
               path = url.split('/test/', 1)[-1] if '/test/' in url else ''
               print(f"::error file=test/{path},line={t.get('root_line') or t.get('line') or 1},title={t.get('name','')[:120].replace(',', ';')}::{msg}")

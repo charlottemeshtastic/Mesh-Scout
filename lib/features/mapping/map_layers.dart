@@ -100,10 +100,11 @@ List<NodeGroup> groupNodes(Iterable<MeshContact> nodes, {bool group = true}) {
   final located = nodes
       .where((n) => n.latitude != null && n.longitude != null)
       .toList();
-  if (!group)
+  if (!group) {
     return [
       for (final n in located) NodeGroup([n]),
     ];
+  }
   final groups = <(int, int), List<MeshContact>>{};
   for (final node in located) {
     final key = (
