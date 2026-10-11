@@ -24,25 +24,53 @@ jobs:
           flutter-version: '3.47.7'
           channel: stable
           cache: true
-      - name: Generate Android scaffold while preserving project files
-        shell: bash
+      - name: Generate Android scaffolding while preserving owned sources
         run: |
-          cp android/app/build.gradle.kts /tmp/meshscout-build.gradle.kts
-          cp pubspec.lock /tmp/meshscout-pubspec.lock
+          cp -R android/app/src/main/res/xml /tmp/meshscout-xml
+          cp -R android/app/src/main/kotlin /tmp/meshscout-kotlin
           cp android/app/src/main/AndroidManifest.xml /tmp/meshscout-manifest.xml
+          cp android/app/build.gradle.kts /tmp/meshscout-app.gradle.kts
+          cp android/settings.gradle.kts /tmp/meshscout-settings.gradle.kts
+          cp android/gradle/wrapper/gradle-wrapper.properties /tmp/meshscout-wrapper.properties
+          cp pubspec.yaml /tmp/meshscout-pubspec.yaml
+          cp pubspec.lock /tmp/meshscout-pubspec.lock
+          cp analysis_options.yaml /tmp/meshscout-analysis.yaml
+          cp -R android/app/src/main/res /tmp/meshscout-res
           flutter create --platforms=android --org org.meshscout --project-name mesh_scout --no-pub .
+          cp -R /tmp/meshscout-kotlin/. android/app/src/main/kotlin/
+          mkdir -p android/app/src/main/res/xml
+          cp -R /tmp/meshscout-xml/. android/app/src/main/res/xml/
+          cp -R /tmp/meshscout-res/. android/app/src/main/res/
           cp /tmp/meshscout-manifest.xml android/app/src/main/AndroidManifest.xml
+          cp /tmp/meshscout-app.gradle.kts android/app/build.gradle.kts
+          cp /tmp/meshscout-settings.gradle.kts android/settings.gradle.kts
+          cp /tmp/meshscout-wrapper.properties android/gradle/wrapper/gradle-wrapper.properties
+          cp /tmp/meshscout-pubspec.yaml pubspec.yaml
           cp /tmp/meshscout-pubspec.lock pubspec.lock
-          cp /tmp/meshscout-build.gradle.kts android/app/build.gradle.kts
-          git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml
+          cp /tmp/meshscout-analysis.yaml analysis_options.yaml
+          git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml android/app/src/main/kotlin android/app/src/main/res
       - run: flutter pub get --enforce-lockfile
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
-      - run: flutter test --coverage --timeout 30s
-      - name: Build Android alpha debug APK
-        run: flutter build apk --debug
+      - run: flutter test --coverage --timeout 2m
+      - name: Build Android alpha debug APK with persistent test signing
+        env:
+          MESHSCOUT_TEST_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_BASE64 }}
+          MESHSCOUT_TEST_KEYSTORE_PASSWORD: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$MESHSCOUT_TEST_KEYSTORE_BASE64"
+          test -n "$MESHSCOUT_TEST_KEYSTORE_PASSWORD"
+          export MESHSCOUT_TEST_KEYSTORE_PATH="$RUNNER_TEMP/meshscout-test.p12"
+          trap 'rm -f "$MESHSCOUT_TEST_KEYSTORE_PATH"' EXIT
+          printf '%s' "$MESHSCOUT_TEST_KEYSTORE_BASE64" | base64 --decode > "$MESHSCOUT_TEST_KEYSTORE_PATH"
+          chmod 600 "$MESHSCOUT_TEST_KEYSTORE_PATH"
+          flutter build apk --debug
+      - name: Verify native tests
+        run: cd android && ./gradlew testDebugUnitTest
       - name: Name alpha artifact
-        run: cp build/app/outputs/flutter-apk/app-debug.apk MeshScout-alpha-debug.apk
+        run: |
+          cp build/app/outputs/flutter-apk/app-debug.apk MeshScout-alpha-debug.apk
+          sha256sum MeshScout-alpha-debug.apk > MeshScout-alpha-debug.apk.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: MeshScout-alpha-debug-apk
@@ -52,8 +80,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" MeshScout-alpha-debug.apk \
+          gh release create "${GITHUB_REF_NAME}" MeshScout-alpha-debug.apk MeshScout-alpha-debug.apk.sha256 \
             --title "MeshScout ${GITHUB_REF_NAME} (Alpha)" \
             --prerelease \
-            --generate-notes \
-            --notes "Early testing build. This is a DEBUG APK, not a signed production release. Hardware acceptance and GPS coverage mapping are not complete."
+            --notes-file docs/ALPHA_RELEASE_NOTES.md

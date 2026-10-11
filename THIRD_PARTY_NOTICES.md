@@ -10,7 +10,7 @@ The upstream MeshMapper Flutter App publishes its source under the MIT License, 
 
 Copyright (c) 2026 MeshMapper
 
-If MeshMapper source or substantial portions are incorporated into MeshScout, the full original MIT license text and copyright notice must accompany the redistributed software. This attribution document does not substitute for that license.
+If MeshMapper source or substantial portions are incorporated into MeshScout, the full original MIT license text and copyright notice must accompany the redistributed software. The complete upstream MIT license is preserved in assets/licenses/MeshMapper-MIT.txt and included in the in-app license viewer.
 
 **Provenance verification pending:** GitHub currently identifies MeshScout as a standalone repository rather than a GitHub fork. Its precise source-code relationship to MeshMapper has not yet been established. Do not represent it as a confirmed code fork until provenance is verified.
 
