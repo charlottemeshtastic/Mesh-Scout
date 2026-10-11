@@ -132,5 +132,6 @@ class _MeshScoutStartupState extends State<MeshScoutStartup> {
   }
 
   @override
-  Widget build(BuildContext context) => MeshScoutApp(showBranding: _showBranding);
+  Widget build(BuildContext context) =>
+      MeshScoutApp(showBranding: _showBranding);
 }
