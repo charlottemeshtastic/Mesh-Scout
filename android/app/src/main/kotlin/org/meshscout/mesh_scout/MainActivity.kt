@@ -39,7 +39,7 @@ class MainActivity : FlutterActivity() {
                             else startService(intent)
                             result.success(null)
                         }
-                        "takeOver" -> { RadioConnectionService.takeOver(); result.success(null) }
+                        "takeOver" -> { RadioConnectionService.takeOver(); stopService(intent); result.success(null) }
                         "stop" -> { stopService(intent); result.success(null) }
                         else -> result.notImplemented()
                     }
