@@ -234,7 +234,11 @@ class RadioNotifier extends Notifier<RadioState> {
   Future<void> scan() async {
     if (state.busy) return;
     final generation = ++_generation;
-    state = _empty(phase: RadioPhase.authorizing);
+    state = _empty(phase: RadioPhase.authorizing).copyWith(
+      observations: const [],
+      receivedCount: 0,
+      malformedCount: 0,
+    );
     try {
       await _service.authorize();
       if (!_current(generation)) return;
@@ -615,8 +619,8 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   void clearObservations() {
-    state = state.copyWith(
-        observations: const [], receivedCount: 0, malformedCount: 0);
+    state = state
+        .copyWith(observations: const [], receivedCount: 0, malformedCount: 0);
   }
 
   void _collect(List<int> bytes) {

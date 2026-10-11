@@ -160,12 +160,18 @@ void main() {
       expect(ble.writes.length, writes);
     },
   );
-  test('contact refresh requires a large enough negotiated MTU', () async {
+  test('insufficient RF frame MTU blocks identification and contact refresh', () async {
     ble.mtu = 100;
-    await ready();
+    await actions.scan();
+    const device = RadioDevice('radio', 'Companion', -55);
+    ble.devices.add(device);
+    await actions.connect(device);
+    ble.links.add(RadioLink.connected);
+    await flush();
+    expect(container.read(radioProvider).phase, RadioPhase.failed);
+    expect(container.read(radioProvider).failure, RadioFailure.protocol);
     await actions.refreshContacts();
     expect(container.read(radioProvider).syncing, false);
-    expect(container.read(radioProvider).contactMessage, contains('MTU'));
     expect(ble.writes.where((b) => b.first == 4), isEmpty);
   });
   test(
@@ -243,7 +249,8 @@ void main() {
   });
   test('RX parser uses signed quarter-dB SNR and rejects unrelated frames', () {
     final now = DateTime.now();
-    expect(RxObservation.parse([0x88, 0xfc, 0x88, 1, 0, 0xaa], now)?.rssi, -120);
+    expect(
+        RxObservation.parse([0x88, 0xfc, 0x88, 1, 0, 0xaa], now)?.rssi, -120);
     expect(RxObservation.parse([0x88, 0xfc, 0x88, 1, 0, 0xaa], now)?.snr, -1);
     expect(RxObservation.parse([0x88, 1], now), isNull);
     expect(RxObservation.parse([0x83, 0xfc, 0x88, 1], now), isNull);

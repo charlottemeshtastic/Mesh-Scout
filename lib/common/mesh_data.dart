@@ -63,7 +63,9 @@ class RxObservation {
   final DateTime time;
   static RxObservation? parse(List<int> bytes, DateTime now) {
     final report = parseRadioObservation(bytes, now);
-    return report == null ? null : RxObservation(report.rssiDbm, report.snrDb, report.receivedAt);
+    return report == null
+        ? null
+        : RxObservation(report.rssiDbm, report.snrDb, report.receivedAt);
   }
 }
 
