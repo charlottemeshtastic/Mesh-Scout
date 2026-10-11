@@ -143,6 +143,7 @@ class ScoutBundles(private val activity: Activity) {
                 val meta=mutableMapOf<String,String>();db.rawQuery("SELECT name,value FROM metadata",null).use{c->while(c.moveToNext())meta[c.getString(0)]=c.getString(1)}
                 require(meta["format"] in listOf("png","jpg","jpeg","pbf")) { "Use PNG/JPEG or OpenMapTiles PBF MBTiles" }
                 val vector=meta["format"]=="pbf";var supported=false
+                db.rawQuery("SELECT count(*) FROM tiles WHERE length(tile_data) NOT BETWEEN 1 AND ${if(vector)VectorMapTile.MAX_BYTES else 1024*1024}",null).use{c->require(c.moveToFirst() && c.getInt(0)==0) { "Map pack contains oversized tiles" }}
                 var count=0;var bytes=0L;var min=22;var max=0;var lat=0.0;var lon=0.0
                 db.rawQuery("SELECT zoom_level,tile_column,tile_row,tile_data FROM tiles",null).use{c->while(c.moveToNext()){
                     require(++count<=50000);val z=c.getInt(0);require(z in 0..22);val n=1 shl z;val x=c.getInt(1);val row=c.getInt(2);require(x in 0 until n && row in 0 until n)

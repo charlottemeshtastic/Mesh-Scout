@@ -40,40 +40,84 @@ void main() {
         isA<vt.TileResponseError>());
     expect(scoutVectorTheme.layers, isNotEmpty);
   });
-  testWidgets('renders a local water polygon without a network basemap', (tester) async {
-    final root = (await tester.runAsync(() => Directory.systemTemp.createTemp('scout-vector-render')))!;
+  testWidgets('renders a local water polygon without a network basemap',
+      (tester) async {
+    final root = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('scout-vector-render')))!;
     addTearDown(() => root.delete(recursive: true));
     final file = File('${root.path}/0/0/0.tile');
     await tester.runAsync(() async {
-    await file.parent.create(recursive: true);
-    await file.writeAsBytes([26, 32, 10, 5, 119, 97, 116, 101, 114, 18, 18, 24, 3, 34, 14, 9, 0, 0, 26, 128, 64, 0, 0, 128, 64, 255, 63, 0, 15, 40, 128, 32, 120, 2]);
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes([
+        26,
+        32,
+        10,
+        5,
+        119,
+        97,
+        116,
+        101,
+        114,
+        18,
+        18,
+        24,
+        3,
+        34,
+        14,
+        9,
+        0,
+        0,
+        26,
+        128,
+        64,
+        0,
+        0,
+        128,
+        64,
+        255,
+        63,
+        0,
+        15,
+        40,
+        128,
+        32,
+        120,
+        2
+      ]);
     });
     const boundaryKey = ValueKey('vector-map');
-    await tester.pumpWidget(MaterialApp(home: RepaintBoundary(
+    await tester.pumpWidget(MaterialApp(
+        home: RepaintBoundary(
       key: boundaryKey,
       child: FlutterMap(options: const MapOptions(initialZoom: 0), children: [
-        OfflineVectorLayer(area: OfflineArea(root.path, 0, 0, 1, 100,
-          minZoom: 0, maxZoom: 0, kind: 'vector')),
+        OfflineVectorLayer(
+            area: OfflineArea(root.path, 0, 0, 1, 100,
+                minZoom: 0, maxZoom: 0, kind: 'vector')),
       ]),
     )));
     var painted = false;
     final deadline = DateTime.now().add(const Duration(seconds: 20));
     while (!painted && DateTime.now().isBefore(deadline)) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)));
       await tester.pump();
-      final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(boundaryKey));
+      final boundary =
+          tester.renderObject<RenderRepaintBoundary>(find.byKey(boundaryKey));
       final image = boundary.toImageSync();
-      final data = await tester.runAsync(() => image.toByteData(format: ui.ImageByteFormat.rawRgba));
+      final data = await tester
+          .runAsync(() => image.toByteData(format: ui.ImageByteFormat.rawRgba));
       final offset = ((image.height ~/ 2) * image.width + image.width ~/ 2) * 4;
-      painted = data != null && data.getUint8(offset) == 168 &&
-          data.getUint8(offset + 1) == 211 && data.getUint8(offset + 2) == 230;
+      painted = data != null &&
+          data.getUint8(offset) == 168 &&
+          data.getUint8(offset + 1) == 211 &&
+          data.getUint8(offset + 2) == 230;
       image.dispose();
     }
-    expect(painted, true, reason: 'local MVT geometry must paint, not just the background');
+    expect(painted, true,
+        reason: 'local MVT geometry must paint, not just the background');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
     vt.VectorTileLayer.clearMemoryCache();
   });
-
 }

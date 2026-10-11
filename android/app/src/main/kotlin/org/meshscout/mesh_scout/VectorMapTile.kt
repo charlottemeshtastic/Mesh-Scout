@@ -41,25 +41,48 @@ object VectorMapTile {
                 while (!layer.done) {
                     val field = layer.varint()
                     when (field) {
-                        10L -> { val raw = layer.block(); require(raw.size in 1..256); name = raw.toString(Charsets.UTF_8) }
-                        18L -> validateMessage(layer.block())
-                        26L -> { require(layer.block().size <= 65536) }
-                        34L -> validateMessage(layer.block())
+                        10L -> { val raw = layer.block(); require(raw.size in 1..256); name = utf8(raw) }
+                        18L -> validateFeature(layer.block())
+                        26L -> { val raw=layer.block(); require(raw.size <= 65536); utf8(raw) }
+                        34L -> validateValue(layer.block())
                         40L -> require(layer.varint() in 1..65536)
                         120L -> { version = layer.varint(); require(version in 1..2) }
                         else -> layer.skip(field)
                     }
                 }
                 require(name != null && version in 1..2) { "Invalid vector layer" }
-                names.add(name!!)
+                names.add(name)
             } else tile.skip(tag)
         }
         require(count > 0) { "No MVT layers found" }
         return names
     }
-    private fun validateMessage(bytes: ByteArray) {
+    private fun utf8(bytes: ByteArray): String = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+        .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+        .decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+    private fun validateFeature(bytes: ByteArray) {
         val reader = Reader(bytes)
-        while (!reader.done) reader.skip(reader.varint())
+        while (!reader.done) {
+            val tag = reader.varint()
+            when (tag) {
+                18L, 34L -> {
+                    val packed = Reader(reader.block())
+                    var count = 0
+                    while (!packed.done) { require(packed.varint() in 0..0xffffffffL); count++ }
+                    if (tag == 18L) require(count % 2 == 0) { "Invalid feature tags" }
+                }
+                24L -> require(reader.varint() in 0..3)
+                else -> reader.skip(tag)
+            }
+        }
+    }
+    private fun validateValue(bytes: ByteArray) {
+        val reader = Reader(bytes)
+        while (!reader.done) {
+            val tag = reader.varint()
+            if (tag == 10L) utf8(reader.block()) else reader.skip(tag)
+        }
     }
     private class Reader(private val bytes: ByteArray) {
         private var offset = 0
