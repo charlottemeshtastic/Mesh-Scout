@@ -13,11 +13,31 @@ void main() => runApp(ProviderScope(
 
 class MeshScoutApp extends StatelessWidget {
   const MeshScoutApp({super.key});
+
+  static const background = Color(0xFF101820);
+  static const cyan = Color(0xFF00D9FF);
+  static const steelBlue = Color(0xFF28465A);
+
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'MeshScout',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData.dark(useMaterial3: true),
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: background,
+          colorScheme: const ColorScheme.dark(
+            primary: cyan,
+            secondary: steelBlue,
+            surface: background,
+            onSurface: Color(0xFFE6EDF3),
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: background,
+            foregroundColor: cyan,
+            centerTitle: false,
+          ),
+        ),
         home: Scaffold(
           appBar: AppBar(title: const Text('MeshScout'), actions: [
             Builder(
