@@ -1,0 +1,59 @@
+name: MeshScout Alpha Release
+
+on:
+  push:
+    tags:
+      - 'v*-alpha*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-alpha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Generate Android scaffold while preserving project files
+        shell: bash
+        run: |
+          cp android/app/build.gradle.kts /tmp/meshscout-build.gradle.kts
+          cp pubspec.lock /tmp/meshscout-pubspec.lock
+          cp android/app/src/main/AndroidManifest.xml /tmp/meshscout-manifest.xml
+          flutter create --platforms=android --org org.meshscout --project-name mesh_scout --no-pub .
+          cp /tmp/meshscout-manifest.xml android/app/src/main/AndroidManifest.xml
+          cp /tmp/meshscout-pubspec.lock pubspec.lock
+          cp /tmp/meshscout-build.gradle.kts android/app/build.gradle.kts
+          git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --coverage --timeout 30s
+      - name: Build Android alpha debug APK
+        run: flutter build apk --debug
+      - name: Name alpha artifact
+        run: cp build/app/outputs/flutter-apk/app-debug.apk MeshScout-alpha-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeshScout-alpha-debug-apk
+          path: MeshScout-alpha-debug.apk
+      - name: Publish prerelease for version tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" MeshScout-alpha-debug.apk \
+            --title "MeshScout ${GITHUB_REF_NAME} (Alpha)" \
+            --prerelease \
+            --generate-notes \
+            --notes "Early testing build. This is a DEBUG APK, not a signed production release. Hardware acceptance and GPS coverage mapping are not complete."
