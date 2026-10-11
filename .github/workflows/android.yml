@@ -56,10 +56,16 @@ jobs:
         id: format
         run: |
           dart format lib test
-          git diff --exit-code -- lib test
+          if ! git diff --quiet -- lib test; then
+            for f in $(git diff --name-only -- lib test); do
+              body=$(git diff -U0 -- "$f" | tail -n +5 | head -c 3500 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+              echo "::error file=$f,title=dart format::$body"
+            done
+            exit 1
+          fi
       - run: flutter analyze --fatal-infos
         if: ${{ !cancelled() }}
-      - run: flutter test --coverage --timeout 2m
+      - run: flutter test --coverage --timeout 2m --reporter github
         if: ${{ !cancelled() }}
       - name: Build optimized APK candidate with persistent test signing
         env:
