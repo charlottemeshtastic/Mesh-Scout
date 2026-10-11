@@ -9,29 +9,65 @@ class AboutMeshScoutScreen extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: const [
-            Text('MeshScout', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text(
+              'MeshScout',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 8),
             Text('Explore the Mesh. Understand the Signal.'),
             SizedBox(height: 20),
-            Text('MeshScout is an independent, Android-first application for observing MeshCore companion-radio reception activity. Coverage mapping and GPS-tagged observations are planned, not yet available.'),
+            Text(
+              'MeshScout is an independent Android application for observing '
+              'MeshCore radio activity, recording field measurements and '
+              'exploring measured coverage. Field hardware validation remains '
+              'necessary.',
+            ),
             SizedBox(height: 24),
-            Text('Project origins & acknowledgments', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            Text(
+              'Project origins and acknowledgments',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 8),
-            Text('MeshScout acknowledges the open-source MeshMapper project and its contributors, including the Greater Ottawa Mesh Radio Enthusiasts community. MeshMapper Flutter App: github.com/MeshMapper/MeshMapper_Flutter_App. The upstream project is distributed under the MIT License. See the repository THIRD_PARTY_NOTICES.md for attribution and licensing details.'),
+            Text(
+              'MeshScout acknowledges the open-source MeshMapper project and '
+              'its contributors, including the Greater Ottawa Mesh Radio '
+              'Enthusiasts community. The upstream MeshMapper Flutter App is '
+              'published under the MIT License. See THIRD_PARTY_NOTICES.md '
+              'in the MeshScout repository for licensing details and the '
+              'original project link.',
+            ),
             SizedBox(height: 24),
-            Text('Independent project', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            Text(
+              'Independent project',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 8),
-            Text('MeshScout is independently developed and is not affiliated with, endorsed by, or sponsored by MeshMapper or MeshCore. Third-party names and trademarks belong to their respective owners.'),
+            Text(
+              'MeshScout is independently developed and is not affiliated '
+              'with, sponsored by or endorsed by MeshMapper or MeshCore. '
+              'Third-party trademarks remain with their owners.',
+            ),
             SizedBox(height: 24),
-            Text('Safety & limitations', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            Text(
+              'Safety and limitations',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 8),
-            Text('MeshScout is early-stage software. Reception data is informational and does not guarantee message delivery or emergency communications coverage. Do not rely on it as your sole emergency communications tool.'),
+            Text(
+              'Reception data and mapped observations do not guarantee '
+              'message delivery or emergency communications coverage. '
+              'Do not rely on MeshScout as your sole emergency tool.',
+            ),
             SizedBox(height: 24),
-            Text('Open-source licenses', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            Text(
+              'Open-source licenses',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 8),
-            Text('Original authors retain their copyrights. Applicable third-party licenses and required notices must be preserved when redistributing their code.'),
-            SizedBox(height: 8),
-            Text('See licenses for bundled Flutter packages below.'),
+            Text(
+              'Original authors retain their copyrights. Applicable '
+              'third-party license notices must accompany redistributed code.',
+            ),
             SizedBox(height: 8),
             _LicensesButton(),
           ],
