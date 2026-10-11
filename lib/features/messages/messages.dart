@@ -126,15 +126,23 @@ class Messages extends Notifier<MessageState> {
   bool get hasUnsaved => _unsaved != null || _inboxPending;
   @override
   MessageState build() {
-    final timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (ref.mounted && ref.read(autoInboxProvider) && !_autoPaused && available) {
-        final radio = ref.read(radioProvider);
-        if (radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy && !radio.channelsLoading) {
-          unawaited(fetch(automatic: true));
+    Timer? timer;
+    void schedule(bool enabled) {
+      timer?.cancel();
+      timer = null;
+      if (!enabled) return;
+      timer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (ref.mounted && !_autoPaused && available) {
+          final radio = ref.read(radioProvider);
+          if (radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy && !radio.channelsLoading) {
+            unawaited(fetch(automatic: true));
+          }
         }
-      }
-    });
-    ref.onDispose(timer.cancel);
+      });
+    }
+    schedule(ref.read(autoInboxProvider));
+    ref.listen(autoInboxProvider, (_, enabled) => schedule(enabled));
+    ref.onDispose(() => timer?.cancel());
     ref.listen(radioProvider.select((s) => s.messageEvent), (_, bytes) {
       if (bytes == null) {
         return;
