@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import '../radio/ble_service.dart';
+import '../../common/mesh_data.dart';
+import '../messages/messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../offline/offline_maps.dart';
 import '../radio/radio_notifier.dart';
@@ -15,6 +18,9 @@ class ScoutPreferences extends Notifier<String?> {
   String? build() {
     ref.listen(radioProvider.select((s) => s.autoReconnect), (_, __) => save());
     ref.listen(backgroundGpsProvider, (_, __) => save());
+    ref.listen(autoInboxProvider, (_, __) => save());
+    ref.listen(radioProvider.select((s) => s.phase), (_, __) => save());
+    ref.listen(radioProvider.select((s) => s.syncedAt), (_, __) => save());
     return null;
   }
 
@@ -33,6 +39,25 @@ class ScoutPreferences extends Notifier<String?> {
               .read(radioProvider.notifier)
               .setAutoReconnect(data['autoReconnect'] as bool);
         }
+        if (data['autoInbox'] is bool) ref.read(autoInboxProvider.notifier).set(data['autoInbox'] as bool);
+        final preferred = data['preferredRadio'];
+        if (preferred is Map && preferred['id'] is String && preferred['name'] is String) {
+          final cache = File('${await ref.read(dataDirectoryProvider)()}/contacts-cache.json');
+          var contacts = <MeshContact>[];
+          DateTime? synced;
+          if (cache.existsSync()) {
+            try {
+              final saved = jsonDecode(await cache.readAsString()) as Map<String, dynamic>;
+              if (saved['radio'] == preferred['id']) {
+                final frames = saved['frames'] as List;
+                if (frames.length > 5000) throw const FormatException();
+                contacts = frames.map((f) => MeshContact.parse(List<int>.from(f as List))).toList();
+                synced = DateTime.parse(saved['synced'] as String);
+              }
+            } catch (_) { state = 'Contact cache could not be loaded; refresh from radio.'; }
+          }
+          ref.read(radioProvider.notifier).restorePreferred(RadioDevice(preferred['id'] as String, preferred['name'] as String, 0), contacts, synced);
+        }
         if (data['backgroundGps'] is bool) {
           ref
               .read(backgroundGpsProvider.notifier)
@@ -40,6 +65,9 @@ class ScoutPreferences extends Notifier<String?> {
         }
       }
       initialized = true;
+      final fileData = file.existsSync() ? jsonDecode(await file.readAsString()) as Map<String, dynamic> : <String,dynamic>{};
+      final shouldResume = fileData['resumeMonitoring'] == true && ref.read(radioProvider).autoReconnect;
+      if (shouldResume) await ref.read(radioProvider.notifier).connectPreferred();
       save();
     } catch (_) {
       if (ref.mounted) {
@@ -54,9 +82,18 @@ class ScoutPreferences extends Notifier<String?> {
     }
     final text = jsonEncode({
       'version': 1,
+      'autoInbox': ref.read(autoInboxProvider),
+      'resumeMonitoring': ref.read(radioProvider.notifier).resumeMonitoring,
+      if (ref.read(radioProvider.notifier).preferred case final device?)
+        'preferredRadio': {'id': device.id, 'name': device.name},
       'autoReconnect': ref.read(radioProvider).autoReconnect,
       'backgroundGps': ref.read(backgroundGpsProvider)
     });
+    final radio = ref.read(radioProvider);
+    final preferred = ref.read(radioProvider.notifier).preferred;
+    final cache = radio.syncedAt == null || preferred == null ? null : jsonEncode({
+      'radio': preferred.id, 'synced': radio.syncedAt!.toUtc().toIso8601String(),
+      'frames': radio.contacts.map((c) => c.frame).toList()});
     pending = pending.then((_) async {
       if (!ref.mounted) {
         return;
@@ -66,6 +103,11 @@ class ScoutPreferences extends Notifier<String?> {
         final temp = File('$root/settings.json.tmp');
         await temp.writeAsString(text, flush: true);
         await temp.rename('$root/settings.json');
+        if (cache != null) {
+          final tempCache = File('$root/contacts-cache.json.tmp');
+          await tempCache.writeAsString(cache, flush: true);
+          await tempCache.rename('$root/contacts-cache.json');
+        }
         if (ref.mounted) {
           state = null;
         }

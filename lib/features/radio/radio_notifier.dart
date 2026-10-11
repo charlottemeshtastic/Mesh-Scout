@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'inbox_journal.dart';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/mesh_data.dart';
@@ -134,6 +135,20 @@ class RadioNotifier extends Notifier<RadioState> {
   int _mtu = 0;
   int _channelCapacity = 0;
   RadioDevice? _target;
+  RadioDevice? preferred;
+  bool resumeMonitoring = false;
+  void restorePreferred(RadioDevice device, List<MeshContact> contacts, DateTime? synced) {
+    preferred = device;
+    state = state.copyWith(contacts: List.unmodifiable(contacts), syncedAt: synced,
+      contactMessage: 'Saved contacts for ${device.name}; refresh to verify.');
+  }
+  Future<void> connectPreferred() async {
+    final device = preferred;
+    if (device == null || state.busy) return;
+    state = state.copyWith(phase: RadioPhase.idle, devices: [device]);
+    await connect(device);
+  }
+
   Map<String, MeshContact>? _incoming;
   int? _contactCount;
   bool _syncFailed = false;
@@ -149,7 +164,8 @@ class RadioNotifier extends Notifier<RadioState> {
   bool _current(int generation) => !_disposed && generation == _generation;
   RadioState _empty(
           {RadioPhase phase = RadioPhase.idle, RadioFailure? failure}) =>
-      RadioState(phase: phase, failure: failure, autoReconnect: _autoReconnect);
+      RadioState(phase: phase, failure: failure, autoReconnect: _autoReconnect,
+        contacts: state.contacts, syncedAt: state.syncedAt);
 
   @override
   RadioState build() {
@@ -204,6 +220,9 @@ class RadioNotifier extends Notifier<RadioState> {
             state.phase != RadioPhase.scanning) ||
         !state.devices.any((d) => d.id == device.id)) {
       return;
+    }
+    if (preferred?.id != device.id) {
+      state = RadioState(devices: state.devices, autoReconnect: _autoReconnect);
     }
     _target = device;
     _identifiedBefore = false;
@@ -275,6 +294,8 @@ class RadioNotifier extends Notifier<RadioState> {
       _expected = null;
       _response = null;
       _identifiedBefore = true;
+      preferred = _target;
+      resumeMonitoring = true;
       _attempt = 0;
       _syncFailed = false;
       state = state.copyWith(phase: RadioPhase.ready, retryAttempt: 0);
@@ -524,7 +545,16 @@ class RadioNotifier extends Notifier<RadioState> {
         }
         reply.complete(List<int>.unmodifiable(safe));
       } else {
-        reply.complete(List<int>.unmodifiable(bytes));
+        if ([7, 8, 16, 17, 27].contains(bytes.first)) {
+          final generation = _generation;
+          unawaited(ref.read(inboxJournalProvider).write(bytes, _target!.id).then((_) {
+            if (_current(generation) && !reply.isCompleted) reply.complete(List<int>.unmodifiable(bytes));
+          }, onError: (Object error, StackTrace stack) {
+            if (!reply.isCompleted) reply.completeError(error, stack);
+          }));
+        } else {
+          reply.complete(List<int>.unmodifiable(bytes));
+        }
       }
     }
     final rx = RxObservation.parse(bytes, DateTime.now());
@@ -675,6 +705,7 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> disconnect() async {
+    resumeMonitoring = false;
     final generation = ++_generation;
     _retry?.cancel();
     _target = null;

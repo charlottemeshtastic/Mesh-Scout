@@ -19,6 +19,28 @@ class ScoutFiles(private val activity: Activity) {
                 result.success(activity.filesDir.absolutePath)
                 return
             }
+            if (call.method == "storageUsage" || call.method == "cleanRetiredProfiles") {
+                Thread {
+                    try {
+                        val bytes = synchronized(ScoutBundles.lock) {
+                            if (call.method == "cleanRetiredProfiles") {
+                                require(!GpsRecordingService.running)
+                                val current = ScoutStorage.directory(activity).canonicalFile
+                                val maps = ScoutStorage.mapDirectory(activity).canonicalFile
+                                activity.filesDir.listFiles()?.filter { Regex("profile-[0-9]+").matches(it.name) }?.forEach { old ->
+                                    val path = old.canonicalFile
+                                    if (path != current && !maps.toPath().startsWith(path.toPath())) {
+                                        require(old.deleteRecursively()) { "Could not remove unused profile" }
+                                    }
+                                }
+                            }
+                            listOf(activity.filesDir, activity.cacheDir).sumOf { root -> root.walkTopDown().filter { it.isFile }.sumOf { it.length() } }
+                        }
+                        activity.runOnUiThread { result.success(bytes) }
+                    } catch (e: Exception) { activity.runOnUiThread { result.error("storage", "Storage operation failed", null) } }
+                }.start()
+                return
+            }
             if (call.method == "dataDirectory") { result.success(ScoutStorage.directory(activity).absolutePath); return }
             if (call.method == "readBackup" || call.method == "restoreBackup") {
                 val restore = call.method == "restoreBackup"

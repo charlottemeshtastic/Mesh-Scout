@@ -33,6 +33,7 @@ class AndroidBleService implements BleService {
     if (statuses.values.any((s) => !s.isGranted)) {
       throw const RadioException(RadioFailure.denied);
     }
+    await const MethodChannel('org.meshscout/radio_session').invokeMethod<void>('takeOver');
     await _ble.initialize();
     final status = await _ble.statusStream
         .firstWhere(

@@ -50,6 +50,7 @@ class MappingNotifier extends Notifier<MappingState> {
   bool _disposed = false;
   bool _loadFailed = false;
   bool _starting = false;
+  Future<void> _checkpointPending = Future.value();
   bool _keepBackground = false;
   MappingService get _service => ref.read(mappingServiceProvider);
 
@@ -168,6 +169,7 @@ class MappingNotifier extends Notifier<MappingState> {
             sessions: state.sessions,
             observations: state.observations,
             points: List.unmodifiable([...state.points, point]));
+        _checkpoint();
       }, onError: (Object error) {
         unawaited(stop(reason: 'GPS stopped. ${error.toString()}'));
       }, onDone: () {
@@ -206,6 +208,7 @@ class MappingNotifier extends Notifier<MappingState> {
       final subscription = _positions;
       _positions = null;
       await subscription?.cancel();
+      await _checkpointPending;
       if (points.isEmpty) {
         if (!_disposed) {
           state = MappingState(
@@ -265,8 +268,22 @@ class MappingNotifier extends Notifier<MappingState> {
         points: state.points,
         sessions: state.sessions,
         observations: List.unmodifiable([...state.observations, observation]));
+    _checkpoint();
   }
 
+  void _checkpoint() {
+    final service = _service;
+    if (service is! CheckpointMappingService || _started == null) return;
+    final session = MappingSession(id: _started!.microsecondsSinceEpoch.toString(),
+      started: _started!, ended: DateTime.now(), points: state.points, observations: state.observations);
+    _checkpointPending = _checkpointPending.then((_) => (service as CheckpointMappingService).checkpoint(session)).catchError((Object _) {
+      if (ref.mounted && state.recording) {
+        state = MappingState(loading: false, recording: true, points: state.points,
+          observations: state.observations, sessions: state.sessions,
+          message: 'Recovery checkpoint failed. Stop and save this route now.');
+      }
+    });
+  }
   Future<void> background() async {
     // Foreground routes stop on app switching; opted-in routes keep recording.
     if (_starting) {
@@ -345,6 +362,21 @@ class MappingNotifier extends Notifier<MappingState> {
     }
   }
 
+  Future<void> pruneHistory() async {
+    if (state.loading || state.busy || state.recording || _loadFailed || state.points.isNotEmpty || state.sessions.length <= 20) return;
+    final previous = state;
+    final updated = previous.sessions.take(20).toList();
+    state = MappingState(loading: false, busy: true, sessions: previous.sessions);
+    try {
+      await _service.save(encodeSessions(updated));
+      if (ref.mounted) state = MappingState(loading: false, sessions: updated,
+        selected: updated.any((s) => s.id == previous.selected?.id) ? previous.selected : null,
+        message: 'Kept the 20 most recent sessions.');
+    } catch (_) {
+      if (ref.mounted) state = MappingState(loading: false, sessions: previous.sessions,
+        selected: previous.selected, message: 'Storage cleanup failed; sessions retained.');
+    }
+  }
   Future<void> delete(MappingSession session) async {
     if (state.recording ||
         state.busy ||

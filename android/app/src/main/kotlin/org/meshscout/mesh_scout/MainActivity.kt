@@ -39,6 +39,7 @@ class MainActivity : FlutterActivity() {
                             else startService(intent)
                             result.success(null)
                         }
+                        "takeOver" -> { RadioConnectionService.takeOver(); result.success(null) }
                         "stop" -> { stopService(intent); result.success(null) }
                         else -> result.notImplemented()
                     }
@@ -54,6 +55,10 @@ class MainActivity : FlutterActivity() {
                         "loadSessions" -> {
                             GpsRecordingService.recover(this)
                             result.success(if (file.exists()) file.readText() else null)
+                        }
+                        "checkpoint" -> {
+                            GpsRecordingService.checkpoint(this, org.json.JSONObject(call.arguments as String))
+                            result.success(null)
                         }
                         "saveSessions" -> {
                             val json = call.arguments as String

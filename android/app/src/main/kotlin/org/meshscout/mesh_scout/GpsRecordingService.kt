@@ -43,7 +43,7 @@ class GpsRecordingService : Service(), LocationListener {
             val last = points.getJSONObject(points.length() - 1).getString("time")
             val started = session.getString("started")
             session.put("ended", if (last < started) started else last)
-                .put("name", "Recovered interrupted recording").put("observations", JSONArray())
+                .put("name", "Recovered interrupted recording")
             val root = ScoutStorage.directory(context)
             val history = File(root, "mapping-sessions.json")
             val existing = if (history.exists()) JSONArray(history.readText()) else JSONArray()
@@ -54,6 +54,17 @@ class GpsRecordingService : Service(), LocationListener {
             ScoutStorage.write(temp, updated.toString())
             require(temp.renameTo(history))
             require(journal.delete())
+        }
+        fun checkpoint(context: android.content.Context, data: JSONObject) {
+            require(data.getJSONArray("points").length() <= 10000)
+            require(data.getJSONArray("observations").length() <= 10000)
+            val live = active?.session
+            val saved = if (live != null && live.getString("id") == data.getString("id")) {
+                live.put("observations", data.getJSONArray("observations"))
+            } else data
+            val temp = File(context.filesDir, "gps-in-progress.tmp")
+            ScoutStorage.write(temp, saved.toString())
+            require(temp.renameTo(File(context.filesDir, "gps-in-progress.json")))
         }
         fun clearJournal(context: android.content.Context) {
             if (!running) File(context.filesDir, "gps-in-progress.json").delete()

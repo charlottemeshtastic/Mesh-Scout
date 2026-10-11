@@ -10,29 +10,39 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 
-/** Keeps the process hosting Flutter's BLE connection eligible during app switching. */
+/** The visible BLE session can resume read-only monitoring after a system restart. */
 class RadioConnectionService : Service() {
-    override fun onCreate() {
-        super.onCreate()
-        val channelId = "meshscout_radio"
-        if (Build.VERSION.SDK_INT >= 26) {
-            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
-                .createNotificationChannel(NotificationChannel(channelId, "Radio connection",
-                    NotificationManager.IMPORTANCE_LOW))
-        }
-        val launch = Intent(this, MainActivity::class.java)
-        val pending = PendingIntent.getActivity(this, 0, launch,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channelId)
-            else Notification.Builder(this)
-        val notification = builder.setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
-            .setContentTitle("MeshScout radio connection")
-            .setContentText("Radio session active. Open MeshScout to disconnect.")
-            .setContentIntent(pending).setOngoing(true).build()
-        if (Build.VERSION.SDK_INT >= 29) {
-            startForeground(42, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
-        } else startForeground(42, notification)
+    companion object {
+        private var active: RadioConnectionService? = null
+        fun takeOver() { active?.monitor?.close(); active?.monitor = null }
     }
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_NOT_STICKY
+    private var monitor: RecoveredRadioMonitor? = null
+    private fun notification(text: String): Notification {
+        val pending = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "meshscout_radio") else Notification.Builder(this)
+        return builder.setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setContentTitle("MeshScout radio connection")
+            .setContentText(text).setContentIntent(pending).setOngoing(true).build()
+    }
+    override fun onCreate() {
+        super.onCreate(); active = this
+        if (Build.VERSION.SDK_INT >= 26) (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
+            .createNotificationChannel(NotificationChannel("meshscout_radio", "Radio connection", NotificationManager.IMPORTANCE_LOW))
+        val value = notification("Radio session active. Open MeshScout to disconnect.")
+        if (Build.VERSION.SDK_INT >= 29) startForeground(42, value, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        else startForeground(42, value)
+    }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null && monitor == null) {
+            monitor = RecoveredRadioMonitor(this) { text ->
+                (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(42, notification(text))
+            }.also { it.start() }
+        } else if (intent != null) {
+            takeOver()
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(42, notification("Radio session active. Open MeshScout to disconnect."))
+        }
+        return START_STICKY
+    }
+    override fun onDestroy() { takeOver(); if (active === this) active = null; super.onDestroy() }
     override fun onBind(intent: Intent?): IBinder? = null
 }

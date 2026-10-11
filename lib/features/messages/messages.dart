@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../offline/offline_maps.dart';
 import '../radio/radio_notifier.dart';
+import '../radio/inbox_journal.dart';
 import '../export/message_export.dart';
 
 List<int> directMessage(String key, String text, int timestamp, int mtu) {
@@ -87,6 +88,21 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
   };
 }
 
+final autoInboxProvider = NotifierProvider<AutoInbox, bool>(AutoInbox.new);
+class AutoInbox extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool value) => state = value;
+}
+Map<String,dynamic> recoveredMessage(List<int> bytes) {
+  try { return incomingMessage(bytes); } on FormatException {
+    return {'peer': 'Unsupported radio payload', 'body': bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' '),
+      'time': DateTime.now().millisecondsSinceEpoch ~/ 1000, 'status': 'Raw received frame · could not decode', 'outgoing': false};
+  }
+}
+String conversationKey(Map<String,dynamic> message) => '${message['radio']}|${message['peer']}';
+int unreadCount(Iterable<Map<String,dynamic>> messages) => messages.where((m) => m['outgoing'] == false && m['unread'] == true).length;
+
 final messagesProvider = NotifierProvider<Messages, MessageState>(Messages.new);
 
 class MessageState {
@@ -102,12 +118,22 @@ class MessageState {
 
 class Messages extends Notifier<MessageState> {
   int _lastTimestamp = 0;
+  bool _autoPaused = false;
   final _acks = <String>{};
   final _live = <String>{};
   List<Map<String, dynamic>>? _unsaved;
   bool get hasUnsaved => _unsaved != null;
   @override
   MessageState build() {
+    final timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (ref.mounted && ref.read(autoInboxProvider) && !_autoPaused && available) {
+        final radio = ref.read(radioProvider);
+        if (radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy && !radio.channelsLoading) {
+          unawaited(fetch(automatic: true));
+        }
+      }
+    });
+    ref.onDispose(timer.cancel);
     ref.listen(radioProvider.select((s) => s.messageEvent), (_, bytes) {
       if (bytes == null) {
         return;
@@ -141,8 +167,10 @@ class Messages extends Notifier<MessageState> {
     state = MessageState(items: state.items, busy: true);
     try {
       final file = await _file();
-      final items = file.existsSync()
-          ? (jsonDecode(await file.readAsString()) as List<dynamic>)
+      final pending = File('${file.path}.pending');
+      final source = pending.existsSync() ? pending : file;
+      final items = source.existsSync()
+          ? (jsonDecode(await source.readAsString()) as List<dynamic>)
               .map((m) => Map<String, dynamic>.from(m as Map<String, dynamic>))
               .toList()
           : <Map<String, dynamic>>[];
@@ -155,6 +183,19 @@ class Messages extends Notifier<MessageState> {
               m['time'] is! int ||
               m['outgoing'] is! bool)) {
         throw const FormatException();
+      }
+      final checkpoint = await ref.read(inboxJournalProvider).read();
+      if (checkpoint != null) {
+        final bytes = List<int>.from(checkpoint['frame'] as List);
+        final record = recoveredMessage(bytes)..['radio'] = checkpoint['radio']..['unread'] = true..['_checkpoint'] = jsonEncode(checkpoint);
+        if (!items.any((m) => m['_checkpoint'] == record['_checkpoint'])) {
+          if (items.length >= 1000) throw StateError('History full; inbox checkpoint retained.');
+          items.add(record);
+        }
+        await _save(items);
+        await ref.read(inboxJournalProvider).clear();
+      } else if (pending.existsSync()) {
+        await pending.rename(file.path);
       }
       // Stored acceptance is not a fresh delivery acknowledgement.
       if (ref.mounted) {
@@ -224,6 +265,19 @@ class Messages extends Notifier<MessageState> {
     }
   }
 
+  Future<void> pruneHistory() async {
+    if (!state.loaded || state.busy || hasUnsaved || state.items.length <= 200) return;
+    await _persistChange(state.items.skip(state.items.length - 200).toList());
+  }
+  Future<void> deleteMessage(Map<String,dynamic> message) async {
+    if (!state.loaded || state.busy || hasUnsaved) return;
+    await _persistChange(state.items.where((m) => !identical(m, message)).toList());
+  }
+  Future<void> markRead(String conversation) async {
+    if (!state.loaded || state.busy || hasUnsaved) return;
+    await _persistChange([for (final m in state.items)
+      if (conversationKey(m) == conversation) {...m, 'unread': false} else m]);
+  }
   Future<void> clearHistory() async {
     if (!state.loaded || state.busy || _unsaved != null) {
       return;
@@ -238,6 +292,12 @@ class Messages extends Notifier<MessageState> {
       return;
     }
     await _persistChange(_unsaved!);
+    if (!hasUnsaved) {
+      final checkpoint = await ref.read(inboxJournalProvider).read();
+      if (checkpoint != null && state.items.any((m) => m['_checkpoint'] == jsonEncode(checkpoint))) {
+        await ref.read(inboxJournalProvider).clear();
+      }
+    }
   }
 
   bool get available =>
@@ -340,7 +400,8 @@ class Messages extends Notifier<MessageState> {
     }
   }
 
-  Future<void> fetch() async {
+  Future<void> fetch({bool automatic = false}) async {
+    if (!automatic) _autoPaused = false;
     if (!available) {
       return;
     }
@@ -363,17 +424,21 @@ class Messages extends Notifier<MessageState> {
         if (reply.length == 1 && reply.first == 10) {
           break;
         }
-        final record = incomingMessage(reply)..['radio'] = radio.companionId;
+        final checkpoint = await ref.read(inboxJournalProvider).read();
+        final record = recoveredMessage(reply)..['radio'] = radio.companionId..['unread'] = true;
+        if (checkpoint != null) record['_checkpoint'] = jsonEncode(checkpoint);
         await _save([...state.items, record]);
+        await ref.read(inboxJournalProvider).clear();
       }
     } catch (e) {
+      _autoPaused = true;
       if (ref.mounted) {
         state = MessageState(
             items: _unsaved ?? state.items,
             loaded: true,
             busy: true,
             notice:
-                'Fetch stopped: $e. Unsupported messages have already left the radio queue.');
+                'Fetch stopped: $e. Automatic retrieval is paused. Any inbox checkpoint is retained for recovery.');
       }
     } finally {
       if (ref.mounted) {
@@ -413,6 +478,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   bool _channelMode = false;
   String _query = '';
   String _direction = 'all';
+  String? _conversation;
   bool _exporting = false;
   @override
   void initState() {
@@ -436,7 +502,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final radio = ref.watch(radioProvider);
     final actions = ref.read(messagesProvider.notifier);
     final contacts = radio.contacts.where((c) => c.type == 1).toList();
-    final visible = filterMessages(state.items, _query, _direction);
+    final conversations = state.items.map(conversationKey).toSet().toList()..sort();
+    final visible = filterMessages(state.items, _query, _direction).where((m) => _conversation == null || conversationKey(m) == _conversation).toList();
     final ready = !_exporting &&
         radio.phase == RadioPhase.ready &&
         !radio.syncing &&
@@ -448,7 +515,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         appBar: AppBar(title: const Text('Messages')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           const Text(
-              'Direct and configured-channel messages. Fetch removes messages from the radio queue and saves them privately on this phone. A phone shutdown during retrieval can lose a message. History is limited to 1,000 messages.'),
+              'Direct and configured-channel messages. Fetch removes messages from the radio queue and saves them privately on this phone. Received frames are checkpointed before decoding and history saving. Power loss before that checkpoint can still lose a message. History is limited to 1,000 messages.'),
           if (state.busy || _exporting) const LinearProgressIndicator(),
           OutlinedButton.icon(
               onPressed: !state.loaded ||
@@ -586,6 +653,20 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               child: Text(_channelMode
                   ? 'Send channel message'
                   : 'Send direct message')),
+          SwitchListTile(title: const Text('Automatic inbox retrieval'),
+              subtitle: const Text('Check every 30 seconds while connected. Stops on errors or a full history. Never sends messages automatically.'),
+              value: ref.watch(autoInboxProvider),
+              onChanged: (value) => ref.read(autoInboxProvider.notifier).set(value)),
+          Text('${unreadCount(state.items)} unread messages'),
+          DropdownButtonFormField<String>(key: ValueKey('conversation-$_conversation-${conversations.length}'),
+              initialValue: conversations.contains(_conversation) ? _conversation : null,
+              decoration: const InputDecoration(labelText: 'Conversation'),
+              isExpanded: true,
+              items: [for (final key in conversations) DropdownMenuItem(value: key,
+                child: Text('$key · ${unreadCount(state.items.where((m) => conversationKey(m) == key))} unread', overflow: TextOverflow.ellipsis))],
+              onChanged: (value) => setState(() => _conversation = value)),
+          Row(children: [TextButton(onPressed: () => setState(() => _conversation = null), child: const Text('All conversations')),
+            TextButton(onPressed: _conversation == null || state.busy ? null : () => actions.markRead(_conversation!), child: const Text('Mark read'))]),
           TextField(
               decoration:
                   const InputDecoration(labelText: 'Search message history'),
@@ -607,6 +688,15 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           if (visible.isEmpty) const Text('No matching messages.'),
           for (final item in visible.reversed)
             ListTile(
+                leading: item['unread'] == true ? const Icon(Icons.mark_email_unread_outlined) : null,
+                trailing: IconButton(tooltip: 'Delete message', icon: const Icon(Icons.delete_outline),
+                  onPressed: state.busy || actions.hasUnsaved ? null : () async {
+                    final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+                      title: const Text('Delete this message?'), content: Text(item['body'] as String),
+                      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete'))]));
+                    if (yes == true) await actions.deleteMessage(item);
+                  }),
                 title: Text(item['body'] as String),
                 subtitle: Text(
                     '${item['outgoing'] == true ? 'Outgoing' : 'Incoming'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}')),

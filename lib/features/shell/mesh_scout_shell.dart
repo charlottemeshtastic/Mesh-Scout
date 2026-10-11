@@ -1,4 +1,5 @@
 import '../backup/preferences.dart';
+import '../backup/storage_controls.dart';
 import '../backup/full_backup.dart';
 import '../mapping/field_tools.dart';
 import 'dart:async';
@@ -45,6 +46,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
         unawaited(ref.read(mappingProvider.notifier).initialize());
         unawaited(ref.read(offlineProvider.notifier).initialize());
         unawaited(ref.read(preferencesProvider.notifier).initialize());
+        unawaited(ref.read(messagesProvider.notifier).load());
       }
     });
   }
@@ -734,6 +736,7 @@ class SettingsScreen extends ConsumerWidget {
                       ref.read(backgroundGpsProvider.notifier).set(value)),
           const BackupControls(),
           const FullBackupControls(),
+          const StorageControls(),
           if (ref.watch(preferencesProvider) != null)
             Text(ref.watch(preferencesProvider)!),
           const ListTile(
@@ -741,7 +744,7 @@ class SettingsScreen extends ConsumerWidget {
             title: Text('GPS route recording'),
             subtitle: Text(
                 'Precise location is requested when you start a route. '
-                'Routes save on this phone. Background recording is optional and resets off when the app restarts.'),
+                'Routes save on this phone. Background recording is optional. Checkpointed routes recover after an interruption.'),
           ),
           const ListTile(
             leading: Icon(Icons.privacy_tip_outlined),
@@ -752,7 +755,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 1.0'),
+            title: Text('MeshScout 1.1'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),

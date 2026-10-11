@@ -77,6 +77,9 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
               },
           }),
           const SizedBox(height: 12),
+          if (!state.busy && actions.preferred != null)
+            OutlinedButton(onPressed: actions.connectPreferred,
+                child: Text('Connect saved radio: ${actions.preferred!.name}')),
           if (!state.busy)
             FilledButton(
                 onPressed: () async => actions.scan(),

@@ -108,6 +108,13 @@ class OfflineMaps extends Notifier<OfflineState> {
 
   Future<Directory> _root() async =>
       Directory(await ref.read(mapDirectoryProvider)());
+  Future<void> discardPending() async {
+    if (state.busy || _running || _committing) return;
+    final pending = Directory('${(await _root()).path}/pending');
+    if (pending.existsSync()) await pending.delete(recursive: true);
+    state = OfflineState(area: state.area, areas: state.areas, enabled: state.enabled,
+      message: 'Paused download removed. Saved areas retained.');
+  }
   Future<void> initialize() async {
     try {
       final root = await _root();

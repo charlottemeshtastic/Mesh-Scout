@@ -119,3 +119,7 @@ String encodeSessions(List<MappingSession> sessions) =>
 abstract interface class BackgroundMappingService {
   Future<void> configureRecording(bool background, DateTime started);
 }
+
+abstract interface class CheckpointMappingService {
+  Future<void> checkpoint(MappingSession session);
+}
