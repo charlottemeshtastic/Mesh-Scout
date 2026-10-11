@@ -54,7 +54,17 @@ class MeshScoutApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.dark,
-          colorSchemeSeed: const Color(0xff55d4a2),
+          scaffoldBackgroundColor: const Color(0xFF101820),
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF00D9FF),
+            secondary: Color(0xFF28465A),
+            surface: Color(0xFF101820),
+            onSurface: Color(0xFFE6EDF3),
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF101820),
+            foregroundColor: Color(0xFF00D9FF),
+          ),
         ),
         home: MeshScoutShell(mapContent: mapContent),
       );

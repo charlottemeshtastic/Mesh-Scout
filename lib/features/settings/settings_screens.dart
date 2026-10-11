@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../about_meshscout_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -274,6 +276,19 @@ class AboutSettingsPage extends StatelessWidget {
   Widget build(BuildContext context) => _SettingsPage(
         title: 'About and support',
         children: [
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About MeshScout'),
+            subtitle: const Text('Project credits, legal notices and licenses'),
+            onTap: () => unawaited(
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const AboutMeshScoutScreen(),
+                ),
+              ),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.auto_stories_outlined),
             title: const Text('Quick guide'),
