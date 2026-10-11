@@ -665,6 +665,7 @@ class RadioNotifier extends Notifier<RadioState> {
       _attempt++;
       state = state.copyWith(
           phase: RadioPhase.reconnecting,
+          controlsBusy: false,
           syncing: false,
           messagingBusy: false,
           channels: const [],

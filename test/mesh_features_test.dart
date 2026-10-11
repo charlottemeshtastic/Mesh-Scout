@@ -176,16 +176,20 @@ void main() {
   test('identified link retries, re-identifies, and retains the radio service',
       () async {
     await ready();
+    expect(actions.beginControls(), isTrue);
     ble.links.add(RadioLink.disconnected);
     await flush();
     expect(container.read(radioProvider).phase, RadioPhase.reconnecting);
     expect(ble.ended, 0);
+    expect(container.read(radioProvider).controlsBusy, isFalse);
     retryTimers.last.fire();
     await flush();
     expect(ble.connections, 2);
     ble.links.add(RadioLink.connected);
     await flush();
     expect(container.read(radioProvider).phase, RadioPhase.ready);
+    expect(actions.beginControls(), isTrue);
+    actions.endControls(actions.sessionToken);
     expect(ble.writes.where((b) => b.first == 1).length, 2);
   });
   test('manual disconnect cancels reconnect and releases service', () async {
