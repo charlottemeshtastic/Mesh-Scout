@@ -123,15 +123,19 @@ class FieldNotes extends AsyncNotifier<List<Map<String, dynamic>>> {
 
   Future<void> save(List<Map<String, dynamic>> notes) async {
     final previous = state;
-    if (state.isLoading) throw StateError('Wait for waypoint saving to finish.');
+    if (state.isLoading)
+      throw StateError('Wait for waypoint saving to finish.');
     state = const AsyncLoading();
     try {
-    final f = await file(), tmp = await file();
-    final pending = File('${tmp.path}.tmp');
-    await pending.writeAsString(jsonEncode(notes), flush: true);
-    await pending.rename(f.path);
-    state = AsyncData(List.unmodifiable(notes));
-    } catch (_) { state = previous; rethrow; }
+      final f = await file(), tmp = await file();
+      final pending = File('${tmp.path}.tmp');
+      await pending.writeAsString(jsonEncode(notes), flush: true);
+      await pending.rename(f.path);
+      state = AsyncData(List.unmodifiable(notes));
+    } catch (_) {
+      state = previous;
+      rethrow;
+    }
   }
 
   Future<void> add(String name, String note, double lat, double lon) async {

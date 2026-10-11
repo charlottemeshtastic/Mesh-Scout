@@ -58,4 +58,12 @@ void main() {
     expect(result.snapshot.records['note:n']!.revision,7);
     expect(result.conflicts,isEmpty);
   });
+  test('large deletion history stays bounded and cannot be silently pruned', () {
+    final rows = {for(var i=0;i<8000;i++) 'note:$i':SyncRecord('note:$i',1,a,null)};
+    final snapshot=SyncSnapshot(a,1,rows);
+    final result=mergeSync(actor:b,sequence:1,local:{},baseline:null,incoming:[snapshot]);
+    expect(result.snapshot.records.length,8000);
+    expect(() => mergeSync(actor:b,sequence:2,local:{'note:n':note('new')},baseline:result.snapshot,incoming:[]),throwsFormatException);
+  });
+
 }

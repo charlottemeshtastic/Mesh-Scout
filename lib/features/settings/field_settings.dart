@@ -131,8 +131,8 @@ class FieldSettings {
       matchPreset: flag('matchPreset', defaults.matchPreset),
       guideSeen: flag('guideSeen', defaults.guideSeen),
       smartPing: flag('smartPing', defaults.smartPing),
-      pingMinutes: choice('pingMinutes', [2,5,10], defaults.pingMinutes),
-      pingDays: choice('pingDays', [7,14,30,90], defaults.pingDays),
+      pingMinutes: choice('pingMinutes', [2, 5, 10], defaults.pingMinutes),
+      pingDays: choice('pingDays', [7, 14, 30, 90], defaults.pingDays),
     );
   }
 }

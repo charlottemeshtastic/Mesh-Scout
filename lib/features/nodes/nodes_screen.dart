@@ -106,7 +106,11 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
               '${contact.typeLabel} · ${contact.key.substring(0, 12)}…',
             ),
             onTap: () => contact.type == 2
-                ? Navigator.push(context, MaterialPageRoute<void>(builder: (_) => RepeaterDetailsScreen(contact: contact)))
+                ? Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                        builder: (_) =>
+                            RepeaterDetailsScreen(contact: contact)))
                 : _details(context, contact),
           ),
       ],

@@ -256,7 +256,12 @@ class BackupSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const _SettingsPage(
         title: 'Backup and storage',
-        children: [BackupControls(), FullBackupControls(), CloudSyncControls(), StorageControls()],
+        children: [
+          BackupControls(),
+          FullBackupControls(),
+          CloudSyncControls(),
+          StorageControls()
+        ],
       );
 }
 

@@ -216,7 +216,7 @@ class ScoutBundles(private val activity: Activity) {
                 for(name in listOf("field-notes.json","settings.json","repeater-details.json","sync-state.json","sync-scope","sync-conflicts.json")) {
                     val incoming=File(source,name);val existing=File(old,name)
                     if(name in listOf("field-notes.json","repeater-details.json") && merge && incoming.exists()) {
-                        val identity=if(name=="field-notes.json")"id" else "key";val rows=if(existing.exists())JSONArray(existing.readText())else JSONArray();val keys=(0 until rows.length()).map{rows.getJSONObject(it).getString(identity)}.toMutableSet();val added=JSONArray(incoming.readText());for(i in 0 until added.length()){val row=added.getJSONObject(i);if(keys.add(row.getString(identity)))rows.put(row)};require(rows.length()<=1000);ScoutStorage.write(File(target,name),rows.toString())
+                        val identity=if(name=="field-notes.json")"id" else "key";val rows=if(existing.exists())JSONArray(existing.readText())else JSONArray();val keys=(0 until rows.length()).map{rows.getJSONObject(it).getString(identity)}.toMutableSet();val added=JSONArray(incoming.readText());for(i in 0 until added.length()){val row=added.getJSONObject(i);if(keys.add(row.getString(identity)))rows.put(row)};require(rows.length()<=1000);if(name=="repeater-details.json")require(rows.toString().toByteArray().size<=4*1024*1024);ScoutStorage.write(File(target,name),rows.toString())
                     }else {val f=if(merge && existing.exists())existing else if(incoming.exists())incoming else existing;if(f.exists())f.copyTo(File(target,name))}
                 }
                 val imported=File(source,"offline")

@@ -612,7 +612,8 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
             child: const Text('Frequency, bandwidth, SF and CR'),
           ),
           const Divider(),
-          for (final c in state.contacts.where((c) => widget.contactKey == null || c.key == widget.contactKey))
+          for (final c in state.contacts.where(
+              (c) => widget.contactKey == null || c.key == widget.contactKey))
             ExpansionTile(
               initiallyExpanded: widget.contactKey != null,
               title: Text(c.name),

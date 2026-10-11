@@ -64,8 +64,12 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    ref.read(cloudSyncProvider.notifier).foreground(state == AppLifecycleState.resumed);
-    ref.read(smartPingProvider.notifier).foreground(state == AppLifecycleState.resumed);
+    ref
+        .read(cloudSyncProvider.notifier)
+        .foreground(state == AppLifecycleState.resumed);
+    ref
+        .read(smartPingProvider.notifier)
+        .foreground(state == AppLifecycleState.resumed);
     if (state == AppLifecycleState.resumed) {
       unawaited(_openMessages());
     }
