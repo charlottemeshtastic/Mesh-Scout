@@ -26,8 +26,11 @@ class LocalVectorProvider extends vt.VectorTileProvider {
     if (cancellation?.isCancelled ?? false) {
       return const vt.TileResponseCancelled();
     }
-    if (tile.z < minimumZoom || tile.z > maximumZoom || !tile.isValid ||
-        tile.x < 0 || tile.x >= 1 << tile.z) {
+    if (tile.z < minimumZoom ||
+        tile.z > maximumZoom ||
+        !tile.isValid ||
+        tile.x < 0 ||
+        tile.x >= 1 << tile.z) {
       return const vt.TileResponseNotFound();
     }
     try {
@@ -51,18 +54,24 @@ final scoutVectorTheme = vt.ThemeReader().read({
   'version': 8,
   'name': 'MeshScout offline basic',
   'layers': [
-    {'id': 'background', 'type': 'background', 'paint': {'background-color': '#f2efe8'}},
+    {
+      'id': 'background',
+      'type': 'background',
+      'paint': {'background-color': '#f2efe8'}
+    },
     for (final layer in ['landcover', 'landuse', 'water', 'building'])
       {
         'id': layer,
         'type': 'fill',
         'source': 'local',
         'source-layer': layer,
-        'paint': {'fill-color': switch (layer) {
-          'water' => '#a8d3e6',
-          'building' => '#c9bfb1',
-          _ => '#d9e5cc',
-        }},
+        'paint': {
+          'fill-color': switch (layer) {
+            'water' => '#a8d3e6',
+            'building' => '#c9bfb1',
+            _ => '#d9e5cc',
+          }
+        },
       },
     for (final layer in ['waterway', 'transportation', 'boundary'])
       {
@@ -80,8 +89,15 @@ final scoutVectorTheme = vt.ThemeReader().read({
       'type': 'symbol',
       'source': 'local',
       'source-layer': 'place',
-      'layout': {'text-field': ['get', 'name'], 'text-size': 12},
-      'paint': {'text-color': '#283b44', 'text-halo-color': '#ffffff', 'text-halo-width': 1},
+      'layout': {
+        'text-field': ['get', 'name'],
+        'text-size': 12
+      },
+      'paint': {
+        'text-color': '#283b44',
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 1
+      },
     },
   ],
 });
@@ -94,19 +110,21 @@ class OfflineVectorLayer extends StatefulWidget {
 }
 
 class _OfflineVectorLayerState extends State<OfflineVectorLayer> {
-  late final providers = vt.TileProviders({'local': LocalVectorProvider(widget.area)});
+  late final providers =
+      vt.TileProviders({'local': LocalVectorProvider(widget.area)});
   @override
   void dispose() {
     providers.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) => vt.VectorTileLayer(
-    theme: scoutVectorTheme,
-    tileProviders: providers,
-    tileOffset: vt.TileOffset.none,
-    diskCacheMaximumSizeInBytes: 0,
-    memoryCacheMaxBytes: 16 * 1024 * 1024,
-    rasterCacheMaxBytes: 32 * 1024 * 1024,
-  );
+        theme: scoutVectorTheme,
+        tileProviders: providers,
+        tileOffset: vt.TileOffset.none,
+        diskCacheMaximumSizeInBytes: 0,
+        memoryCacheMaxBytes: 16 * 1024 * 1024,
+        rasterCacheMaxBytes: 32 * 1024 * 1024,
+      );
 }

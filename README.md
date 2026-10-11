@@ -1,4 +1,4 @@
-# MeshScout 1.3.1
+# MeshScout 1.4.0
 
 Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
 
@@ -45,7 +45,7 @@ Up to five separate named areas can be selected, renamed or deleted. USGS downlo
 
 Pause or a failed download retains private staging. Resume verifies completed image signatures and reuses those tiles. Starting a different area discards the paused staging after validation. Completed areas publish only after all tiles and metadata are saved; older areas remain available.
 
-Import raster MBTiles supports worldwide and larger regions from user-provided PNG/JPEG packs, up to 500 MB, 50,000 tiles, zoom 0–22. Native SQLite reads TMS rows and converts them to XYZ file tiles. Raster bounds are checked before publication. Vector/PBF MBTiles and global automatic tile downloads are unsupported. Use map packs whose provider permits download and use. Map attribution/license information should be retained with the source pack. Offline mode makes no basemap network requests; outside a saved pack the basemap is absent.
+Import MBTiles supports worldwide user-provided PNG/JPEG raster and OpenMapTiles-schema PBF vector packs, up to 500 MB, 50,000 tiles, zoom 0–22. Native SQLite converts TMS rows to XYZ files. Raster bounds and vector framing are checked before publication; gzip vector tiles expand to at most 4 MB each, with a 500 MB total extracted limit. Vector rendering uses a bundled basic style for water, waterways, landuse/landcover, buildings, transportation, boundaries and place names. Other schemas, custom styles, icons, terrain and global automatic downloads are unsupported. Use licensed packs; source attribution is retained as plain text on the map and in backups. Offline mode makes no basemap network requests; outside a saved pack the basemap is absent. Raster and vector areas can coexist, switch, rename, delete and travel in encrypted full backups. Large real-world packs still require phone testing.
 
 ## Backup, merge and cloud document
 

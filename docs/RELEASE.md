@@ -23,4 +23,4 @@ Download the APK only from the project's verified build or supplied Drive link. 
 
 ## Known residual limitations
 
-Android background recovery is best effort and cannot bypass force-stop or OEM restrictions. A fetched queue item can be lost before its phone checkpoint is durable. Vector map rendering and automatic two-way cloud sync are separate unfinished feature extensions; GeoJSON planned routes, raster MBTiles and manual cloud document backup remain available.
+Android background recovery is best effort and cannot bypass force-stop or OEM restrictions. A fetched queue item can be lost before its phone checkpoint is durable. OpenMapTiles vector MBTiles rendering uses a basic offline style; large packs and on-device import/restore remain unverified. Automatic two-way cloud sync is unfinished; manual cloud document backup and scheduled one-way encrypted backup remain available.

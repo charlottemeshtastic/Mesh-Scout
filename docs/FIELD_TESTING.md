@@ -14,7 +14,7 @@ Record build/version, phone model, Android version, radio model/firmware, date a
 | Message delivery | Direct ACK and channel acceptance are distinct. Fetch, read, delete, restart and verify unread/history. Fill history and verify clear limit feedback. | Pending |
 | Alerts | Opt in/out, receive waiting-message event, open notification with an existing draft and ensure one Messages screen without losing the draft. | Pending |
 | Radio controls | On a compatible test radio, verify contacts, channels, name/power/clock, advanced settings and repeater replies. Restore original configuration. | Pending |
-| Offline maps | Download two areas, pause/resume, switch, delete and import a licensed raster pack. Disable connectivity and verify saved tiles; outside pack no basemap. | Pending |
+| Offline maps | Download two areas, pause/resume, switch, delete and import licensed raster and OpenMapTiles vector packs. Rename/switch both, restart, and restore an encrypted full backup with both formats. Disable connectivity and verify roads, water and place names; outside pack no basemap. | Pending |
 | Backup and restore | Encrypted roundtrip and merge/replace; cancel preview, reject wrong password/corruption; recover after app restart. Verify maps and preferred radio. | Pending |
 | Cloud provider | Use a dedicated test document, upload, download/preview; test denied access and offline/provider failures without damaging local history. | Pending |
 | Scheduled backup | Enable while charging/online; inspect actual job status and decrypt resulting file. Disable and verify no later job. Timing is approximate. | Pending |

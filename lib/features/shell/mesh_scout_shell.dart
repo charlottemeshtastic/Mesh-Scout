@@ -435,7 +435,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
                 children: [
                   if (offline.enabled && offline.area!.isVector)
-                    OfflineVectorLayer(key: ValueKey(offline.area!.path), area: offline.area!)
+                    OfflineVectorLayer(
+                        key: ValueKey(offline.area!.path), area: offline.area!)
                   else if (offline.enabled)
                     TileLayer(
                       key: ValueKey(offline.area),
@@ -567,7 +568,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     attributions: [
                       TextSourceAttribution(
                         offline.enabled
-                            ? offline.area!.attribution ?? 'USGS National Geospatial Program'
+                            ? offline.area!.attribution ??
+                                'USGS National Geospatial Program'
                             : 'OpenStreetMap contributors',
                       ),
                     ],
