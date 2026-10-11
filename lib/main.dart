@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'features/offline/offline_maps.dart';
 import 'features/alerts/message_alerts.dart';
 import 'native/android_alert_service.dart';
+import 'features/alerts/link_alerts.dart';
+import 'native/android_link_alert_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/radio/radio_notifier.dart';
@@ -21,6 +23,10 @@ void main() => runApp(
               (await const MethodChannel('org.meshscout/files')
                   .invokeMethod<String>('dataDirectory'))!),
           alertServiceProvider.overrideWithValue(AndroidAlertService()),
+          linkAlertServiceProvider
+              .overrideWithValue(AndroidLinkAlertService()),
+          tripGuardIntervalProvider
+              .overrideWithValue(const Duration(seconds: 30)),
           mappingServiceProvider.overrideWithValue(AndroidMappingService()),
           bleServiceProvider.overrideWithValue(
             AndroidBleService(),

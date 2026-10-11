@@ -55,8 +55,12 @@ class RadioState {
       this.channelsLoading = false,
       this.controlsBusy = false,
       this.heard = const [],
-      this.remoteEvent});
+      this.remoteEvent,
+      this.preset});
   final List<MeshContact> heard;
+
+  /// Modem settings reported while identifying the connected radio.
+  final RadioPreset? preset;
   final List<int>? remoteEvent;
   final RadioPhase phase;
   final List<RadioDevice> devices;
@@ -90,8 +94,10 @@ class RadioState {
           List<int>? messageEvent,
           List<RadioChannel>? channels,
           bool? channelsLoading,
-          bool? controlsBusy}) =>
+          bool? controlsBusy,
+          RadioPreset? preset}) =>
       RadioState(
+          preset: preset ?? this.preset,
           heard: heard ?? this.heard,
           remoteEvent: remoteEvent ?? this.remoteEvent,
           phase: phase ?? this.phase,
@@ -293,8 +299,9 @@ class RadioNotifier extends Notifier<RadioState> {
           }
         }
       }, onError: (Object e) => unawaited(_fail(generation, e)));
-      await _exchange(generation, id, appStart, 5);
+      final self = await _exchange(generation, id, appStart, 5);
       if (!_current(generation)) return;
+      final preset = RadioPreset.fromSelfInfo(self);
       final info = await _exchange(generation, id, deviceQuery, 13);
       if (!_current(generation)) return;
       if (info[1] < 3) throw const RadioException(RadioFailure.protocol);
@@ -307,7 +314,8 @@ class RadioNotifier extends Notifier<RadioState> {
       resumeMonitoring = true;
       _attempt = 0;
       _syncFailed = false;
-      state = state.copyWith(phase: RadioPhase.ready, retryAttempt: 0);
+      state = state.copyWith(
+          phase: RadioPhase.ready, retryAttempt: 0, preset: preset);
     } catch (e) {
       await _fail(generation, e);
     }
@@ -694,6 +702,12 @@ class RadioNotifier extends Notifier<RadioState> {
           contactMessage:
               'Radio disconnected; previously loaded contacts may be stale.');
     }
+  }
+
+  /// Records modem settings read after the radio was identified.
+  void updatePreset(RadioPreset? preset) {
+    if (preset == null || state.phase != RadioPhase.ready) return;
+    state = state.copyWith(preset: preset, contactMessage: state.contactMessage);
   }
 
   Future<void> setAutoReconnect(bool enabled) async {

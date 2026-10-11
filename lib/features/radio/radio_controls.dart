@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'radio_notifier.dart';
 import 'ble_service.dart';
+import '../../common/mesh_data.dart';
 
 class RadioDetails {
   const RadioDetails(
@@ -139,6 +140,7 @@ class RadioControls extends Notifier<ControlState> {
       final battery = await radio.messageCommand([20], {12}, control: true);
       final details = RadioDetails.parse(self, device, battery);
       if (ref.mounted && radio.sessionToken == token) {
+        radio.updatePreset(RadioPreset.fromSelfInfo(self));
         state = ControlState(
             details: details,
             notice: change == null

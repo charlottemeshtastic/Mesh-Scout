@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mapping_service.dart';
+import 'trip_guard.dart';
 import '../../common/mesh_data.dart';
+import '../radio/radio_notifier.dart';
+import '../settings/field_settings.dart';
 
 final backgroundGpsProvider =
     NotifierProvider<BackgroundGps, bool>(BackgroundGps.new);
@@ -14,6 +17,13 @@ class BackgroundGps extends Notifier<bool> {
 
 final mappingServiceProvider =
     Provider<MappingService>((ref) => throw UnimplementedError());
+
+/// How often a recording checks whether the phone is parked; null disables
+/// the periodic check (fixes and receptions still trigger it).
+final tripGuardIntervalProvider = Provider<Duration?>((ref) => null);
+
+/// Wall clock for parked detection; replaced in tests.
+final mappingClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final mappingProvider =
     NotifierProvider<MappingNotifier, MappingState>(MappingNotifier.new);
 
@@ -54,6 +64,10 @@ class MappingNotifier extends Notifier<MappingState> {
   MappingSession? _latestCheckpoint;
   bool _checkpointRunning = false;
   bool _keepBackground = false;
+  final _parked = ParkedTracker(radiusMetres: FieldSettings.parkedRadiusMetres);
+  Timer? _parkedTimer;
+  int _airborneFixes = 0;
+  String? _preset;
   MappingService get _service => ref.read(mappingServiceProvider);
 
   @override
@@ -61,6 +75,7 @@ class MappingNotifier extends Notifier<MappingState> {
     ref.onDispose(() {
       _disposed = true;
       _generation++;
+      _parkedTimer?.cancel();
       unawaited(_positions?.cancel());
     });
     return const MappingState();
@@ -151,6 +166,14 @@ class MappingNotifier extends Notifier<MappingState> {
         return;
       }
       _starting = false;
+      _parked.reset();
+      _airborneFixes = 0;
+      _preset = ref.read(radioProvider).preset?.key;
+      _parkedTimer?.cancel();
+      final interval = ref.read(tripGuardIntervalProvider);
+      if (interval != null) {
+        _parkedTimer = Timer.periodic(interval, (_) => _checkParked());
+      }
       state = MappingState(
           loading: false,
           recording: true,
@@ -173,13 +196,27 @@ class MappingNotifier extends Notifier<MappingState> {
           unawaited(stop(reason: 'Route limit reached; session saved.'));
           return;
         }
+        final previous = state.points.isEmpty ? null : state.points.last;
+        if (ref.read(fieldSettingsProvider).aircraftGuard &&
+            isAirborne(point, previous)) {
+          // Airborne fixes are never recorded; two in a row end the session.
+          if (++_airborneFixes >= 2) {
+            unawaited(stop(
+                reason:
+                    'Recording stopped: altitude above 6,000 m or speed above 250 km/h looks like a flight. Earlier route saved.'));
+          }
+          return;
+        }
+        _airborneFixes = 0;
         state = MappingState(
             loading: false,
             recording: true,
             sessions: state.sessions,
             observations: state.observations,
             points: List.unmodifiable([...state.points, point]));
+        _parked.add(point);
         _checkpoint();
+        _checkParked();
       }, onError: (Object error) {
         unawaited(stop(reason: 'GPS stopped. ${error.toString()}'));
       }, onDone: () {
@@ -205,6 +242,8 @@ class MappingNotifier extends Notifier<MappingState> {
       return;
     }
     ++_generation;
+    _parkedTimer?.cancel();
+    _parkedTimer = null;
     final points = state.points;
     final observations = state.observations;
     final sessions = state.sessions;
@@ -234,7 +273,8 @@ class MappingNotifier extends Notifier<MappingState> {
           started: started,
           ended: DateTime.now(),
           points: points,
-          observations: observations);
+          observations: observations,
+          preset: _preset);
       final updated = [session, ...sessions];
       await _service.save(encodeSessions(updated));
       if (_disposed) {
@@ -270,6 +310,7 @@ class MappingNotifier extends Notifier<MappingState> {
     if (age.isNegative || age > const Duration(seconds: 15)) {
       return;
     }
+    _preset ??= ref.read(radioProvider).preset?.key;
     final observation = CoverageObservation(
         point: point, rssi: rx.rssi, snr: rx.snr, time: rx.time);
     state = MappingState(
@@ -279,6 +320,20 @@ class MappingNotifier extends Notifier<MappingState> {
         sessions: state.sessions,
         observations: List.unmodifiable([...state.observations, observation]));
     _checkpoint();
+    _checkParked();
+  }
+
+  /// Stops and saves the route once the phone has stayed put long enough.
+  void _checkParked() {
+    if (!state.recording || state.busy || state.points.isEmpty) return;
+    final settings = ref.read(fieldSettingsProvider);
+    if (!settings.autoStopParked) return;
+    final limit = Duration(minutes: settings.parkedMinutes);
+    if (_parked.parked(ref.read(mappingClockProvider)(), limit)) {
+      unawaited(stop(
+          reason:
+              'Stopped and saved: no movement for ${settings.parkedMinutes} min. Change this in Settings → Recording.'));
+    }
   }
 
   void _checkpoint() {
@@ -289,7 +344,8 @@ class MappingNotifier extends Notifier<MappingState> {
         started: _started!,
         ended: DateTime.now(),
         points: state.points,
-        observations: state.observations);
+        observations: state.observations,
+        preset: _preset);
     // Keep only the latest waiting snapshot when storage is slower than GPS/RX.
     // Stop waits for this drain, including updates received during a write.
     _latestCheckpoint = session;

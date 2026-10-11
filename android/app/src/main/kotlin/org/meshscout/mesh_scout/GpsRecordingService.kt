@@ -113,12 +113,15 @@ class GpsRecordingService : Service(), LocationListener {
         if (location.time <= lastTime) return
         lastTime = location.time
         try {
-            points.put(JSONObject().put("lat", location.latitude).put("lon", location.longitude)
-                .put("accuracy", location.accuracy.toDouble()).put("time", iso(location.time)))
+            val point = JSONObject().put("lat", location.latitude).put("lon", location.longitude)
+                .put("accuracy", location.accuracy.toDouble()).put("time", iso(location.time))
+            if (location.hasAltitude()) point.put("altitude", location.altitude)
+            if (location.hasSpeed()) point.put("speed", location.speed.toDouble())
+            points.put(point)
             val temp = File(filesDir, "gps-in-progress.tmp")
             ScoutStorage.write(temp, data.toString())
             require(temp.renameTo(File(filesDir, "gps-in-progress.json")))
-            sink?.success(mapOf("lat" to location.latitude, "lon" to location.longitude, "accuracy" to location.accuracy.toDouble(), "time" to location.time))
+            sink?.success(locationEvent(location))
         } catch (e: Exception) { sink?.error("gps_save", "Could not checkpoint GPS route", null); finish() }
     }
     override fun onProviderDisabled(provider: String) { sink?.error("gps_off", "GPS/location services were turned off", null); finish() }
@@ -132,4 +135,13 @@ class GpsRecordingService : Service(), LocationListener {
         super.onDestroy()
     }
     override fun onBind(intent: Intent?): IBinder? = null
+}
+
+/** Flutter event for one fix; altitude (m) and speed (m/s) only when the provider reports them. */
+internal fun locationEvent(location: Location): Map<String, Any> {
+    val event = mutableMapOf<String, Any>("lat" to location.latitude, "lon" to location.longitude,
+        "accuracy" to location.accuracy.toDouble(), "time" to location.time)
+    if (location.hasAltitude()) event["altitude"] = location.altitude
+    if (location.hasSpeed()) event["speed"] = location.speed.toDouble()
+    return event
 }

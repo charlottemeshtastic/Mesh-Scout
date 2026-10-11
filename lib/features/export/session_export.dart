@@ -13,6 +13,7 @@ String exportSession(MappingSession session, ExportFormat format) {
         'latitude',
         'longitude',
         'accuracy_m',
+        'altitude_m',
         'rssi_dbm',
         'snr_db'
       ],
@@ -23,6 +24,7 @@ String exportSession(MappingSession session, ExportFormat format) {
           p.latitude,
           p.longitude,
           session.planned ? '' : p.accuracy,
+          session.planned ? '' : p.altitude ?? '',
           '',
           ''
         ],
@@ -33,6 +35,7 @@ String exportSession(MappingSession session, ExportFormat format) {
           o.point.latitude,
           o.point.longitude,
           o.point.accuracy,
+          o.point.altitude ?? '',
           o.rssi,
           o.snr
         ],
@@ -71,7 +74,9 @@ String exportSession(MappingSession session, ExportFormat format) {
           'properties': {
             'kind': session.planned ? 'planned_route_point' : 'gps',
             if (!session.planned) 'time_utc': p.time.toUtc().toIso8601String(),
-            if (!session.planned) 'accuracy_m': p.accuracy
+            if (!session.planned) 'accuracy_m': p.accuracy,
+            if (!session.planned && p.altitude != null)
+              'altitude_m': p.altitude,
           },
           'geometry': {
             'type': 'Point',
@@ -86,6 +91,7 @@ String exportSession(MappingSession session, ExportFormat format) {
             'time_utc': o.time.toUtc().toIso8601String(),
             'gps_time_utc': o.point.time.toUtc().toIso8601String(),
             'accuracy_m': o.point.accuracy,
+            if (o.point.altitude != null) 'altitude_m': o.point.altitude,
             'rssi_dbm': o.rssi,
             'snr_db': o.snr
           },

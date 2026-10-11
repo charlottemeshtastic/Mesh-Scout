@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../offline/offline_maps.dart';
 import '../radio/radio_notifier.dart';
 import '../mapping/mapping_notifier.dart';
+import '../settings/field_settings.dart';
 
 final preferencesProvider =
     NotifierProvider<ScoutPreferences, String?>(ScoutPreferences.new);
@@ -19,6 +20,7 @@ class ScoutPreferences extends Notifier<String?> {
     ref.listen(radioProvider.select((s) => s.autoReconnect), (_, __) => save());
     ref.listen(backgroundGpsProvider, (_, __) => save());
     ref.listen(autoInboxProvider, (_, __) => save());
+    ref.listen(fieldSettingsProvider, (_, __) => save());
     ref.listen(radioProvider.select((s) => s.phase), (_, __) => save());
     ref.listen(radioProvider.select((s) => s.syncedAt), (_, __) => save());
     return null;
@@ -72,6 +74,10 @@ class ScoutPreferences extends Notifier<String?> {
               contacts,
               synced);
         }
+        if (data['field'] is Map) {
+          ref.read(fieldSettingsProvider.notifier).set(FieldSettings.fromJson(
+              Map<String, dynamic>.from(data['field'] as Map)));
+        }
         if (data['backgroundGps'] is bool) {
           ref
               .read(backgroundGpsProvider.notifier)
@@ -79,6 +85,9 @@ class ScoutPreferences extends Notifier<String?> {
         }
       }
       initialized = true;
+      if (!ref.read(fieldSettingsProvider).guideSeen) {
+        ref.read(firstRunGuideProvider.notifier).set(true);
+      }
       final fileData = file.existsSync()
           ? jsonDecode(await file.readAsString()) as Map<String, dynamic>
           : <String, dynamic>{};
@@ -106,7 +115,8 @@ class ScoutPreferences extends Notifier<String?> {
       if (ref.read(radioProvider.notifier).preferred case final device?)
         'preferredRadio': {'id': device.id, 'name': device.name},
       'autoReconnect': ref.read(radioProvider).autoReconnect,
-      'backgroundGps': ref.read(backgroundGpsProvider)
+      'backgroundGps': ref.read(backgroundGpsProvider),
+      'field': ref.read(fieldSettingsProvider).toJson()
     });
     final radio = ref.read(radioProvider);
     final preferred = ref.read(radioProvider.notifier).preferred;

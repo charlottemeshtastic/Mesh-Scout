@@ -51,7 +51,9 @@ class AndroidMappingService
             (data['lon'] as num).toDouble(),
             (data['accuracy'] as num).toDouble(),
             DateTime.fromMillisecondsSinceEpoch((data['time'] as num).toInt(),
-                isUtc: true));
+                isUtc: true),
+            altitude: (data['altitude'] as num?)?.toDouble(),
+            speed: (data['speed'] as num?)?.toDouble());
       });
   @override
   Future<String?> load() => _methods.invokeMethod<String>('loadSessions');

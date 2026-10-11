@@ -1,7 +1,4 @@
-import 'help_screen.dart';
 import '../backup/preferences.dart';
-import '../backup/storage_controls.dart';
-import '../backup/full_backup.dart';
 import '../mapping/field_tools.dart';
 import 'dart:async';
 import '../alerts/message_alerts.dart';
@@ -14,12 +11,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../radio/radio_notifier.dart';
+import '../../common/mesh_data.dart';
 import '../mapping/mapping_notifier.dart';
 import '../radio/radio_screen.dart';
 import '../nodes/nodes_screen.dart';
 import '../export/session_export.dart';
 import '../offline/offline_maps.dart';
 import '../offline/offline_controls.dart';
+import '../alerts/link_alerts.dart';
+import '../mapping/map_layers.dart';
+import '../settings/field_settings.dart';
+import '../settings/settings_screens.dart';
+import 'quick_guide.dart';
 
 enum ScoutTab { map, radios, nodes, coverage, history, settings }
 
@@ -43,6 +46,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
     Future<void>.microtask(() {
       if (mounted) {
         unawaited(ref.read(messageAlertsProvider.notifier).initialize());
+        ref.read(linkAlertsProvider);
         unawaited(_openMessages());
         unawaited(ref.read(mappingProvider.notifier).initialize());
         unawaited(ref.read(offlineProvider.notifier).initialize());
@@ -119,9 +123,24 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
     setState(() => _tab = next);
   }
 
+  Future<void> _showGuide() async {
+    ref.read(firstRunGuideProvider.notifier).set(false);
+    await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/guide'),
+        builder: (_) => const QuickGuideScreen()));
+    if (mounted) {
+      ref
+          .read(fieldSettingsProvider.notifier)
+          .update((s) => s.copyWith(guideSeen: true));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final radio = ref.watch(radioProvider);
+    ref.listen(firstRunGuideProvider, (_, pending) {
+      if (pending) unawaited(_showGuide());
+    });
     ref.listen(radioProvider, (previous, next) {
       if (next.lastRx != null && !identical(previous?.lastRx, next.lastRx)) {
         ref.read(mappingProvider.notifier).capture(next.lastRx!);
@@ -234,6 +253,53 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final _controller = MapController();
   bool _mapReady = false;
   bool _showNodes = true;
+
+  /// Opens one node, zooms to separate a group, or lists a group that shares
+  /// a rooftop once zoomed in.
+  void _openGroup(NodeGroup group) {
+    if (group.nodes.length == 1) {
+      _openNode(group.nodes.single);
+      return;
+    }
+    if (_mapReady && _controller.camera.zoom < 17) {
+      _controller.move(LatLng(group.latitude, group.longitude), 18);
+      return;
+    }
+    showModalBottomSheet<void>(
+        context: context,
+        builder: (sheet) => SafeArea(
+              child: ListView(shrinkWrap: true, children: [
+                ListTile(
+                    title: Text('${group.nodes.length} nodes at this location')),
+                for (final node in group.nodes)
+                  ListTile(
+                    leading: Icon(nodeIcon(node.type)),
+                    title:
+                        Text(node.name.isEmpty ? 'Unnamed node' : node.name),
+                    subtitle: Text(
+                        '${node.typeLabel} · ${node.key.substring(0, 12)}…'),
+                    onTap: () {
+                      Navigator.pop(sheet);
+                      _openNode(node);
+                    },
+                  ),
+              ]),
+            ));
+  }
+
+  void _openNode(MeshContact node) {
+    showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: Text(node.name.isEmpty ? 'Unnamed node' : node.name),
+                content: Text(
+                    '${node.typeLabel}\nAdvertised location; current reachability unverified.\n${node.lastAdvert == null ? "No advertisement time" : node.lastAdvert!.toLocal()}\n${node.key}'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c),
+                      child: const Text('Close'))
+                ]));
+  }
   @override
   void dispose() {
     _controller.dispose();
@@ -264,6 +330,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         .contacts
         .where((c) => c.latitude != null && c.longitude != null)
         .toList();
+    final settings = ref.watch(fieldSettingsProvider);
+    final groups = groupNodes(nodes, group: settings.groupNodes);
+    final coverage = ref.watch(savedCoverageProvider);
+    final now = DateTime.now();
     final points = mapping.displayedPoints;
     final observations = mapping.displayedObservations;
     return Column(children: [
@@ -286,6 +356,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   'Advertised nodes: ${nodes.length} · locations may be stale',
                   style: Theme.of(context).textTheme.bodySmall)),
         ]),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Wrap(spacing: 8, children: [
+            FilterChip(
+                label: const Text('All saved coverage'),
+                selected: settings.allCoverage,
+                onSelected: (v) => ref
+                    .read(fieldSettingsProvider.notifier)
+                    .update((s) => s.copyWith(allCoverage: v))),
+            if (settings.allCoverage)
+              FilterChip(
+                  label: Text('Last ${settings.recentCoverageDays} days only'),
+                  selected: settings.recentCoverageOnly,
+                  onSelected: (v) => ref
+                      .read(fieldSettingsProvider.notifier)
+                      .update((s) => s.copyWith(recentCoverageOnly: v))),
+          ]),
+        ),
       ]))),
       Expanded(
           child: widget.mapContent ??
@@ -334,35 +422,33 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                                 child: const Text('Close'))
                                           ]))))
                   ]),
+                  if (coverage.isNotEmpty)
+                    PolygonLayer(polygons: [
+                      for (final cell in coverage)
+                        Polygon(
+                            points: [
+                              LatLng(cell.south, cell.west),
+                              LatLng(cell.south, cell.east),
+                              LatLng(cell.north, cell.east),
+                              LatLng(cell.north, cell.west),
+                            ],
+                            color: signalColor(cell.bestRssi)
+                                .withValues(alpha: 0.3),
+                            borderColor: signalColor(cell.bestRssi)
+                                .withValues(alpha: 0.6),
+                            borderStrokeWidth: 1),
+                    ]),
                   if (_showNodes)
                     MarkerLayer(markers: [
-                      for (final node in nodes)
+                      for (final group in groups)
                         Marker(
                             width: 48,
                             height: 48,
-                            point: LatLng(node.latitude!, node.longitude!),
-                            child: IconButton(
-                                tooltip:
-                                    '${node.name.isEmpty ? "Unnamed node" : node.name} · advertised',
-                                icon: Icon(
-                                    node.type == 2
-                                        ? Icons.cell_tower
-                                        : Icons.person_pin_circle,
-                                    color: Colors.purple),
-                                onPressed: () => showDialog<void>(
-                                    context: context,
-                                    builder: (c) => AlertDialog(
-                                            title: Text(node.name.isEmpty
-                                                ? 'Unnamed node'
-                                                : node.name),
-                                            content: Text(
-                                                '${node.typeLabel}\nAdvertised location; current reachability unverified.\n${node.lastAdvert == null ? "No advertisement time" : node.lastAdvert!.toLocal()}\n${node.key}'),
-                                            actions: [
-                                              TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(c),
-                                                  child: const Text('Close'))
-                                            ]))))
+                            point: LatLng(group.latitude, group.longitude),
+                            child: NodeMarker(
+                                group: group,
+                                now: now,
+                                onTap: () => _openGroup(group))),
                     ]),
                   if (points.length > 1)
                     PolylineLayer(polylines: [
@@ -454,11 +540,23 @@ class HistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(mappingProvider);
     final actions = ref.read(mappingProvider.notifier);
+    final preset = ref.watch(fieldSettingsProvider).matchPreset
+        ? ref.watch(radioProvider.select((s) => s.preset))
+        : null;
+    final sessions = preset == null
+        ? state.sessions
+        : state.sessions
+            .where((s) => s.planned || s.preset == preset.key)
+            .toList();
     return ListView(padding: const EdgeInsets.all(16), children: [
       Text('History', style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 12),
       const Text(
           'Saved GPS sessions and planned routes · stored only on this phone'),
+      if (preset != null)
+        Text(
+            'Showing ${sessions.length} of ${state.sessions.length} sessions on ${preset.label}',
+            style: Theme.of(context).textTheme.bodySmall),
       if (state.loading) const LinearProgressIndicator(),
       if (!state.loading && state.sessions.isEmpty)
         const Padding(
@@ -466,7 +564,7 @@ class HistoryScreen extends ConsumerWidget {
             child:
                 Text('No mapping sessions yet. Start Mapping on the Map tab.')),
       if (state.message != null) Text(state.message!),
-      for (final session in state.sessions)
+      for (final session in sessions)
         ListTile(
           leading: const Icon(Icons.route),
           title: Text(session.name ??
@@ -474,7 +572,8 @@ class HistoryScreen extends ConsumerWidget {
           subtitle: Text(session.planned
               ? '${session.points.length} planned route points · no GPS measurements'
               : '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
-                  '${session.ended.difference(session.started).inMinutes} min'),
+                  '${session.ended.difference(session.started).inMinutes} min'
+                  '${RadioPreset.parse(session.preset) == null ? "" : " · ${RadioPreset.parse(session.preset)!.label}"}'),
           onTap: state.recording || state.busy || state.points.isNotEmpty
               ? null
               : () {
@@ -686,19 +785,15 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key, required this.onRadios});
   final VoidCallback onRadios;
 
+  void _open(BuildContext context, Widget page) => unawaited(
+      Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page)));
+
   @override
   Widget build(BuildContext context, WidgetRef ref) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Getting started and privacy'),
-            subtitle: const Text('Connect a radio, record a route and protect your data'),
-            onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-                builder: (_) => const HelpScreen())),
-          ),
           ListTile(
             leading: const Icon(Icons.bluetooth),
             title: const Text('Bluetooth radios'),
@@ -707,67 +802,39 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: onRadios,
           ),
+          SettingsFolderTile(
+              icon: Icons.settings_input_antenna,
+              title: 'Radio and alerts',
+              subtitle: 'Reconnect, disconnect alert, message alerts',
+              onTap: () => _open(context, const RadioAlertSettingsPage())),
+          SettingsFolderTile(
+              icon: Icons.route,
+              title: 'Recording',
+              subtitle: 'Background GPS, auto-stop when parked, flight check',
+              onTap: () => _open(context, const RecordingSettingsPage())),
+          SettingsFolderTile(
+              icon: Icons.map_outlined,
+              title: 'Map',
+              subtitle: 'Saved coverage, recent-only filter, node grouping',
+              onTap: () => _open(context, const MapSettingsPage())),
+          SettingsFolderTile(
+              icon: Icons.save_outlined,
+              title: 'Backup and storage',
+              subtitle: 'Backups, restore, cloud document, cleanup',
+              onTap: () => _open(context, const BackupSettingsPage())),
+          SettingsFolderTile(
+              icon: Icons.info_outline,
+              title: 'About and support',
+              subtitle: 'Quick guide, getting started, privacy, version',
+              onTap: () => _open(context, const AboutSettingsPage())),
           ListTile(
             leading: const Icon(Icons.security),
             title: const Text('App permissions'),
             subtitle: const Text('Manage Bluetooth access in Android settings'),
             onTap: () async => ref.read(radioProvider.notifier).openSettings(),
           ),
-          SwitchListTile(
-              title: const Text('Automatic radio reconnect'),
-              subtitle: const Text(
-                  'Retry the same identified radio up to five times after link loss. Manual disconnect stops retries.'),
-              value: ref.watch(radioProvider).autoReconnect,
-              onChanged: (enabled) async =>
-                  ref.read(radioProvider.notifier).setAutoReconnect(enabled)),
-          SwitchListTile(
-              title: const Text('Background message alerts'),
-              subtitle: const Text(
-                  'Notify when the connected radio reports waiting messages. Fetch them manually in Nodes → Messages.'),
-              value: ref.watch(messageAlertsProvider).enabled,
-              onChanged: ref.watch(messageAlertsProvider).busy
-                  ? null
-                  : (enabled) async => ref
-                      .read(messageAlertsProvider.notifier)
-                      .configure(enabled)),
-          if (ref.watch(messageAlertsProvider).notice != null)
-            Text(ref.watch(messageAlertsProvider).notice!),
-          SwitchListTile(
-              title: const Text('Keep GPS recording in background'),
-              subtitle: const Text(
-                  'Applies to the next route. Start while the app is open, then lock the phone or switch apps. An ongoing notification marks recording. Stop and save in Map. Android may stop the process; checkpointed GPS points are recovered on reopening.'),
-              value: ref.watch(backgroundGpsProvider),
-              onChanged: ref.watch(mappingProvider).recording ||
-                      ref.watch(mappingProvider).busy
-                  ? null
-                  : (value) =>
-                      ref.read(backgroundGpsProvider.notifier).set(value)),
-          const BackupControls(),
-          const FullBackupControls(),
-          const StorageControls(),
           if (ref.watch(preferencesProvider) != null)
             Text(ref.watch(preferencesProvider)!),
-          const ListTile(
-            leading: Icon(Icons.location_off_outlined),
-            title: Text('GPS route recording'),
-            subtitle: Text(
-                'Precise location is requested when you start a route. '
-                'Routes save on this phone. Background recording is optional. Checkpointed routes recover after an interruption.'),
-          ),
-          const ListTile(
-            leading: Icon(Icons.privacy_tip_outlined),
-            title: Text('Privacy'),
-            subtitle: Text(
-                'Saved sessions stay on this phone until you export/share them. Online map tiles '
-                'use OpenStreetMap; offline downloads use USGS. Offline mode makes no tile requests.'),
-          ),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 1.2'),
-            subtitle:
-                Text('Radio connections stay active while switching apps. '
-                    'Android may still end them if the process is stopped.'),
-          ),
         ],
       );
 }
