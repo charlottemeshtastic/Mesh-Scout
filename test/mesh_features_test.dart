@@ -160,7 +160,7 @@ void main() {
       expect(ble.writes.length, writes);
     },
   );
-  test('insufficient RF frame MTU blocks identification and contact refresh', () async {
+  test('small MTU blocks identification and contacts', () async {
     ble.mtu = 100;
     await actions.scan();
     const device = RadioDevice('radio', 'Companion', -55);
