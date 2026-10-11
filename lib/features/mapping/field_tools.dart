@@ -260,6 +260,7 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
             (s) => s.id == first || s.id == second,
           ))
             summary(s),
+          for (final gpx in [false, true])
           OutlinedButton(
             onPressed: busy ||
                     mapping.recording ||
@@ -273,13 +274,16 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                       if (text == null) {
                         return;
                       }
-                      final route = importRoute(text);
+                      final geometry = gpx
+                          ? jsonEncode({'type': 'LineString', 'coordinates': await const MethodChannel('org.meshscout/files').invokeMethod<List<dynamic>>('parseGpx', text)})
+                          : text;
+                      final route = importRoute(geometry);
                       await ref
                           .read(mappingProvider.notifier)
                           .importSession(route);
                       notice = 'Planned route imported into History.';
                     }),
-            child: const Text('Import GeoJSON route'),
+            child: Text(gpx ? 'Import GPX route' : 'Import GeoJSON route'),
           ),
           FilledButton(
             onPressed: busy || !notes.hasValue

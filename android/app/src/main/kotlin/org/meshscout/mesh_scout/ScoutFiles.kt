@@ -53,12 +53,22 @@ class ScoutFiles(private val activity: Activity) {
                 }.start()
                 return
             }
+            if (call.method == "parseGpx") {
+                val text = call.arguments as String
+                Thread {
+                    try {
+                        val points = GpxRoute.parse(text)
+                        activity.runOnUiThread { result.success(points) }
+                    } catch (e: Exception) { activity.runOnUiThread { result.error("gpx", "Use a valid GPX file with one continuous route/track segment and 2–10,000 points", null) } }
+                }.start()
+                return
+            }
             if (call.method == "openBackup") {
                 require(pending == null)
                 pending = result
                 activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE); type = "*/*"
-                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "application/geo+json", "text/plain"))
+                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "application/geo+json", "text/plain", "application/gpx+xml", "application/xml", "text/xml"))
                 }, 805)
                 return
             }

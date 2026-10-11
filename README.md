@@ -1,4 +1,4 @@
-# MeshScout 1.3
+# MeshScout 1.3.1
 
 Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
 
@@ -24,7 +24,7 @@ GPS recording, completed sessions, names, GeoJSON/CSV export and fresh GPS-assoc
 
 Coverage → Summaries, comparisons, waypoints and route import provides side-by-side summaries of two sessions, route distance, mean/range RSSI, mean SNR and sample counts. Measured signal bars group observations in 0.001° cells; cell size varies with latitude. Cells without observations have no inferred coverage. Raw LoRa metrics are last-hop reception, not verified sender identity or proof of two-way coverage.
 
-Waypoints and notes persist privately, appear as cyan flags on Map and can be deleted with confirmation. Up to 1,000 waypoints; names up to 80 characters, notes up to 2,000. GeoJSON route import accepts a WGS84 LineString or exactly one LineString in a FeatureCollection, 2–10,000 points. Imported geometry is labeled as a planned route with no reception observations; imported timestamps/accuracy are unknown. Exports mark planned points explicitly and omit their measurement timestamps/accuracy. GPX import is not included.
+Waypoints and notes persist privately, appear as cyan flags on Map and can be deleted with confirmation. Up to 1,000 waypoints; names up to 80 characters, notes up to 2,000. GeoJSON route import accepts a WGS84 LineString or exactly one LineString in a FeatureCollection, 2–10,000 points. Imported geometry is labeled as a planned route with no reception observations; imported timestamps/accuracy are unknown. Exports mark planned points explicitly and omit their measurement timestamps/accuracy. GPX 1.0/1.1 import accepts exactly one continuous route or track segment with 2–10,000 points, as planned geometry. Separate segments must be split before import; timestamps, elevation, waypoints and extension measurements are not imported. DTD/entity declarations are rejected.
 
 ## Field safety and map tools (1.3)
 
@@ -74,6 +74,7 @@ Tests cover protocol validation, stream sequencing, reconnect cancellation, GPS 
 - [MeshCore companion firmware](https://github.com/meshcore-dev/MeshCore/blob/main/examples/companion_radio/MyMesh.cpp)
 - [Official companion protocol](https://github.com/meshcore-dev/MeshCore/blob/main/docs/companion_protocol.md)
 - [Cayenne telemetry data types](https://github.com/ElectronicCats/CayenneLPP/blob/1.6.1/src/CayenneLPP.h)
+- [GPX 1.1 specification](https://www.topografix.com/GPX/1/1/)
 - [MBTiles 1.3 specification](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md)
 - [Android document access](https://developer.android.com/training/data-storage/shared/documents-files)
 - [Android JobScheduler](https://developer.android.com/reference/android/app/job/JobScheduler)

@@ -127,14 +127,28 @@ class MappingNotifier extends Notifier<MappingState> {
     if (state.sessions.length >= 1000) {
       throw const FormatException('Session limit reached.');
     }
-    final sessions = [session, ...state.sessions];
-    await _service.save(encodeSessions(sessions));
-    if (ref.mounted) {
-      state = MappingState(
-        loading: false,
-        sessions: List.unmodifiable(sessions),
-        selected: session,
-      );
+    final previous = state;
+    final sessions = [session, ...previous.sessions];
+    state = MappingState(
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+      selected: previous.selected,
+    );
+    try {
+      await _service.save(encodeSessions(sessions));
+      if (ref.mounted) {
+        state = MappingState(
+          loading: false,
+          sessions: List.unmodifiable(sessions),
+          selected: session,
+        );
+      }
+    } catch (_) {
+      if (ref.mounted) {
+        state = previous;
+      }
+      rethrow;
     }
   }
 
