@@ -242,5 +242,9 @@ SyncMerge mergeSync({
   if (utf8.encode(snapshot.encode()).length > 20 * 1024 * 1024) {
     throw const FormatException('Merged sync exceeds 20 MB.');
   }
-  return SyncMerge(snapshot, conflicts.toSet().take(50).toList());
+  final uniqueConflicts = conflicts.toSet().toList();
+  if (uniqueConflicts.length > 50) {
+    throw const FormatException('Too many conflicts; resolve with backups.');
+  }
+  return SyncMerge(snapshot, uniqueConflicts);
 }

@@ -139,4 +139,20 @@ void main() {
             incoming: []),
         throwsFormatException);
   });
+  test('large conflict sets reject the whole merge instead of hiding edits', () {
+    Map<String, SyncRecord> rows(String actor, String text) => {
+          for (var i = 0; i < 51; i++)
+            'note:n$i': SyncRecord('note:n$i', 1, actor,
+                {...note(text), 'id': 'n$i'})
+        };
+    expect(
+        () => mergeSync(
+            actor: a,
+            sequence: 2,
+            local: {},
+            baseline: null,
+            incoming: [SyncSnapshot(a, 1, rows(a, 'one')),
+              SyncSnapshot(b, 1, rows(b, 'two'))]),
+        throwsFormatException);
+  });
 }
