@@ -555,6 +555,7 @@ class RadioNotifier extends Notifier<RadioState> {
         reply.complete(List<int>.unmodifiable(safe));
       } else {
         if ([7, 8, 16, 17, 27].contains(bytes.first)) {
+          _messageTypes = {};
           final generation = _generation;
           unawaited(ref
               .read(inboxJournalProvider)
