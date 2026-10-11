@@ -50,6 +50,7 @@ class ScoutBackup {
           s.ended.isBefore(s.started) ||
           s.points.length > 10000 ||
           s.observations.length > 10000 ||
+          s.planned && s.observations.isNotEmpty ||
           s.points.any((p) => !p.valid) ||
           s.observations.any((o) =>
               !o.point.valid ||

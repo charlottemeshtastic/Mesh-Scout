@@ -358,6 +358,7 @@ class OfflineMaps extends Notifier<OfflineState> {
       throw const FormatException('Use a name of 1–60 characters.');
     }
     final selected = state.area!;
+    final enabled = state.enabled;
     final file = File('${selected.path}/area.json');
     final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
     data['name'] = name.trim();
@@ -366,7 +367,7 @@ class OfflineMaps extends Notifier<OfflineState> {
     await temp.rename(file.path);
     await initialize();
     final updated = state.areas.firstWhere((a) => a.path == selected.path);
-    select(updated);
+    state = OfflineState(area: updated, areas: state.areas, enabled: enabled);
   }
 
   void select(OfflineArea area) {

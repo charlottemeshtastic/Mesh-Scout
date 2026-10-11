@@ -58,7 +58,7 @@ object BackupCrypto {
                             val length=source.readInt();require(length in 16..65552)
                             val encoded=ByteArray(length);source.readFully(encoded)
                             val decoded=crypt(encoded,false)
-                            if(decoded.isEmpty){require(source.read()==-1){"Trailing encrypted data"};break}
+                            if(decoded.isEmpty()){require(source.read()==-1){"Trailing encrypted data"};break}
                             total+=decoded.size;require(total<=550L*1024*1024);target.write(decoded);decoded.fill(0)
                         }
                     }

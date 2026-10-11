@@ -63,7 +63,7 @@ class ScoutBundles(private val activity: Activity) {
                         val password=args["password"] as? String?:""
                         require(password.length>=12)
                         BackupJob.storePassword(activity,password)
-                        val job=JobInfo.Builder(19030,ComponentName(activity,BackupJob::class.java)).setPeriodic(24*60*60*1000L).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setRequiresCharging(true).build()
+                        val job=JobInfo.Builder(19030,ComponentName(activity,BackupJob::class.java)).setPeriodic(24*60*60*1000L).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setRequiresCharging(true).setPersisted(true).build()
                         require(scheduler.schedule(job)==JobScheduler.RESULT_SUCCESS)
                     }else { scheduler.cancel(19030);prefs.edit().remove("secret").remove("iv").apply() }
                     prefs.edit().putBoolean("enabled",enabled).putBoolean("maps",args["maps"]==true).apply();result.success(true)

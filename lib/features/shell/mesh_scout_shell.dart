@@ -252,7 +252,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           next.enabled &&
           next.area != null &&
           (previous?.enabled != true || previous?.area != next.area)) {
-        _controller.move(LatLng(next.area!.latitude, next.area!.longitude), 14);
+        _controller.move(LatLng(next.area!.latitude, next.area!.longitude),
+            14.clamp(next.area!.minZoom, next.area!.maxZoom).toDouble());
       }
     });
     final nodes = ref
@@ -453,7 +454,7 @@ class HistoryScreen extends ConsumerWidget {
     return ListView(padding: const EdgeInsets.all(16), children: [
       Text('History', style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 12),
-      const Text('Saved GPS routes · stored only on this phone'),
+      const Text('Saved GPS sessions and planned routes · stored only on this phone'),
       if (state.loading) const LinearProgressIndicator(),
       if (!state.loading && state.sessions.isEmpty)
         const Padding(
@@ -466,8 +467,9 @@ class HistoryScreen extends ConsumerWidget {
           leading: const Icon(Icons.route),
           title: Text(session.name ??
               session.started.toLocal().toString().split('.').first),
-          subtitle: Text(
-              '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
+          subtitle: Text(session.planned
+              ? '${session.points.length} planned route points · no GPS measurements'
+              : '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
               '${session.ended.difference(session.started).inMinutes} min'),
           onTap: state.recording || state.busy || state.points.isNotEmpty
               ? null

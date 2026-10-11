@@ -1,3 +1,4 @@
+import 'package:mesh_scout/features/export/session_export.dart';
 import 'package:mesh_scout/features/radio/diagnostics.dart';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,6 +51,12 @@ void main() {
       ]
     }));
     expect(route.points.length, 2);
+    expect(route.planned, isTrue);
+    expect(MappingSession.fromJson(route.toJson()).planned, isTrue);
+    final exported = jsonDecode(exportSession(route, ExportFormat.geoJson)) as Map<String, dynamic>;
+    final point = (exported['features'] as List)[1] as Map<String, dynamic>;
+    expect((point['properties'] as Map).containsKey('accuracy_m'), isFalse);
+    expect((point['properties'] as Map).containsKey('time_utc'), isFalse);
     expect(route.observations, isEmpty);
     expect(
         () => importRoute('{"type":"LineString","coordinates":[[0,91],[1,0]]}'),

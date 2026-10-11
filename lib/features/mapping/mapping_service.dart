@@ -61,11 +61,14 @@ class MappingSession {
       required this.ended,
       required this.points,
       this.observations = const [],
-      this.name});
+      this.name,
+      this.planned = false});
+  final bool planned;
   final String id;
   final String? name;
   MappingSession renamed(String? name) => MappingSession(
       id: id,
+      planned: planned,
       started: started,
       ended: ended,
       points: points,
@@ -77,6 +80,7 @@ class MappingSession {
   final List<CoverageObservation> observations;
   Map<String, Object> toJson() => {
         'id': id,
+        if (planned) 'planned': true,
         if (name != null) 'name': name!,
         'started': started.toUtc().toIso8601String(),
         'ended': ended.toUtc().toIso8601String(),
@@ -85,6 +89,7 @@ class MappingSession {
       };
   factory MappingSession.fromJson(Map<String, dynamic> json) => MappingSession(
         id: json['id'] as String,
+        planned: json['planned'] == true,
         name: json['name'] as String?,
         started: DateTime.parse(json['started'] as String),
         ended: DateTime.parse(json['ended'] as String),

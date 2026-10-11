@@ -18,11 +18,11 @@ String exportSession(MappingSession session, ExportFormat format) {
       ],
       for (final p in session.points)
         [
-          'gps',
-          p.time.toUtc().toIso8601String(),
+          session.planned ? 'planned_route_point' : 'gps',
+          session.planned ? '' : p.time.toUtc().toIso8601String(),
           p.latitude,
           p.longitude,
-          p.accuracy,
+          session.planned ? '' : p.accuracy,
           '',
           ''
         ],
@@ -46,6 +46,7 @@ String exportSession(MappingSession session, ExportFormat format) {
     'type': 'FeatureCollection',
     'properties': {
       'session_id': session.id,
+      'planned_route': session.planned,
       if (session.name != null) 'session_name': session.name,
       'started': session.started.toUtc().toIso8601String(),
       'ended': session.ended.toUtc().toIso8601String(),
@@ -68,9 +69,9 @@ String exportSession(MappingSession session, ExportFormat format) {
         {
           'type': 'Feature',
           'properties': {
-            'kind': 'gps',
-            'time_utc': p.time.toUtc().toIso8601String(),
-            'accuracy_m': p.accuracy
+            'kind': session.planned ? 'planned_route_point' : 'gps',
+            if (!session.planned) 'time_utc': p.time.toUtc().toIso8601String(),
+            if (!session.planned) 'accuracy_m': p.accuracy
           },
           'geometry': {
             'type': 'Point',

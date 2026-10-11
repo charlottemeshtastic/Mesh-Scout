@@ -88,6 +88,7 @@ MappingSession importRoute(String text) {
   return MappingSession(
       id: 'import-${now.microsecondsSinceEpoch}',
       name: 'Imported planned route',
+      planned: true,
       started: now,
       ended: now,
       points: points);

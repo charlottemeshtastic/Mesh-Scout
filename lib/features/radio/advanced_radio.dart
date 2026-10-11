@@ -171,6 +171,10 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
         if (values == null) {
           return;
         }
+        if (c != null && values[0].toLowerCase() != c.key) {
+          throw const FormatException(
+              'A public key cannot be edited. Add a new contact instead.');
+        }
         await run(
             contactCommand(values[0], values[1], int.parse(values[2]),
                 original: c?.frame ?? const []),
@@ -194,6 +198,10 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           }
           frame = [26, ...key, ...password];
         } else if (command == 2) {
+          if (ref.read(radioProvider).contacts.where((node) =>
+              node.key.startsWith(c.key.substring(0, 12))).length != 1) {
+            throw const FormatException('Ambiguous recipient prefix. CLI was not sent.');
+          }
           final values = await form('Repeater CLI command',
               ['Command (may change remote configuration)']);
           if (values == null) {
