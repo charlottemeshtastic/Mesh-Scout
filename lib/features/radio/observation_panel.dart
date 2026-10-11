@@ -16,7 +16,7 @@ class ObservationPanel extends StatelessWidget {
           Text('Live LoRa observations',
               style: Theme.of(context).textTheme.titleLarge),
           const Text(
-              'Listen for receptions reported by the companion radio. Message contents are discarded. No GPS or saved coverage data yet.'),
+              'Listen for receptions reported by the companion radio. Message contents are discarded. This live list stays in memory. Start Mapping on Map to save GPS-associated receptions.'),
           if (state.phase == RadioPhase.ready)
             FilledButton(
               onPressed: state.collecting
