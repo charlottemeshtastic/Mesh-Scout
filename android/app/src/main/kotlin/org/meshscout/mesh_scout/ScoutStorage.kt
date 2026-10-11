@@ -31,8 +31,14 @@ object ScoutStorage {
     fun readBackup(context: Context): String {
         val root = directory(context)
         fun read(name: String) = File(root, name).let { if (it.exists()) JSONArray(it.readText()) else JSONArray() }
+        val messages = JSONArray()
+        val raw = read("messages.json")
+        for (i in 0 until raw.length()) {
+            val record = raw.getJSONObject(i)
+            messages.put(JSONObject(PortableMessages.sanitize(record.keys().asSequence().associateWith { record.get(it) })))
+        }
         val text = JSONObject().put("format", "meshscout-backup").put("version", 1)
-            .put("sessions", read("mapping-sessions.json")).put("messages", read("messages.json")).toString()
+            .put("sessions", read("mapping-sessions.json")).put("messages", messages).toString()
         require(text.toByteArray().size <= 20 * 1024 * 1024) { "Backup exceeds 20 MB" }
         return text
     }
