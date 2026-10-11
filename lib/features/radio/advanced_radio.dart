@@ -98,8 +98,10 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
   int? pendingToken;
   DateTime? requestedAt;
   bool busy = false;
+  bool importing = false;
   Future<void> run(List<int> command,
       {Set<int> replies = const {0}, bool refresh = false}) async {
+    if (!mounted) return;
     final radio = ref.read(radioProvider.notifier);
     if (busy || !radio.beginControls()) {
       setState(() => notice =
@@ -284,6 +286,7 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           }} at ${DateTime.now().toLocal()}. Payload (firmware format): $details');
     });
     final ready = !busy &&
+        !importing &&
         state.phase == RadioPhase.ready &&
         !state.controlsBusy &&
         !state.syncing &&
@@ -336,9 +339,9 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                         if (data['format'] != 'meshscout-contacts' ||
                             data['version'] != 1 ||
                             data['contacts'] is! List ||
-                            (data['contacts'] as List).length > 100) {
+                            (data['contacts'] as List).length > 5000) {
                           throw const FormatException(
-                              'Choose a MeshScout contact export with up to 100 contacts.');
+                              'Choose a MeshScout contact export with up to 5,000 contacts.');
                         }
                         final commands = <List<int>>[];
                         for (final value in data['contacts'] as List) {
@@ -379,13 +382,23 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                         if (yes != true) {
                           return;
                         }
-                        for (final command in commands) {
-                          await run(command);
-                          if (!notice.startsWith('Companion accepted')) break;
+                        if (!mounted) return;
+                        setState(() => importing = true);
+                        var accepted = 0;
+                        try {
+                          for (final command in commands) {
+                            if (!mounted) break;
+                            await run(command);
+                            if (!notice.startsWith('Companion accepted')) break;
+                            accepted++;
+                          }
+                          if (mounted) {
+                            await ref.read(radioProvider.notifier).refreshContacts();
+                            setState(() => notice = '$accepted of ${commands.length} contacts accepted. Refresh verifies the stored table.');
+                          }
+                        } finally {
+                          if (mounted) setState(() => importing = false);
                         }
-                        await ref
-                            .read(radioProvider.notifier)
-                            .refreshContacts();
                       })
                   : null,
               child: const Text('Import contacts')),
