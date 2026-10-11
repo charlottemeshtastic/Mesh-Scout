@@ -1,6 +1,57 @@
 # MeshScout
 
-Independent Android-first MeshCore coverage mapping application. 
+**Explore MeshCore radio activity. Understand what your companion radio can hear.**
+
+MeshScout is an independent, Android-first, open-source Flutter app being developed to help MeshCore users observe radio receptions and, in future releases, map real-world network coverage.
+
+> **Project status: early development (v0.1.0).** MeshScout is not yet a completed coverage mapper. The map is currently a base map, not a measured coverage visualization. Hardware compatibility still needs field validation.
+
+## What MeshScout does today
+
+- Displays an interactive map powered by OpenStreetMap.
+- Scans for nearby Bluetooth Low Energy (BLE) UART candidates and attempts a MeshCore companion-protocol handshake before reporting a compatible connection.
+- Lets you manually connect and disconnect a compatible companion radio.
+- Passively collects live LoRa reception metadata **when supported by companion firmware**, including received signal strength (RSSI), signal-to-noise ratio (SNR), and packet/path metadata.
+- Shows recent reception activity in a temporary, in-memory observation panel with start, stop, and clear controls.
+
+**Important:** BLE signal strength measures the *phone-to-radio Bluetooth link*, not MeshCore LoRa coverage. Received LoRa RSSI/SNR reflects what the companion radio heard; it does not by itself establish end-to-end delivery or sender location.
+
+## What is planned (not available yet)
+
+- Opt-in GPS-tagged field observations and map overlays.
+- Saving and exporting observations.
+- More useful coverage visualizations and field-testing workflows.
+- Expanded device and firmware validation.
+
+No coverage heatmap, GPS recording, persistent observation database, message sync, or public data sharing is implemented at present.
+
+## Getting started
+
+1. Install a development build on an Android phone with BLE support.
+2. Power on a compatible MeshCore companion radio and enable Bluetooth.
+3. Open MeshScout and tap the Bluetooth icon on the map.
+4. Grant the requested Android permissions, scan for radios, and select a candidate.
+5. After the companion-protocol check succeeds, tap **Start collecting** to inspect live receptions.
+
+Scanning takes up to ten seconds. Android 12+ requests Nearby Devices permission; Android 11 and earlier require foreground location permission and location services for BLE discovery. Collection requires compatible firmware that emits RF reception logs. If none appear, that alone does **not** prove a coverage gap.
+
+## Privacy and radio safety
+
+MeshScout's current observation flow is **read-only**. It does not change radio settings, channels, keys, messages, or the radio clock. Raw packet contents, message bodies, sender keys, and path hashes are not saved in the observation history. Recent reception metadata stays in memory and is cleared by app restart. The current app does not collect GPS coordinates or upload coverage observations.
+
+## Project identity
+
+MeshScout is an **independent community project**, not an official MeshCore application or an endorsement by MeshCore maintainers. MeshCore is referenced to describe protocol compatibility.
+
+## Development and validation
+
+Built with Flutter and Dart, with Riverpod state management, flutter_map, and Android BLE integration. CI runs static analysis, tests, and a debug APK build. Automated tests do **not** replace real-device testing; field hardware acceptance remains outstanding.
+
+For setup, BLE protocol details, technical limitations, validation scope, and upstream references, see the engineering notes below.
+
+---
+
+## Engineering notes
 
 ## Phase 2 Bluetooth foundation
 
