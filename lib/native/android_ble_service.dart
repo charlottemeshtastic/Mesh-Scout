@@ -1,13 +1,18 @@
 import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../features/radio/ble_service.dart';
 
 /// Android implementation. Plugins remain confined to this boundary.
 class AndroidBleService implements BleService {
-  AndroidBleService() : _ble = FlutterReactiveBle();
-  final FlutterReactiveBle _ble;
+  AndroidBleService();
+  // The plugin initializes on construction; defer it until permissions pass.
+  late final FlutterReactiveBle _ble = FlutterReactiveBle();
+  bool _sessionRunning = false;
   final _service = Uuid.parse(meshCoreService);
 
   @override
@@ -17,11 +22,13 @@ class AndroidBleService implements BleService {
     }
     final sdk = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
     final permissions = permissionPlan(sdk)
-        .map((access) => switch (access) {
-              BluetoothAccess.scan => Permission.bluetoothScan,
-              BluetoothAccess.connect => Permission.bluetoothConnect,
-              BluetoothAccess.location => Permission.locationWhenInUse,
-            })
+        .map(
+          (access) => switch (access) {
+            BluetoothAccess.scan => Permission.bluetoothScan,
+            BluetoothAccess.connect => Permission.bluetoothConnect,
+            BluetoothAccess.location => Permission.locationWhenInUse,
+          },
+        )
         .toList();
     final statuses = await permissions.request();
     if (statuses.values.any((s) => s.isPermanentlyDenied)) {
@@ -30,11 +37,11 @@ class AndroidBleService implements BleService {
     if (statuses.values.any((s) => !s.isGranted)) {
       throw const RadioException(RadioFailure.denied);
     }
+    await const MethodChannel('org.meshscout/radio_session')
+        .invokeMethod<void>('takeOver');
     await _ble.initialize();
     final status = await _ble.statusStream
-        .firstWhere(
-          (s) => s != BleStatus.unknown,
-        )
+        .firstWhere((s) => s != BleStatus.unknown)
         .timeout(const Duration(seconds: 5));
     if (status != BleStatus.ready) {
       throw const RadioException(RadioFailure.unavailable);
@@ -43,23 +50,41 @@ class AndroidBleService implements BleService {
 
   @override
   Stream<RadioDevice> scan() => _ble.scanForDevices(
-        withServices: [_service],
-        scanMode: ScanMode.lowLatency,
-      ).map((d) => RadioDevice(d.id, d.name, d.rssi));
+      withServices: [_service],
+      scanMode:
+          ScanMode.lowLatency).map((d) => RadioDevice(d.id, d.name, d.rssi));
 
   @override
-  Stream<RadioLink> connect(String id) => _ble
-      .connectToAdvertisingDevice(
-        id: id,
-        withServices: [_service],
-        prescanDuration: const Duration(seconds: 3),
-        connectionTimeout: const Duration(seconds: 10),
-      )
-      .map((u) => switch (u.connectionState) {
+  Stream<RadioLink> connect(String id) async* {
+    const session = MethodChannel('org.meshscout/radio_session');
+    // Keep the service active during retry delays; only endSession stops it.
+    if (!_sessionRunning) {
+      await session.invokeMethod<void>('start');
+      _sessionRunning = true;
+    }
+    yield* _ble
+        .connectToAdvertisingDevice(
+          id: id,
+          withServices: [_service],
+          prescanDuration: const Duration(seconds: 3),
+          connectionTimeout: const Duration(seconds: 10),
+        )
+        .map(
+          (u) => switch (u.connectionState) {
             DeviceConnectionState.connected => RadioLink.connected,
             DeviceConnectionState.disconnected => RadioLink.disconnected,
             _ => RadioLink.connecting,
-          });
+          },
+        );
+  }
+
+  @override
+  Future<void> endSession() async {
+    if (!_sessionRunning) return;
+    await const MethodChannel('org.meshscout/radio_session')
+        .invokeMethod<void>('stop');
+    _sessionRunning = false;
+  }
 
   @override
   Future<void> discover(String id) async {
@@ -67,12 +92,6 @@ class AndroidBleService implements BleService {
     final services = await _ble.getDiscoveredServices(id);
     final matches = services.where((s) => s.id == _service);
     if (matches.length != 1) {
-      throw const RadioException(RadioFailure.protocol);
-    }
-    // RF log frames can reach MAX_FRAME_SIZE (176 bytes). Require the full
-    // frame plus three ATT bytes; truncated notifications are not observations.
-    final mtu = await _ble.requestMtu(deviceId: id, mtu: 512);
-    if (mtu < 179) {
       throw const RadioException(RadioFailure.protocol);
     }
     final characteristics = matches.single.characteristics;
@@ -86,11 +105,16 @@ class AndroidBleService implements BleService {
     }
   }
 
+  @override
+  Future<int> negotiateMtu(String id) =>
+      _ble.requestMtu(deviceId: id, mtu: requestedCompanionMtu);
+
   QualifiedCharacteristic _characteristic(String id, String uuid) =>
       QualifiedCharacteristic(
-          deviceId: id,
-          serviceId: _service,
-          characteristicId: Uuid.parse(uuid));
+        deviceId: id,
+        serviceId: _service,
+        characteristicId: Uuid.parse(uuid),
+      );
 
   @override
   Stream<List<int>> notifications(String id) =>
@@ -98,8 +122,10 @@ class AndroidBleService implements BleService {
 
   @override
   Future<void> write(String id, List<int> bytes) =>
-      _ble.writeCharacteristicWithResponse(_characteristic(id, meshCoreRx),
-          value: bytes);
+      _ble.writeCharacteristicWithResponse(
+        _characteristic(id, meshCoreRx),
+        value: bytes,
+      );
 
   @override
   Future<void> openSettings() async {

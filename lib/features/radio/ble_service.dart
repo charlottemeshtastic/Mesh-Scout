@@ -15,7 +15,7 @@ enum RadioFailure {
   permanentlyDenied,
   unavailable,
   transport,
-  protocol
+  protocol,
 }
 
 class RadioException implements Exception {
@@ -28,9 +28,11 @@ abstract interface class BleService {
   Stream<RadioDevice> scan();
   Stream<RadioLink> connect(String id);
   Future<void> discover(String id);
+  Future<int> negotiateMtu(String id);
   Stream<List<int>> notifications(String id);
   Future<void> write(String id, List<int> bytes);
   Future<void> openSettings();
+  Future<void> endSession();
 }
 
 const meshCoreService = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
@@ -55,7 +57,7 @@ const appStart = [
   99,
   111,
   117,
-  116
+  116,
 ];
 const deviceQuery = [0x16, 3];
 
@@ -65,3 +67,9 @@ enum BluetoothAccess { scan, connect, location }
 List<BluetoothAccess> permissionPlan(int sdk) => sdk >= 31
     ? const [BluetoothAccess.scan, BluetoothAccess.connect]
     : const [BluetoothAccess.location];
+
+/// SELF_INFO includes a variable node name and DEVICE_INFO exceeds 20 bytes.
+/// Reserve capacity for the identification replies plus ATT overhead.
+// Require complete 176-byte RF notifications plus the three ATT bytes.
+const minimumIdentificationMtu = 179;
+const requestedCompanionMtu = 185;

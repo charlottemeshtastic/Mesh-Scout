@@ -1,0 +1,612 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'mapping_service.dart';
+import '../backup/backup.dart';
+import 'trip_guard.dart';
+import '../../common/mesh_data.dart';
+import '../radio/radio_notifier.dart';
+import '../settings/field_settings.dart';
+
+final backgroundGpsProvider = NotifierProvider<BackgroundGps, bool>(
+  BackgroundGps.new,
+);
+
+class BackgroundGps extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool value) => state = value;
+}
+
+final mappingServiceProvider = Provider<MappingService>(
+  (ref) => throw UnimplementedError(),
+);
+
+/// How often a recording checks whether the phone is parked; null disables
+/// the periodic check (fixes and receptions still trigger it).
+final tripGuardIntervalProvider = Provider<Duration?>((ref) => null);
+
+/// Wall clock for parked detection; replaced in tests.
+final mappingClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);
+final mappingProvider = NotifierProvider<MappingNotifier, MappingState>(
+  MappingNotifier.new,
+);
+
+class MappingState {
+  const MappingState({
+    this.loading = true,
+    this.recording = false,
+    this.busy = false,
+    this.points = const [],
+    this.sessions = const [],
+    this.selected,
+    this.observations = const [],
+    this.message,
+  });
+  final bool loading;
+  final bool recording;
+  final bool busy;
+  final List<GpsPoint> points;
+  final List<MappingSession> sessions;
+  final MappingSession? selected;
+  final List<CoverageObservation> observations;
+  List<CoverageObservation> get displayedObservations =>
+      recording || points.isNotEmpty
+          ? observations
+          : selected?.observations ?? const [];
+  final String? message;
+  List<GpsPoint> get displayedPoints =>
+      recording || points.isNotEmpty ? points : selected?.points ?? const [];
+}
+
+class MappingNotifier extends Notifier<MappingState> {
+  StreamSubscription<GpsPoint>? _positions;
+  DateTime? _started;
+  int _generation = 0;
+  bool _disposed = false;
+  bool _loadFailed = false;
+  bool _starting = false;
+  Future<void> _checkpointPending = Future.value();
+  MappingSession? _latestCheckpoint;
+  bool _checkpointRunning = false;
+  bool _keepBackground = false;
+  final _parked = ParkedTracker(radiusMetres: FieldSettings.parkedRadiusMetres);
+  Timer? _parkedTimer;
+  int _airborneFixes = 0;
+  String? _preset;
+  MappingService get _service => ref.read(mappingServiceProvider);
+
+  @override
+  MappingState build() {
+    ref.onDispose(() {
+      _disposed = true;
+      _generation++;
+      _parkedTimer?.cancel();
+      unawaited(_positions?.cancel());
+    });
+    return const MappingState();
+  }
+
+  Future<void> initialize() async {
+    if (!state.loading) {
+      return;
+    }
+    try {
+      final sessions = decodeSessions(await _service.load());
+      if (_disposed) {
+        return;
+      }
+      _loadFailed = false;
+      state = MappingState(
+        loading: false,
+        sessions: List.unmodifiable(sessions),
+      );
+    } catch (_) {
+      if (_disposed) {
+        return;
+      }
+      _loadFailed = true;
+      state = const MappingState(
+        loading: false,
+        message:
+            'Saved sessions could not be loaded. Restart the app to retry.',
+      );
+    }
+  }
+
+  Future<void> importSession(MappingSession session) async {
+    if (ref.read(maintenanceProvider)) return;
+    if (state.loading ||
+        state.busy ||
+        state.recording ||
+        state.points.isNotEmpty ||
+        _loadFailed) {
+      return;
+    }
+    if (state.sessions.length >= 1000) {
+      throw const FormatException('Session limit reached.');
+    }
+    final previous = state;
+    final sessions = [session, ...previous.sessions];
+    state = MappingState(
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+      selected: previous.selected,
+    );
+    try {
+      await _service.save(encodeSessions(sessions));
+      if (ref.mounted) {
+        state = MappingState(
+          loading: false,
+          sessions: List.unmodifiable(sessions),
+          selected: session,
+        );
+      }
+    } catch (_) {
+      if (ref.mounted) {
+        state = previous;
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> start({bool background = false}) async {
+    if (ref.read(maintenanceProvider)) return;
+    if (state.loading ||
+        state.busy ||
+        state.recording ||
+        state.points.isNotEmpty) {
+      return;
+    }
+    if (_loadFailed) {
+      return;
+    }
+    if (state.sessions.length >= 1000) {
+      state = MappingState(
+        loading: false,
+        sessions: state.sessions,
+        message:
+            'Session storage is full. Back up and remove older sessions before recording.',
+      );
+      return;
+    }
+    final generation = ++_generation;
+    _started = null;
+    _starting = true;
+    state = MappingState(loading: false, busy: true, sessions: state.sessions);
+    try {
+      await _service.authorize();
+      if (_disposed || generation != _generation) {
+        return;
+      }
+      _started = DateTime.now();
+      _keepBackground = background;
+      final service = _service;
+      if (service is BackgroundMappingService) {
+        await (service as BackgroundMappingService).configureRecording(
+          background,
+          _started!,
+        );
+      } else if (background) {
+        throw StateError('Background GPS is unavailable on this platform.');
+      }
+      if (_disposed || generation != _generation) {
+        return;
+      }
+      _starting = false;
+      _parked.reset();
+      _airborneFixes = 0;
+      _preset = ref.read(radioProvider).preset?.key;
+      _parkedTimer?.cancel();
+      final interval = ref.read(tripGuardIntervalProvider);
+      if (interval != null) {
+        _parkedTimer = Timer.periodic(interval, (_) => _checkParked());
+      }
+      state = MappingState(
+        loading: false,
+        recording: true,
+        sessions: state.sessions,
+        message: 'Waiting for a GPS fix…',
+      );
+      _positions = _service.positions().listen(
+        (point) {
+          if (_disposed || generation != _generation || !state.recording) {
+            return;
+          }
+          if (!point.valid ||
+              point.time.isBefore(
+                _started!.subtract(const Duration(seconds: 5)),
+              )) {
+            return;
+          }
+          if (state.points.isNotEmpty &&
+              !point.time.isAfter(state.points.last.time)) {
+            return;
+          }
+          if (state.points.length >= 10000) {
+            unawaited(stop(reason: 'Route limit reached; session saved.'));
+            return;
+          }
+          final previous = state.points.isEmpty ? null : state.points.last;
+          if (ref.read(fieldSettingsProvider).aircraftGuard &&
+              isAirborne(point, previous)) {
+            // Airborne fixes are never recorded; two in a row end the session.
+            if (++_airborneFixes >= 2) {
+              unawaited(
+                stop(
+                  reason:
+                      'Recording stopped: altitude above 6,000 m or speed above 250 km/h looks like a flight. Earlier route saved.',
+                ),
+              );
+            }
+            return;
+          }
+          _airborneFixes = 0;
+          state = MappingState(
+            loading: false,
+            recording: true,
+            sessions: state.sessions,
+            observations: state.observations,
+            points: List.unmodifiable([...state.points, point]),
+          );
+          _parked.add(point);
+          _checkpoint();
+          _checkParked();
+        },
+        onError: (Object error) {
+          unawaited(stop(reason: 'GPS stopped. ${error.toString()}'));
+        },
+        onDone: () {
+          if (!_disposed && generation == _generation && state.recording) {
+            unawaited(stop(reason: 'GPS stream ended; recording stopped.'));
+          }
+        },
+      );
+    } catch (error) {
+      _starting = false;
+      if (_disposed || generation != _generation) {
+        return;
+      }
+      state = MappingState(
+        loading: false,
+        sessions: state.sessions,
+        message: error.toString(),
+      );
+    }
+  }
+
+  Future<void> stop({String? reason}) async {
+    if (state.busy) {
+      return;
+    }
+    if (!state.recording && state.points.isEmpty) {
+      return;
+    }
+    ++_generation;
+    _parkedTimer?.cancel();
+    _parkedTimer = null;
+    final points = state.points;
+    final observations = state.observations;
+    final sessions = state.sessions;
+    state = MappingState(
+      loading: false,
+      busy: true,
+      points: points,
+      observations: observations,
+      sessions: sessions,
+    );
+    try {
+      final subscription = _positions;
+      _positions = null;
+      await subscription?.cancel();
+      await _checkpointPending;
+      if (points.isEmpty) {
+        if (!_disposed) {
+          state = MappingState(
+            loading: false,
+            sessions: sessions,
+            message: reason ?? 'No GPS fixes received; no session saved.',
+          );
+        }
+        return;
+      }
+      final started = _started!;
+      final session = MappingSession(
+        id: started.microsecondsSinceEpoch.toString(),
+        started: started,
+        ended: DateTime.now(),
+        points: points,
+        observations: observations,
+        preset: _preset,
+      );
+      final updated = [session, ...sessions];
+      await _service.save(encodeSessions(updated));
+      if (_disposed) {
+        return;
+      }
+      state = MappingState(
+        loading: false,
+        sessions: List.unmodifiable(updated),
+        selected: session,
+        message: reason ?? 'Session saved on this phone.',
+      );
+    } catch (_) {
+      if (_disposed) {
+        return;
+      }
+      state = MappingState(
+        loading: false,
+        sessions: sessions,
+        points: points,
+        observations: observations,
+        message:
+            'Could not save this route. Tap Retry save before starting another.',
+      );
+    }
+  }
+
+  void capture(RxObservation rx) {
+    if (!state.recording ||
+        state.points.isEmpty ||
+        state.observations.length >= 10000) {
+      return;
+    }
+    final point = state.points.last;
+    final age = rx.time.difference(point.time);
+    if (age.isNegative || age > const Duration(seconds: 15)) {
+      return;
+    }
+    _preset ??= ref.read(radioProvider).preset?.key;
+    final observation = CoverageObservation(
+      point: point,
+      rssi: rx.rssi,
+      snr: rx.snr,
+      time: rx.time,
+    );
+    state = MappingState(
+      loading: false,
+      recording: true,
+      points: state.points,
+      sessions: state.sessions,
+      observations: List.unmodifiable([...state.observations, observation]),
+    );
+    _checkpoint();
+    _checkParked();
+  }
+
+  /// Stops and saves the route once the phone has stayed put long enough.
+  void _checkParked() {
+    if (!state.recording || state.busy || state.points.isEmpty) return;
+    final settings = ref.read(fieldSettingsProvider);
+    if (!settings.autoStopParked) return;
+    final limit = Duration(minutes: settings.parkedMinutes);
+    if (_parked.parked(ref.read(mappingClockProvider)(), limit)) {
+      unawaited(
+        stop(
+          reason:
+              'Stopped and saved: no movement for ${settings.parkedMinutes} min. Change this in Settings → Recording.',
+        ),
+      );
+    }
+  }
+
+  void _checkpoint() {
+    final service = _service;
+    if (service is! CheckpointMappingService || _started == null) return;
+    final session = MappingSession(
+      id: _started!.microsecondsSinceEpoch.toString(),
+      started: _started!,
+      ended: DateTime.now(),
+      points: state.points,
+      observations: state.observations,
+      preset: _preset,
+    );
+    // Keep only the latest waiting snapshot when storage is slower than GPS/RX.
+    // Stop waits for this drain, including updates received during a write.
+    _latestCheckpoint = session;
+    if (_checkpointRunning) return;
+    _checkpointRunning = true;
+    _checkpointPending = _drainCheckpoints(service as CheckpointMappingService);
+  }
+
+  Future<void> _drainCheckpoints(CheckpointMappingService service) async {
+    try {
+      while (_latestCheckpoint != null && !_disposed) {
+        final session = _latestCheckpoint!;
+        _latestCheckpoint = null;
+        try {
+          await service.checkpoint(session);
+        } catch (_) {
+          if (ref.mounted && state.recording) {
+            state = MappingState(
+              loading: false,
+              recording: true,
+              points: state.points,
+              observations: state.observations,
+              sessions: state.sessions,
+              message:
+                  'Recovery checkpoint failed. Stop and save this route now.',
+            );
+          }
+        }
+      }
+    } finally {
+      _checkpointRunning = false;
+    }
+  }
+
+  Future<void> background() async {
+    // Foreground routes stop on app switching; opted-in routes keep recording.
+    if (_starting) {
+      _starting = false;
+      ++_generation;
+      state = MappingState(
+        loading: false,
+        sessions: state.sessions,
+        message: 'Recording start cancelled when leaving the app.',
+      );
+    } else if (state.recording && !_keepBackground) {
+      await stop(
+        reason:
+            'Saved when leaving the app. Tap Start Mapping to record again.',
+      );
+    }
+  }
+
+  void select(MappingSession session) {
+    if (state.recording || state.busy || state.points.isNotEmpty) {
+      return;
+    }
+    state = MappingState(
+      loading: false,
+      sessions: state.sessions,
+      selected: session,
+    );
+  }
+
+  Future<void> rename(MappingSession session, String input) async {
+    if (ref.read(maintenanceProvider)) return;
+    if (state.recording ||
+        state.busy ||
+        _loadFailed ||
+        state.points.isNotEmpty) {
+      return;
+    }
+    final value = input.trim();
+    if (value.length > 80 || value.contains(RegExp(r'[\x00-\x1f]'))) {
+      state = MappingState(
+        loading: false,
+        sessions: state.sessions,
+        selected: state.selected,
+        message:
+            'Use a name of up to 80 characters without control characters.',
+      );
+      return;
+    }
+    if (!state.sessions.any((s) => s.id == session.id)) {
+      return;
+    }
+    final previous = state;
+    final updated = previous.sessions
+        .map(
+          (s) =>
+              s.id == session.id ? s.renamed(value.isEmpty ? null : value) : s,
+        )
+        .toList();
+    state = MappingState(
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+      selected: previous.selected,
+    );
+    try {
+      await _service.save(encodeSessions(updated));
+      if (_disposed) {
+        return;
+      }
+      state = MappingState(
+        loading: false,
+        sessions: List.unmodifiable(updated),
+        selected: previous.selected?.id == session.id
+            ? updated.firstWhere((s) => s.id == session.id)
+            : previous.selected,
+        message: 'Session name saved.',
+      );
+    } catch (_) {
+      if (_disposed) {
+        return;
+      }
+      state = MappingState(
+        loading: false,
+        sessions: previous.sessions,
+        selected: previous.selected,
+        message: 'Could not rename the session. Try again.',
+      );
+    }
+  }
+
+  Future<void> pruneHistory() async {
+    if (ref.read(maintenanceProvider)) return;
+    if (state.loading ||
+        state.busy ||
+        state.recording ||
+        _loadFailed ||
+        state.points.isNotEmpty ||
+        state.sessions.length <= 20) {
+      return;
+    }
+    final previous = state;
+    final updated = previous.sessions.take(20).toList();
+    state = MappingState(
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+    );
+    try {
+      await _service.save(encodeSessions(updated));
+      if (ref.mounted) {
+        state = MappingState(
+          loading: false,
+          sessions: updated,
+          selected: updated.any((s) => s.id == previous.selected?.id)
+              ? previous.selected
+              : null,
+          message: 'Kept the 20 most recent sessions.',
+        );
+      }
+    } catch (_) {
+      if (ref.mounted) {
+        state = MappingState(
+          loading: false,
+          sessions: previous.sessions,
+          selected: previous.selected,
+          message: 'Storage cleanup failed; sessions retained.',
+        );
+      }
+    }
+  }
+
+  Future<void> delete(MappingSession session) async {
+    if (ref.read(maintenanceProvider)) return;
+    if (state.recording ||
+        state.busy ||
+        _loadFailed ||
+        state.points.isNotEmpty) {
+      return;
+    }
+    final previous = state;
+    state = MappingState(
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+      selected: previous.selected,
+    );
+    try {
+      final updated =
+          previous.sessions.where((s) => s.id != session.id).toList();
+      await _service.save(encodeSessions(updated));
+      if (_disposed) {
+        return;
+      }
+      state = MappingState(
+        loading: false,
+        sessions: List.unmodifiable(updated),
+        selected:
+            previous.selected?.id == session.id ? null : previous.selected,
+      );
+    } catch (_) {
+      if (!_disposed) {
+        state = MappingState(
+          loading: false,
+          sessions: previous.sessions,
+          selected: previous.selected,
+          message: 'Could not delete the session. Try again.',
+        );
+      }
+    }
+  }
+}
