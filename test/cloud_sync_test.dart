@@ -129,7 +129,9 @@ void main() {
     await expectLater(
         container.read(fieldNotesProvider.notifier).save([]), throwsStateError);
     await expectLater(
-        container.read(repeaterDetailsProvider.notifier).save({'key': 'a' * 64}),
+        container
+            .read(repeaterDetailsProvider.notifier)
+            .save({'key': 'a' * 64}),
         throwsStateError);
     await container.read(messagesProvider.notifier).clearHistory();
     expect(container.read(fieldNotesProvider).requireValue, isEmpty);
