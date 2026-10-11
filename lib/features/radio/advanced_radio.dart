@@ -198,9 +198,14 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           }
           frame = [26, ...key, ...password];
         } else if (command == 2) {
-          if (ref.read(radioProvider).contacts.where((node) =>
-              node.key.startsWith(c.key.substring(0, 12))).length != 1) {
-            throw const FormatException('Ambiguous recipient prefix. CLI was not sent.');
+          if (ref
+                  .read(radioProvider)
+                  .contacts
+                  .where((node) => node.key.startsWith(c.key.substring(0, 12)))
+                  .length !=
+              1) {
+            throw const FormatException(
+                'Ambiguous recipient prefix. CLI was not sent.');
           }
           final values = await form('Repeater CLI command',
               ['Command (may change remote configuration)']);

@@ -454,7 +454,8 @@ class HistoryScreen extends ConsumerWidget {
     return ListView(padding: const EdgeInsets.all(16), children: [
       Text('History', style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 12),
-      const Text('Saved GPS sessions and planned routes · stored only on this phone'),
+      const Text(
+          'Saved GPS sessions and planned routes · stored only on this phone'),
       if (state.loading) const LinearProgressIndicator(),
       if (!state.loading && state.sessions.isEmpty)
         const Padding(
@@ -470,7 +471,7 @@ class HistoryScreen extends ConsumerWidget {
           subtitle: Text(session.planned
               ? '${session.points.length} planned route points · no GPS measurements'
               : '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
-              '${session.ended.difference(session.started).inMinutes} min'),
+                  '${session.ended.difference(session.started).inMinutes} min'),
           onTap: state.recording || state.busy || state.points.isNotEmpty
               ? null
               : () {

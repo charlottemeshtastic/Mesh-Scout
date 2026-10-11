@@ -53,7 +53,8 @@ void main() {
     expect(route.points.length, 2);
     expect(route.planned, isTrue);
     expect(MappingSession.fromJson(route.toJson()).planned, isTrue);
-    final exported = jsonDecode(exportSession(route, ExportFormat.geoJson)) as Map<String, dynamic>;
+    final exported = jsonDecode(exportSession(route, ExportFormat.geoJson))
+        as Map<String, dynamic>;
     final point = (exported['features'] as List)[1] as Map<String, dynamic>;
     expect((point['properties'] as Map).containsKey('accuracy_m'), isFalse);
     expect((point['properties'] as Map).containsKey('time_utc'), isFalse);
