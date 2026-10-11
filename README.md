@@ -1,6 +1,6 @@
 # MeshScout
 
-Independent Android-first MeshCore coverage mapping application. This repository has no BackCountrySignal, Bastion, or Meshtastic integration or shared application code.
+Independent Android-first MeshCore coverage mapping application. 
 
 ## Phase 2 Bluetooth foundation
 
