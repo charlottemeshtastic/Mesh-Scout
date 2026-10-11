@@ -58,6 +58,6 @@ class _StorageControlsState extends ConsumerState<StorageControls> {
     try {
       final result = await const MethodChannel('org.meshscout/files').invokeMethod<num>(method);
       if (mounted) { setState(() => bytes = result?.toInt()); }
-    } catch (_) { if (mounted) { setState(() => notice = 'Storage operation failed.'); } }
+    } catch (_) { if (method == 'cleanRetiredProfiles') { rethrow; } if (mounted) { setState(() => notice = 'Storage operation failed.'); } }
   }
 }

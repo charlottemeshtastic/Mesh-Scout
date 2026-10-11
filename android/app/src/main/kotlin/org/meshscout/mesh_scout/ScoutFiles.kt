@@ -27,12 +27,7 @@ class ScoutFiles(private val activity: Activity) {
                                 require(!GpsRecordingService.running)
                                 val current = ScoutStorage.directory(activity).canonicalFile
                                 val maps = ScoutStorage.mapDirectory(activity).canonicalFile
-                                activity.filesDir.listFiles()?.filter { Regex("profile-[0-9]+").matches(it.name) }?.forEach { old ->
-                                    val path = old.canonicalFile
-                                    if (path != current && !maps.toPath().startsWith(path.toPath())) {
-                                        require(old.deleteRecursively()) { "Could not remove unused profile" }
-                                    }
-                                }
+                                ProfileCleanup.prune(activity.filesDir, current, maps)
                             }
                             listOf(activity.filesDir, activity.cacheDir).sumOf { root -> root.walkTopDown().filter { it.isFile }.sumOf { it.length() } }
                         }

@@ -88,6 +88,7 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
   };
 }
 
+final inboxTimerProvider = Provider<Timer Function(Duration, void Function(Timer))>((ref) => Timer.periodic);
 final autoInboxProvider = NotifierProvider<AutoInbox, bool>(AutoInbox.new);
 class AutoInbox extends Notifier<bool> {
   @override
@@ -131,7 +132,7 @@ class Messages extends Notifier<MessageState> {
       timer?.cancel();
       timer = null;
       if (!enabled) return;
-      timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      timer = ref.read(inboxTimerProvider)(const Duration(seconds: 30), (_) {
         if (ref.mounted && !_autoPaused && available) {
           final radio = ref.read(radioProvider);
           if (radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy && !radio.channelsLoading) {

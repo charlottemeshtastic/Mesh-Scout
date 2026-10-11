@@ -120,7 +120,11 @@ class MappingNotifier extends Notifier<MappingState> {
       return;
     }
     if (state.sessions.length >= 1000) {
-      state = MappingState(loading: false, sessions: state.sessions, message: 'Session storage is full. Back up and remove older sessions before recording.');
+      state = MappingState(
+          loading: false,
+          sessions: state.sessions,
+          message:
+              'Session storage is full. Back up and remove older sessions before recording.');
       return;
     }
     final generation = ++_generation;
@@ -384,7 +388,9 @@ class MappingNotifier extends Notifier<MappingState> {
         state.recording ||
         _loadFailed ||
         state.points.isNotEmpty ||
-        state.sessions.length <= 20) { return; }
+        state.sessions.length <= 20) {
+      return;
+    }
     final previous = state;
     final updated = previous.sessions.take(20).toList();
     state =

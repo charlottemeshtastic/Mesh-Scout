@@ -29,7 +29,7 @@ class LoadedMessages extends Messages {
   MessageState build() => const MessageState(loaded: true);
 
   @override
-  Future<void> load() async {}
+  Future<void> load({bool recover = false}) async {}
 }
 
 class OpenMessageAlerts extends SilentAlerts {
