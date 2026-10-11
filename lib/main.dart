@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'about_meshscout_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/radio/radio_notifier.dart';
 import 'features/radio/radio_screen.dart';
@@ -40,6 +41,13 @@ class MeshScoutApp extends StatelessWidget {
         ),
         home: Scaffold(
           appBar: AppBar(title: const Text('MeshScout'), actions: [
+            IconButton(
+              tooltip: 'About MeshScout',
+              icon: const Icon(Icons.info_outline),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AboutMeshScoutScreen()),
+              ),
+            ),
             Builder(
                 builder: (context) => IconButton(
                       tooltip: 'Connect MeshCore radio',
