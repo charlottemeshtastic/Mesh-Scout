@@ -78,7 +78,7 @@ class ScoutFiles(private val activity: Activity) {
             val name = call.argument<String>("name") ?: throw Exception("Missing name")
             val text = call.argument<String>("content") ?: throw Exception("Missing content")
             val mime = call.argument<String>("mime") ?: throw Exception("Missing type")
-            require(Regex("MeshScout-(?:(?:Messages|Backup)-)?[0-9]+\\.(csv|geojson|json)").matches(name))
+            require(name == "MeshScout-sync-conflicts.json" || Regex("MeshScout-(?:(?:Messages|Backup)-)?[0-9]+\\.(csv|geojson|json)").matches(name))
             require(text.toByteArray().size <= 20 * 1024 * 1024)
             if (call.method == "save") {
                 if (pending != null) throw Exception("A save dialog is already open")
