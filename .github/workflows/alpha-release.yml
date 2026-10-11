@@ -53,8 +53,18 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --timeout 2m
-      - name: Build Android alpha debug APK
-        run: flutter build apk --debug
+      - name: Build Android alpha debug APK with persistent test signing
+        env:
+          MESHSCOUT_TEST_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_BASE64 }}
+          MESHSCOUT_TEST_KEYSTORE_PASSWORD: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$MESHSCOUT_TEST_KEYSTORE_BASE64"
+          test -n "$MESHSCOUT_TEST_KEYSTORE_PASSWORD"
+          export MESHSCOUT_TEST_KEYSTORE_PATH="$RUNNER_TEMP/meshscout-test.p12"
+          trap 'rm -f "$MESHSCOUT_TEST_KEYSTORE_PATH"' EXIT
+          printf '%s' "$MESHSCOUT_TEST_KEYSTORE_BASE64" | base64 --decode > "$MESHSCOUT_TEST_KEYSTORE_PATH"
+          chmod 600 "$MESHSCOUT_TEST_KEYSTORE_PATH"
+          flutter build apk --debug
       - name: Verify native tests
         run: cd android && ./gradlew testDebugUnitTest
       - name: Name alpha artifact

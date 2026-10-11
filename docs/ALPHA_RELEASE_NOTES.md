@@ -6,7 +6,7 @@ Existing radio, node discovery, messaging, mapping, offline maps, GPS recording,
 
 ## Download and installation
 
-Download **MeshScout-alpha-debug.apk** and its SHA-256 checksum from the release assets. This is an **alpha DEBUG APK signed with a debug key**, not a production-signed or Play Store release. Back up your data first. Its signer may differ from previous candidate APKs; Android can reject installation over an existing app. Export a backup before considering uninstalling an existing installation.
+Download **MeshScout-alpha-debug.apk** and its SHA-256 checksum from the release assets. This is an **alpha DEBUG APK signed with the existing private test key**, not a production-signed or Play Store release. Back up your data first. The workflow uses the same private test signer as current candidate builds. If an older installation used another signer, Android can reject installation over an existing app. Export a backup before considering uninstalling an existing installation.
 
 ## Validation and limitations
 
