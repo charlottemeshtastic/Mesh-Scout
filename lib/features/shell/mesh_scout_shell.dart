@@ -1,3 +1,4 @@
+import 'help_screen.dart';
 import '../backup/preferences.dart';
 import '../backup/storage_controls.dart';
 import '../backup/full_backup.dart';
@@ -314,8 +315,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     for (final note in ref.watch(fieldNotesProvider).value ??
                         <Map<String, dynamic>>[])
                       Marker(
-                          width: 44,
-                          height: 44,
+                          width: 48,
+                          height: 48,
                           point: LatLng((note['lat'] as num).toDouble(),
                               (note['lon'] as num).toDouble()),
                           child: IconButton(
@@ -337,8 +338,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     MarkerLayer(markers: [
                       for (final node in nodes)
                         Marker(
-                            width: 44,
-                            height: 44,
+                            width: 48,
+                            height: 48,
                             point: LatLng(node.latitude!, node.longitude!),
                             child: IconButton(
                                 tooltip:
@@ -692,6 +693,13 @@ class SettingsScreen extends ConsumerWidget {
           Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
           ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Getting started and privacy'),
+            subtitle: const Text('Connect a radio, record a route and protect your data'),
+            onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                builder: (_) => const HelpScreen())),
+          ),
+          ListTile(
             leading: const Icon(Icons.bluetooth),
             title: const Text('Bluetooth radios'),
             subtitle:
@@ -755,7 +763,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 1.1'),
+            title: Text('MeshScout 1.2'),
             subtitle:
                 Text('Radio connections stay active while switching apps. '
                     'Android may still end them if the process is stopped.'),

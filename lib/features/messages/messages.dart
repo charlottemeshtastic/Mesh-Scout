@@ -758,7 +758,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           overflow: TextOverflow.ellipsis))
               ],
               onChanged: (value) => setState(() => _conversation = value)),
-          Row(children: [
+          Wrap(spacing: 8, runSpacing: 4, children: [
             TextButton(
                 onPressed: () => setState(() => _conversation = null),
                 child: const Text('All conversations')),

@@ -15,7 +15,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "org.meshscout.mesh_scout"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -30,6 +29,15 @@ android {
     }
 
     signingConfigs {
+        create("production") {
+            System.getenv("MESHSCOUT_RELEASE_KEYSTORE_PATH")?.let { path ->
+                storeFile = file(path)
+                storeType = "PKCS12"
+                storePassword = System.getenv("MESHSCOUT_RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("MESHSCOUT_RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("MESHSCOUT_RELEASE_KEY_PASSWORD")
+            }
+        }
         getByName("debug") {
             // CI supplies private test signing from encrypted repository secrets.
             // A stable signer lets later APK updates retain saved GPS sessions.
@@ -45,9 +53,11 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Release builds require owner-controlled production secrets.
+            // Candidate builds explicitly opt into the existing test signer.
+            signingConfig = signingConfigs.getByName(
+                if (System.getenv("MESHSCOUT_CANDIDATE") == "true") "debug" else "production"
+            )
         }
     }
 }
@@ -64,4 +74,15 @@ flutter {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+}
+
+// Fail closed rather than producing an unsigned or accidentally test-signed release.
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name.contains("Release") } &&
+        System.getenv("MESHSCOUT_CANDIDATE") != "true") {
+        listOf("MESHSCOUT_RELEASE_KEYSTORE_PATH", "MESHSCOUT_RELEASE_STORE_PASSWORD",
+            "MESHSCOUT_RELEASE_KEY_ALIAS", "MESHSCOUT_RELEASE_KEY_PASSWORD").forEach {
+            require(!System.getenv(it).isNullOrBlank()) { "Production signing configuration is required: $it" }
+        }
+    }
 }

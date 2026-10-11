@@ -2,6 +2,12 @@ name: MeshScout Android CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      production:
+        description: Build with owner-controlled production signing
+        type: boolean
+        default: false
 concurrency:
   group: meshscout-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -55,7 +61,7 @@ jobs:
         if: ${{ !cancelled() }}
       - run: flutter test --coverage --timeout 2m
         if: ${{ !cancelled() }}
-      - name: Build installable debug APK with persistent test signing
+      - name: Build optimized APK candidate with persistent test signing
         env:
           MESHSCOUT_TEST_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_BASE64 }}
           MESHSCOUT_TEST_KEYSTORE_PASSWORD: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_PASSWORD }}
@@ -64,14 +70,43 @@ jobs:
           export MESHSCOUT_TEST_KEYSTORE_PATH="$RUNNER_TEMP/meshscout-test.p12"
           printf '%s' "$MESHSCOUT_TEST_KEYSTORE_BASE64" | base64 --decode > "$MESHSCOUT_TEST_KEYSTORE_PATH"
           chmod 600 "$MESHSCOUT_TEST_KEYSTORE_PATH"
-          flutter build apk --debug
+          export MESHSCOUT_CANDIDATE=true
+          flutter build apk --release
+          mkdir -p candidate
+          cp build/app/outputs/flutter-apk/app-release.apk candidate/MeshScout-candidate.apk
           rm -f "$MESHSCOUT_TEST_KEYSTORE_PATH"
+      - name: Build production APK and app bundle
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.production }}
+        env:
+          MESHSCOUT_RELEASE_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_RELEASE_KEYSTORE_BASE64 }}
+          MESHSCOUT_RELEASE_STORE_PASSWORD: ${{ secrets.MESHSCOUT_RELEASE_STORE_PASSWORD }}
+          MESHSCOUT_RELEASE_KEY_ALIAS: ${{ secrets.MESHSCOUT_RELEASE_KEY_ALIAS }}
+          MESHSCOUT_RELEASE_KEY_PASSWORD: ${{ secrets.MESHSCOUT_RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "$MESHSCOUT_RELEASE_KEYSTORE_BASE64"
+          test -n "$MESHSCOUT_RELEASE_STORE_PASSWORD"
+          test -n "$MESHSCOUT_RELEASE_KEY_ALIAS"
+          test -n "$MESHSCOUT_RELEASE_KEY_PASSWORD"
+          export MESHSCOUT_RELEASE_KEYSTORE_PATH="$RUNNER_TEMP/meshscout-production.p12"
+          trap 'rm -f "$MESHSCOUT_RELEASE_KEYSTORE_PATH"' EXIT
+          printf '%s' "$MESHSCOUT_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$MESHSCOUT_RELEASE_KEYSTORE_PATH"
+          chmod 600 "$MESHSCOUT_RELEASE_KEYSTORE_PATH"
+          flutter build apk --release
+          flutter build appbundle --release
+          mkdir -p production
+          cp build/app/outputs/flutter-apk/app-release.apk production/MeshScout-production.apk
+          cp build/app/outputs/bundle/release/app-release.aab production/MeshScout-production.aab
       - name: Verify native backup authentication
         run: cd android && ./gradlew testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
-          name: meshscout-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: meshscout-candidate-apk
+          path: candidate/MeshScout-candidate.apk
+      - uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.production }}
+        with:
+          name: meshscout-production
+          path: production/
       - uses: actions/upload-artifact@v4
         with:
           name: meshscout-test-coverage

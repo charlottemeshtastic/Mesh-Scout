@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:mesh_scout/features/shell/help_screen.dart';
 import 'package:mesh_scout/features/alerts/message_alerts.dart';
 import 'package:mesh_scout/features/messages/messages.dart';
 
@@ -255,4 +256,22 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+  testWidgets('Messages and guidance fit a small screen at 200 percent text', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await launch(tester, alerts: OpenMessageAlerts());
+    await tester.scrollUntilVisible(find.text('All conversations'), 180, scrollable: find.byType(Scrollable).last);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const MaterialApp(home: HelpScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('1. Connect your radio'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(find.text('Privacy and network access'), 180);
+    expect(tester.takeException(), isNull);
+  });
+
 }

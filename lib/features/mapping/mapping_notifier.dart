@@ -51,6 +51,8 @@ class MappingNotifier extends Notifier<MappingState> {
   bool _loadFailed = false;
   bool _starting = false;
   Future<void> _checkpointPending = Future.value();
+  MappingSession? _latestCheckpoint;
+  bool _checkpointRunning = false;
   bool _keepBackground = false;
   MappingService get _service => ref.read(mappingServiceProvider);
 
@@ -288,20 +290,36 @@ class MappingNotifier extends Notifier<MappingState> {
         ended: DateTime.now(),
         points: state.points,
         observations: state.observations);
-    _checkpointPending = _checkpointPending
-        .then((_) => (service as CheckpointMappingService).checkpoint(session))
-        .catchError((Object _) {
-      if (ref.mounted && state.recording) {
-        state = MappingState(
-            loading: false,
-            recording: true,
-            points: state.points,
-            observations: state.observations,
-            sessions: state.sessions,
-            message:
-                'Recovery checkpoint failed. Stop and save this route now.');
+    // Keep only the latest waiting snapshot when storage is slower than GPS/RX.
+    // Stop waits for this drain, including updates received during a write.
+    _latestCheckpoint = session;
+    if (_checkpointRunning) return;
+    _checkpointRunning = true;
+    _checkpointPending = _drainCheckpoints(service as CheckpointMappingService);
+  }
+
+  Future<void> _drainCheckpoints(CheckpointMappingService service) async {
+    try {
+      while (_latestCheckpoint != null && !_disposed) {
+        final session = _latestCheckpoint!;
+        _latestCheckpoint = null;
+        try {
+          await service.checkpoint(session);
+        } catch (_) {
+          if (ref.mounted && state.recording) {
+            state = MappingState(
+                loading: false,
+                recording: true,
+                points: state.points,
+                observations: state.observations,
+                sessions: state.sessions,
+                message: 'Recovery checkpoint failed. Stop and save this route now.');
+          }
+        }
       }
-    });
+    } finally {
+      _checkpointRunning = false;
+    }
   }
 
   Future<void> background() async {

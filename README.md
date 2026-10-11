@@ -1,4 +1,4 @@
-# MeshScout 1.1
+# MeshScout 1.2
 
 Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
 
@@ -50,7 +50,7 @@ Daily encrypted backups are explicitly enabled after choosing a target. Android 
 
 ## Build verification and limits
 
-CI pins Flutter 3.47.7, compile SDK 37, AGP 9.2.1, Gradle 9.4.1 and Java 17. It preserves owned Android sources, enforces the lockfile, formatting and strict analysis, runs Dart tests with coverage, builds a debug APK with the stable private test signer, then runs JVM backup-authentication tests. No private signing key is committed. Updates over 0.2.1+ retain data; production signing/store release is separate work.
+CI pins Flutter 3.47.7, compile SDK 37, AGP 9.2.1, Gradle 9.4.1 and Java 17. It preserves owned Android sources, enforces the lockfile, formatting and strict analysis, runs Dart tests with coverage, builds an optimized release-mode candidate APK with the stable private test signer, then runs JVM backup-authentication tests. No private signing key is committed. Updates over 0.2.1+ retain data; production signing/store release is separate work.
 
 Settings → Storage displays history limits, saved-map size and total private file/cache usage. Confirmed cleanup can keep the latest 200 messages, keep the latest 20 sessions, discard paused map-download staging, or remove unused restore profiles. No history is automatically deleted. Export or back up before cleanup; stop recording and disconnect first. Individual route/map deletion remains available in History/Map.
 
@@ -65,3 +65,9 @@ Tests cover protocol validation, stream sequencing, reconnect cancellation, GPS 
 - [Android document access](https://developer.android.com/training/data-storage/shared/documents-files)
 - [Android JobScheduler](https://developer.android.com/reference/android/app/job/JobScheduler)
 - [Android background BLE](https://developer.android.com/develop/connectivity/bluetooth/ble/background)
+
+## Release readiness
+
+Settings → Getting started and privacy contains a reusable setup guide, permission/data explanations and troubleshooting. See [privacy](docs/PRIVACY.md), [device acceptance checklist](docs/FIELD_TESTING.md) and [release/distribution guide](docs/RELEASE.md). GPS/LoRa checkpoint writes coalesce waiting snapshots when storage is slow; stop drains the latest snapshot before saving. Message history buttons wrap on narrow screens and enlarged text.
+
+CI now produces an optimized release-mode **test-signed candidate**, preserving updates over existing test installations. Production APK/App Bundle generation is separately opt-in and fails without owner-controlled signing secrets. Physical field acceptance, production key provisioning, store publication and merge after acceptance are pending; automated checks alone do not complete them.

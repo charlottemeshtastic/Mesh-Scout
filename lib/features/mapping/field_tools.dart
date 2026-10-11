@@ -212,11 +212,12 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
               'Compare completed sessions. Grid bars summarize measured RSSI within 0.001° cells (size varies with latitude). Empty cells have no evidence of coverage. Imported routes are planned geometry; accuracy and observation times are unknown.'),
           for (final which in [0, 1])
             DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: which == 0 ? first : second,
                 decoration: InputDecoration(labelText: 'Session ${which + 1}'),
                 items: [
                   for (final s in mapping.sessions)
-                    DropdownMenuItem(value: s.id, child: Text(s.name ?? s.id))
+                    DropdownMenuItem(value: s.id, child: Text(s.name ?? s.id, overflow: TextOverflow.ellipsis))
                 ],
                 onChanged: (v) => setState(() {
                       if (which == 0) {
@@ -274,6 +275,7 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                 subtitle: Text('${n['lat']}, ${n['lon']}\n${n['note']}'),
                 trailing: IconButton(
                     icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Delete waypoint',
                     onPressed: busy
                         ? null
                         : () => action(() async {

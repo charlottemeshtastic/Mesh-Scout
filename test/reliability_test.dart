@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,15 @@ class CheckpointMapping extends FakeMapping
   @override
   Future<void> checkpoint(MappingSession session) async {
     checkpoints.add(session);
+  }
+}
+
+class SlowCheckpointMapping extends CheckpointMapping {
+  final firstWrite = Completer<void>();
+  @override
+  Future<void> checkpoint(MappingSession session) async {
+    checkpoints.add(session);
+    if (checkpoints.length == 1) await firstWrite.future;
   }
 }
 
@@ -165,4 +175,29 @@ void main() {
     local.dispose();
     await mapping.updates.close();
   });
+  test('slow checkpoints coalesce bursts and stop waits for the latest snapshot', () async {
+    final mapping = SlowCheckpointMapping();
+    final local = ProviderContainer(overrides: [mappingServiceProvider.overrideWithValue(mapping)]);
+    final actions = local.read(mappingProvider.notifier);
+    await actions.initialize();
+    await actions.start();
+    final now = DateTime.now();
+    mapping.updates.add(GpsPoint(35, -80, 5, now));
+    for (var n = 0; n < 100; n++) {
+      actions.capture(RxObservation(-95, 3, now.add(Duration(milliseconds: n))));
+    }
+    expect(mapping.checkpoints.length, 1);
+    var stopped = false;
+    final stop = actions.stop().then((_) => stopped = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(stopped, false);
+    mapping.firstWrite.complete();
+    await stop;
+    expect(mapping.checkpoints.length, 2);
+    expect(mapping.checkpoints.last.observations.length, 100);
+    expect(decodeSessions(mapping.stored).single.observations.length, 100);
+    local.dispose();
+    await mapping.updates.close();
+  });
+
 }
