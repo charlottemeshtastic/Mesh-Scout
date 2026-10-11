@@ -1,3 +1,5 @@
+import 'package:clock/clock.dart';
+import 'radio_observation.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -9,6 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../common/mesh_data.dart';
 import 'ble_service.dart';
+
+final clockProvider = Provider<Clock>((ref) => const Clock());
+const maxRadioObservations = 200;
 
 final bleServiceProvider = Provider<BleService>(
   (ref) => throw UnimplementedError(),
@@ -62,7 +67,15 @@ class RadioState {
     this.heard = const [],
     this.remoteEvent,
     this.preset,
+    this.collecting = false,
+    this.observations = const [],
+    this.receivedCount = 0,
+    this.malformedCount = 0,
   });
+  final bool collecting;
+  final List<RadioObservation> observations;
+  final int receivedCount;
+  final int malformedCount;
   final List<MeshContact> heard;
 
   /// Modem settings reported while identifying the connected radio.
@@ -102,8 +115,16 @@ class RadioState {
     bool? channelsLoading,
     bool? controlsBusy,
     RadioPreset? preset,
+    bool? collecting,
+    List<RadioObservation>? observations,
+    int? receivedCount,
+    int? malformedCount,
   }) =>
       RadioState(
+        collecting: collecting ?? this.collecting,
+        observations: observations ?? this.observations,
+        receivedCount: receivedCount ?? this.receivedCount,
+        malformedCount: malformedCount ?? this.malformedCount,
         preset: preset ?? this.preset,
         heard: heard ?? this.heard,
         remoteEvent: remoteEvent ?? this.remoteEvent,
@@ -194,6 +215,9 @@ class RadioNotifier extends Notifier<RadioState> {
         autoReconnect: _autoReconnect,
         contacts: state.contacts,
         syncedAt: state.syncedAt,
+        observations: state.observations,
+        receivedCount: state.receivedCount,
+        malformedCount: state.malformedCount,
       );
 
   @override
@@ -579,8 +603,41 @@ class RadioNotifier extends Notifier<RadioState> {
     }
   }
 
+  /// Collection is opt-in, live and foreground-only; no radio writes occur.
+  void startCollection() {
+    if (state.phase == RadioPhase.ready) {
+      state = state.copyWith(collecting: true);
+    }
+  }
+
+  void stopCollection() {
+    state = state.copyWith(collecting: false);
+  }
+
+  void clearObservations() {
+    state = state.copyWith(
+        observations: const [], receivedCount: 0, malformedCount: 0);
+  }
+
+  void _collect(List<int> bytes) {
+    // Advert/contact notifications alone have no RF measurements. Do not
+    // fabricate metrics or pair them with an unrelated raw reception event.
+    if (bytes.first != 0x88) return;
+    final observation =
+        parseRadioObservation(bytes, ref.read(clockProvider).now());
+    if (observation == null) {
+      state = state.copyWith(malformedCount: state.malformedCount + 1);
+      return;
+    }
+    final recent = [observation, ...state.observations];
+    state = state.copyWith(
+        observations: List.unmodifiable(recent.take(maxRadioObservations)),
+        receivedCount: state.receivedCount + 1);
+  }
+
   void _data(List<int> bytes) {
     if (bytes.isEmpty) return;
+    if (state.collecting) _collect(bytes);
     if (bytes.first == 0x8a) {
       try {
         final contact = MeshContact.parse(bytes);
@@ -727,6 +784,7 @@ class RadioNotifier extends Notifier<RadioState> {
 
   Future<void> _fail(int generation, Object error) async {
     if (!_current(generation)) return;
+    stopCollection();
     final failure =
         error is RadioException ? error.failure : RadioFailure.transport;
     final retry = failure == RadioFailure.transport &&
@@ -767,6 +825,9 @@ class RadioNotifier extends Notifier<RadioState> {
         phase: RadioPhase.failed,
         failure: failure,
         autoReconnect: _autoReconnect,
+        observations: state.observations,
+        receivedCount: state.receivedCount,
+        malformedCount: state.malformedCount,
         contacts: state.contacts,
         syncedAt: state.syncedAt,
         contactMessage:
@@ -794,6 +855,7 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> background() async {
+    stopCollection();
     if (_identifiedBefore &&
         (state.phase == RadioPhase.ready ||
             state.phase == RadioPhase.reconnecting ||
@@ -811,6 +873,7 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   Future<void> disconnect() async {
+    stopCollection();
     resumeMonitoring = false;
     final generation = ++_generation;
     _retry?.cancel();

@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -375,5 +376,105 @@ void main() {
       if (!disposed) owned.dispose();
       await pendingBle.close();
     }
+  });
+  test(
+      'collection is opt-in after handshake, metadata is bounded and timestamped',
+      () async {
+    final now = DateTime.utc(2026, 10, 10, 12);
+    container.dispose();
+    container = ProviderContainer(overrides: [
+      bleServiceProvider.overrideWithValue(ble),
+      clockProvider.overrideWithValue(Clock.fixed(now)),
+    ]);
+    actions = container.read(radioProvider.notifier);
+    actions.startCollection();
+    expect(container.read(radioProvider).collecting, isFalse);
+    await findRadio();
+    ble.links.add(RadioLink.connected);
+    await flush();
+    final frame = [0x88, 0xf9, 0x9c, 0x11, 0, 0xaa];
+    ble.packets.add(frame);
+    expect(container.read(radioProvider).receivedCount, 0);
+    actions.startCollection();
+    ble.packets.add([0x80, ...List.filled(32, 0)]);
+    ble.packets.add([0x88]);
+    for (var i = 0; i < 205; i++) {
+      ble.packets.add(frame);
+    }
+    final state = container.read(radioProvider);
+    expect(state.receivedCount, 205);
+    expect(state.observations.length, maxRadioObservations);
+    expect(state.malformedCount, 1);
+    expect(state.observations.first.receivedAt, now);
+    expect(() => state.observations.clear(), throwsUnsupportedError);
+    expect(ble.writes, [appStart, deviceQuery]);
+    actions.stopCollection();
+    ble.packets.add(frame);
+    expect(container.read(radioProvider).receivedCount, 205);
+    await actions.disconnect();
+    expect(container.read(radioProvider).collecting, isFalse);
+    expect(container.read(radioProvider).receivedCount, 205);
+    ble.packets.add(frame);
+    expect(container.read(radioProvider).receivedCount, 205);
+    actions.clearObservations();
+    expect(container.read(radioProvider).observations, isEmpty);
+    expect(container.read(radioProvider).receivedCount, 0);
+    expect(container.read(radioProvider).malformedCount, 0);
+  });
+
+  test(
+      'link failure stops collection, preserves results; a new scan clears them',
+      () async {
+    await findRadio();
+    ble.links.add(RadioLink.connected);
+    await flush();
+    actions.startCollection();
+    ble.packets.add([0x88, 0, 0x9c, 0x11, 0, 0xaa]);
+    ble.links.add(RadioLink.disconnected);
+    await flush();
+    final state = container.read(radioProvider);
+    expect(state.phase, RadioPhase.reconnecting);
+    expect(state.collecting, isFalse);
+    expect(state.receivedCount, 1);
+    expect(ble.packets.hasListener, isFalse);
+    await actions.disconnect();
+    await actions.scan();
+    expect(container.read(radioProvider).observations, isEmpty);
+  });
+
+  testWidgets(
+      'live RF view starts, stops and clears; background stops collection',
+      (tester) async {
+    await tester.runAsync(() async {
+      await findRadio();
+      ble.links.add(RadioLink.connected);
+      await flush();
+    });
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container, child: const MaterialApp(home: RadioScreen())));
+    await tester.ensureVisible(find.text('Start collecting'));
+    await tester.tap(find.text('Start collecting'));
+    await tester.pump();
+    ble.packets.add([0x88, 0xf9, 0x9c, 0x11, 0, 0xaa]);
+    await tester.pump();
+    expect(find.text('LoRa RSSI -100 dBm · SNR -1.75 dB'), findsOneWidget);
+    await tester.ensureVisible(find.text('Stop collecting'));
+    await tester.tap(find.text('Stop collecting'));
+    await tester.pump();
+    expect(container.read(radioProvider).collecting, isFalse);
+    await tester.ensureVisible(find.text('Clear observations'));
+    await tester.tap(find.text('Clear observations'));
+    await tester.pump();
+    expect(container.read(radioProvider).observations, isEmpty);
+    await tester.ensureVisible(find.text('Start collecting'));
+    await tester.tap(find.text('Start collecting'));
+    await tester.runAsync(() async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await flush();
+    });
+    await tester.pump();
+    expect(container.read(radioProvider).collecting, isFalse);
+    expect(ble.packets.hasListener, isTrue);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   });
 }

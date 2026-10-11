@@ -52,6 +52,13 @@ jobs:
           cp /tmp/meshscout-analysis.yaml analysis_options.yaml
           git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml android/app/src/main/kotlin android/app/src/main/res/xml
       - run: flutter pub get --enforce-lockfile
+      - name: Verify independent application dependencies
+        run: |
+          flutter pub deps --style=compact --no-dev > /tmp/meshscout-dependencies.txt
+          if grep -Eiq 'meshtastic|backcountry|bastion' /tmp/meshscout-dependencies.txt; then
+            echo "Unexpected dependency in MeshScout"
+            exit 1
+          fi
       - name: Check Dart formatting
         id: format
         run: |

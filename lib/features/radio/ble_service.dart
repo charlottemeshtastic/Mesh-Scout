@@ -70,5 +70,6 @@ List<BluetoothAccess> permissionPlan(int sdk) => sdk >= 31
 
 /// SELF_INFO includes a variable node name and DEVICE_INFO exceeds 20 bytes.
 /// Reserve capacity for the identification replies plus ATT overhead.
-const minimumIdentificationMtu = 93;
+// Require complete 176-byte RF notifications plus the three ATT bytes.
+const minimumIdentificationMtu = 179;
 const requestedCompanionMtu = 185;

@@ -1,3 +1,4 @@
+import '../features/radio/radio_observation.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -61,11 +62,8 @@ class RxObservation {
   final double snr;
   final DateTime time;
   static RxObservation? parse(List<int> bytes, DateTime now) {
-    if (bytes.length < 4 || bytes.first != 0x88) return null;
-    int signed(int value) => value >= 128 ? value - 256 : value;
-    final rssi = signed(bytes[2]);
-    if (rssi > 0) return null;
-    return RxObservation(rssi, signed(bytes[1]) / 4, now);
+    final report = parseRadioObservation(bytes, now);
+    return report == null ? null : RxObservation(report.rssiDbm, report.snrDb, report.receivedAt);
   }
 }
 

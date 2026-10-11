@@ -1,3 +1,4 @@
+import 'observation_panel.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -128,6 +129,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
               ),
             const SizedBox(height: 16),
             const RadioControlsPanel(),
+            ObservationPanel(state: state, actions: actions),
             const Text(
               'Results are Bluetooth candidates. MeshCore compatibility is checked after connecting. Bluetooth signal strength describes the phone-to-radio link. GPS routes are available on Map. Record received LoRa metrics with GPS on Map; stored contacts are available on Nodes.',
             ),

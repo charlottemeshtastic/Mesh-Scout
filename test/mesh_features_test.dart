@@ -173,7 +173,7 @@ void main() {
     () async {
       await ready();
       await actions.refreshContacts();
-      ble.packets.add([0x88, 0xf8, 0x9c, 0x11]);
+      ble.packets.add([0x88, 0xf8, 0x9c, 0x11, 0, 0xaa]);
       ble.packets.add(countFrame(2, 0));
       ble.packets.add(countFrame(4, 0));
       expect(container.read(radioProvider).contacts, isEmpty);
@@ -243,8 +243,8 @@ void main() {
   });
   test('RX parser uses signed quarter-dB SNR and rejects unrelated frames', () {
     final now = DateTime.now();
-    expect(RxObservation.parse([0x88, 0xfc, 0x88, 1], now)?.rssi, -120);
-    expect(RxObservation.parse([0x88, 0xfc, 0x88, 1], now)?.snr, -1);
+    expect(RxObservation.parse([0x88, 0xfc, 0x88, 1, 0, 0xaa], now)?.rssi, -120);
+    expect(RxObservation.parse([0x88, 0xfc, 0x88, 1, 0, 0xaa], now)?.snr, -1);
     expect(RxObservation.parse([0x88, 1], now), isNull);
     expect(RxObservation.parse([0x83, 0xfc, 0x88, 1], now), isNull);
   });
