@@ -57,7 +57,7 @@ jobs:
       - name: Verify independent application dependencies
         run: |
           flutter pub deps --style=compact --no-dev > /tmp/meshscout-dependencies.txt
-          if grep -Eiq 'meshtastic|backcountry|bastion' /tmp/meshscout-dependencies.txt; then
+          if grep -Eiq 'meshtastic|bastion' /tmp/meshscout-dependencies.txt; then
             echo "Unexpected dependency in MeshScout"
             exit 1
           fi

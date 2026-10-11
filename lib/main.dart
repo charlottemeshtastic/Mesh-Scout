@@ -29,28 +29,28 @@ void main() {
     );
   });
   runApp(
-      ProviderScope(
-        overrides: [
-          cloudSyncServiceProvider.overrideWithValue(AndroidCloudSyncService()),
-          smartPingTickProvider.overrideWithValue(const Duration(seconds: 10)),
-          mapDirectoryProvider.overrideWithValue(
-            () async => (await const MethodChannel('org.meshscout/files')
-                .invokeMethod<String>('mapDirectory'))!,
-          ),
-          dataDirectoryProvider.overrideWithValue(
-            () async => (await const MethodChannel('org.meshscout/files')
-                .invokeMethod<String>('dataDirectory'))!,
-          ),
-          alertServiceProvider.overrideWithValue(AndroidAlertService()),
-          linkAlertServiceProvider.overrideWithValue(AndroidLinkAlertService()),
-          tripGuardIntervalProvider
-              .overrideWithValue(const Duration(seconds: 30)),
-          mappingServiceProvider.overrideWithValue(AndroidMappingService()),
-          bleServiceProvider.overrideWithValue(AndroidBleService()),
-        ],
-        child: const MeshScoutStartup(),
-      ),
-    );
+    ProviderScope(
+      overrides: [
+        cloudSyncServiceProvider.overrideWithValue(AndroidCloudSyncService()),
+        smartPingTickProvider.overrideWithValue(const Duration(seconds: 10)),
+        mapDirectoryProvider.overrideWithValue(
+          () async => (await const MethodChannel('org.meshscout/files')
+              .invokeMethod<String>('mapDirectory'))!,
+        ),
+        dataDirectoryProvider.overrideWithValue(
+          () async => (await const MethodChannel('org.meshscout/files')
+              .invokeMethod<String>('dataDirectory'))!,
+        ),
+        alertServiceProvider.overrideWithValue(AndroidAlertService()),
+        linkAlertServiceProvider.overrideWithValue(AndroidLinkAlertService()),
+        tripGuardIntervalProvider
+            .overrideWithValue(const Duration(seconds: 30)),
+        mappingServiceProvider.overrideWithValue(AndroidMappingService()),
+        bleServiceProvider.overrideWithValue(AndroidBleService()),
+      ],
+      child: const MeshScoutStartup(),
+    ),
+  );
 }
 
 class MeshScoutApp extends StatelessWidget {
