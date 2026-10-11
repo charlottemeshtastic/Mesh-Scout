@@ -71,6 +71,7 @@ class ScoutBackup {
           m['status'] is! String ||
           m['time'] is! int ||
           m['outgoing'] is! bool ||
+          m.containsKey('unread') && m['unread'] is! bool ||
           (m['time'] as int) < 0 ||
           (m['time'] as int) > 0xffffffff ||
           (m['body'] as String).length > 4096 ||
@@ -88,7 +89,8 @@ class ScoutBackup {
           'time',
           'outgoing'
         ])
-          key: m[key]
+          key: m[key],
+        if (m['unread'] is bool) 'unread': m['unread']
       });
     }
     return ScoutBackup(

@@ -119,6 +119,10 @@ class MappingNotifier extends Notifier<MappingState> {
     if (_loadFailed) {
       return;
     }
+    if (state.sessions.length >= 1000) {
+      state = MappingState(loading: false, sessions: state.sessions, message: 'Session storage is full. Back up and remove older sessions before recording.');
+      return;
+    }
     final generation = ++_generation;
     _started = null;
     _starting = true;
@@ -274,16 +278,28 @@ class MappingNotifier extends Notifier<MappingState> {
   void _checkpoint() {
     final service = _service;
     if (service is! CheckpointMappingService || _started == null) return;
-    final session = MappingSession(id: _started!.microsecondsSinceEpoch.toString(),
-      started: _started!, ended: DateTime.now(), points: state.points, observations: state.observations);
-    _checkpointPending = _checkpointPending.then((_) => (service as CheckpointMappingService).checkpoint(session)).catchError((Object _) {
+    final session = MappingSession(
+        id: _started!.microsecondsSinceEpoch.toString(),
+        started: _started!,
+        ended: DateTime.now(),
+        points: state.points,
+        observations: state.observations);
+    _checkpointPending = _checkpointPending
+        .then((_) => (service as CheckpointMappingService).checkpoint(session))
+        .catchError((Object _) {
       if (ref.mounted && state.recording) {
-        state = MappingState(loading: false, recording: true, points: state.points,
-          observations: state.observations, sessions: state.sessions,
-          message: 'Recovery checkpoint failed. Stop and save this route now.');
+        state = MappingState(
+            loading: false,
+            recording: true,
+            points: state.points,
+            observations: state.observations,
+            sessions: state.sessions,
+            message:
+                'Recovery checkpoint failed. Stop and save this route now.');
       }
     });
   }
+
   Future<void> background() async {
     // Foreground routes stop on app switching; opted-in routes keep recording.
     if (_starting) {
@@ -363,20 +379,38 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> pruneHistory() async {
-    if (state.loading || state.busy || state.recording || _loadFailed || state.points.isNotEmpty || state.sessions.length <= 20) return;
+    if (state.loading ||
+        state.busy ||
+        state.recording ||
+        _loadFailed ||
+        state.points.isNotEmpty ||
+        state.sessions.length <= 20) { return; }
     final previous = state;
     final updated = previous.sessions.take(20).toList();
-    state = MappingState(loading: false, busy: true, sessions: previous.sessions);
+    state =
+        MappingState(loading: false, busy: true, sessions: previous.sessions);
     try {
       await _service.save(encodeSessions(updated));
-      if (ref.mounted) state = MappingState(loading: false, sessions: updated,
-        selected: updated.any((s) => s.id == previous.selected?.id) ? previous.selected : null,
-        message: 'Kept the 20 most recent sessions.');
+      if (ref.mounted) {
+        state = MappingState(
+            loading: false,
+            sessions: updated,
+            selected: updated.any((s) => s.id == previous.selected?.id)
+                ? previous.selected
+                : null,
+            message: 'Kept the 20 most recent sessions.');
+      }
     } catch (_) {
-      if (ref.mounted) state = MappingState(loading: false, sessions: previous.sessions,
-        selected: previous.selected, message: 'Storage cleanup failed; sessions retained.');
+      if (ref.mounted) {
+        state = MappingState(
+            loading: false,
+            sessions: previous.sessions,
+            selected: previous.selected,
+            message: 'Storage cleanup failed; sessions retained.');
+      }
     }
   }
+
   Future<void> delete(MappingSession session) async {
     if (state.recording ||
         state.busy ||

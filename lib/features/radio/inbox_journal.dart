@@ -11,7 +11,7 @@ class InboxJournal {
   Future<File> get file async => File('${await directory()}/inbox-journal.json');
   Future<void> write(List<int> bytes, String radio) async {
     final target = await file;
-    if (target.existsSync()) throw StateError('Recover the pending inbox message before fetching more.');
+    if (target.existsSync()) { throw StateError('Recover the pending inbox message before fetching more.'); }
     final temp = File('${target.path}.tmp');
     await temp.writeAsString(jsonEncode({'radio': radio, 'frame': bytes, 'id': DateTime.now().microsecondsSinceEpoch.toString()}), flush: true);
     await temp.rename(target.path);
@@ -19,11 +19,11 @@ class InboxJournal {
   Future<Map<String, dynamic>?> read() async {
     final target = await file;
     if (!target.existsSync()) return null;
-    if (await target.length() > 4096) throw const FormatException('Invalid inbox checkpoint.');
+    if (await target.length() > 4096) { throw const FormatException('Invalid inbox checkpoint.'); }
     return jsonDecode(await target.readAsString()) as Map<String, dynamic>;
   }
   Future<void> clear() async {
     final target = await file;
-    if (target.existsSync()) await target.delete();
+    if (target.existsSync()) { await target.delete(); }
   }
 }

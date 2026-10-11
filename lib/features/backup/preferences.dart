@@ -39,24 +39,38 @@ class ScoutPreferences extends Notifier<String?> {
               .read(radioProvider.notifier)
               .setAutoReconnect(data['autoReconnect'] as bool);
         }
-        if (data['autoInbox'] is bool) ref.read(autoInboxProvider.notifier).set(data['autoInbox'] as bool);
+        if (data['autoInbox'] is bool) {
+          ref.read(autoInboxProvider.notifier).set(data['autoInbox'] as bool);
+        }
         final preferred = data['preferredRadio'];
-        if (preferred is Map && preferred['id'] is String && preferred['name'] is String) {
-          final cache = File('${await ref.read(dataDirectoryProvider)()}/contacts-cache.json');
+        if (preferred is Map &&
+            preferred['id'] is String &&
+            preferred['name'] is String) {
+          final cache = File(
+              '${await ref.read(dataDirectoryProvider)()}/contacts-cache.json');
           var contacts = <MeshContact>[];
           DateTime? synced;
           if (cache.existsSync()) {
             try {
-              final saved = jsonDecode(await cache.readAsString()) as Map<String, dynamic>;
+              final saved = jsonDecode(await cache.readAsString())
+                  as Map<String, dynamic>;
               if (saved['radio'] == preferred['id']) {
                 final frames = saved['frames'] as List;
                 if (frames.length > 5000) throw const FormatException();
-                contacts = frames.map((f) => MeshContact.parse(List<int>.from(f as List))).toList();
+                contacts = frames
+                    .map((f) => MeshContact.parse(List<int>.from(f as List)))
+                    .toList();
                 synced = DateTime.parse(saved['synced'] as String);
               }
-            } catch (_) { state = 'Contact cache could not be loaded; refresh from radio.'; }
+            } catch (_) {
+              state = 'Contact cache could not be loaded; refresh from radio.';
+            }
           }
-          ref.read(radioProvider.notifier).restorePreferred(RadioDevice(preferred['id'] as String, preferred['name'] as String, 0), contacts, synced);
+          ref.read(radioProvider.notifier).restorePreferred(
+              RadioDevice(
+                  preferred['id'] as String, preferred['name'] as String, 0),
+              contacts,
+              synced);
         }
         if (data['backgroundGps'] is bool) {
           ref
@@ -65,9 +79,14 @@ class ScoutPreferences extends Notifier<String?> {
         }
       }
       initialized = true;
-      final fileData = file.existsSync() ? jsonDecode(await file.readAsString()) as Map<String, dynamic> : <String,dynamic>{};
-      final shouldResume = fileData['resumeMonitoring'] == true && ref.read(radioProvider).autoReconnect;
-      if (shouldResume) await ref.read(radioProvider.notifier).connectPreferred();
+      final fileData = file.existsSync()
+          ? jsonDecode(await file.readAsString()) as Map<String, dynamic>
+          : <String, dynamic>{};
+      final shouldResume = fileData['resumeMonitoring'] == true &&
+          ref.read(radioProvider).autoReconnect;
+      if (shouldResume) {
+        await ref.read(radioProvider.notifier).connectPreferred();
+      }
       save();
     } catch (_) {
       if (ref.mounted) {
@@ -91,9 +110,13 @@ class ScoutPreferences extends Notifier<String?> {
     });
     final radio = ref.read(radioProvider);
     final preferred = ref.read(radioProvider.notifier).preferred;
-    final cache = radio.syncedAt == null || preferred == null ? null : jsonEncode({
-      'radio': preferred.id, 'synced': radio.syncedAt!.toUtc().toIso8601String(),
-      'frames': radio.contacts.map((c) => c.frame).toList()});
+    final cache = radio.syncedAt == null || preferred == null
+        ? null
+        : jsonEncode({
+            'radio': preferred.id,
+            'synced': radio.syncedAt!.toUtc().toIso8601String(),
+            'frames': radio.contacts.map((c) => c.frame).toList()
+          });
     pending = pending.then((_) async {
       if (!ref.mounted) {
         return;

@@ -98,7 +98,7 @@ class RecoveredRadioMonitor(private val context: Context, private val status: (S
     override fun onDescriptorWrite(value: BluetoothGatt, descriptor: BluetoothGattDescriptor, result: Int) {
         handler.post { if (current(value)) {
             if (result != BluetoothGatt.GATT_SUCCESS) retry()
-            else { stage = 1; write(value, byteArrayOf(1,0,0,0,0,0,0,0) + "MeshScout".toByteArray(Charsets.US_ASCII)) }
+            else { stage = 1; write(value, RecoveryProtocol.appStart()) }
         } }
     }
     private fun write(value: BluetoothGatt, bytes: ByteArray) {
@@ -121,12 +121,12 @@ class RecoveredRadioMonitor(private val context: Context, private val status: (S
         handler.post {
             if (!current(value) || bytes.isEmpty()) return@post
             when {
-                stage == 1 && bytes[0].toInt() == 5 && bytes.size >= 58 -> { stage = 2; write(value, byteArrayOf(22,3)) }
-                stage == 2 && bytes[0].toInt() == 13 && bytes.size >= 80 && (bytes[1].toInt() and 255) >= 3 -> {
+                stage == 1 && RecoveryProtocol.selfInfo(bytes) -> { stage = 2; write(value, RecoveryProtocol.deviceQuery()) }
+                stage == 2 && RecoveryProtocol.deviceInfo(bytes) -> {
                     stage = 3; handler.removeCallbacks(deadline)
                     status("Recovered radio monitoring. Open MeshScout for messages and controls.")
                 }
-                stage == 3 && bytes.size == 1 && (bytes[0].toInt() and 255) == 0x83 -> alert()
+                stage == 3 && RecoveryProtocol.waiting(bytes) -> alert()
             }
         }
     }

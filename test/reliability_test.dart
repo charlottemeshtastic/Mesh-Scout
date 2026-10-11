@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mesh_scout/features/messages/messages.dart';
 import 'package:mesh_scout/features/radio/inbox_journal.dart';
 import 'package:mesh_scout/features/radio/radio_notifier.dart';
-import 'package:mesh_scout/features/radio/ble_service.dart';
 import 'package:mesh_scout/features/offline/offline_maps.dart';
 import 'package:mesh_scout/features/backup/preferences.dart';
 import 'package:mesh_scout/common/mesh_data.dart';
@@ -65,6 +64,13 @@ void main() {
     await actions.deleteMessage(removed);
     expect(container.read(messagesProvider).items.length, 1);
     expect((jsonDecode(await File('${directory.path}/messages.json').readAsString()) as List).length, 1);
+  });
+  test('partial pending history falls back to the last complete file', () async {
+    await File('${directory.path}/messages.json').writeAsString(jsonEncode([message(1)]));
+    await File('${directory.path}/messages.json.pending').writeAsString('[{');
+    await container.read(messagesProvider.notifier).load();
+    expect(container.read(messagesProvider).loaded, true);
+    expect(container.read(messagesProvider).items.single['body'], '1');
   });
   test('message pruning keeps latest 200 without touching radio queue', () async {
     await File('${directory.path}/messages.json').writeAsString(jsonEncode(List.generate(250, message)));

@@ -47,17 +47,17 @@ class _StorageControlsState extends ConsumerState<StorageControls> {
       content: const Text('This removes local data. Your current map files and exported backups are kept.'),
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Remove'))]));
-    if (yes != true || !mounted) return;
+    if (yes != true || !mounted) { return; }
     setState(() => busy = true);
     ref.read(maintenanceProvider.notifier).set(true);
-    try { await action(); if (mounted) setState(() => notice = 'Cleanup completed.'); }
-    catch (_) { if (mounted) setState(() => notice = 'Cleanup failed. Try again.'); }
+    try { await action(); if (mounted) { setState(() => notice = 'Cleanup completed.'); } }
+    catch (_) { if (mounted) { setState(() => notice = 'Cleanup failed. Try again.'); } }
     finally { if (mounted) { ref.read(maintenanceProvider.notifier).set(false); setState(() => busy = false); } }
   }
   Future<void> run(String method) async {
     try {
       final result = await const MethodChannel('org.meshscout/files').invokeMethod<num>(method);
-      if (mounted) setState(() => bytes = result?.toInt());
-    } catch (_) { if (mounted) setState(() => notice = 'Storage operation failed.'); }
+      if (mounted) { setState(() => bytes = result?.toInt()); }
+    } catch (_) { if (mounted) { setState(() => notice = 'Storage operation failed.'); } }
   }
 }

@@ -1,10 +1,10 @@
-# MeshScout 1.0
+# MeshScout 1.1
 
 Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
 
 ## What is implemented
 
-Bottom navigation exposes Map, Radios, Nodes, Coverage, History and Settings. Explicit BLE scanning allows immediate selection of an advertised UART candidate. Connection validates characteristics, negotiates MTU and identifies the MeshCore companion before enabling commands. Identification changes no radio configuration. A connected-device foreground service and bounded reconnect attempts support app switching; Android/OEM process termination can still end the link. Reconnect targets are not restored after process death.
+Bottom navigation exposes Map, Radios, Nodes, Coverage, History and Settings. Explicit BLE scanning allows immediate selection of an advertised UART candidate. Connection validates characteristics, negotiates MTU and identifies the MeshCore companion before enabling commands. Identification changes no radio configuration. A connected-device foreground service and bounded reconnect attempts support app switching; Android/OEM process termination can still end the link. The preferred identified radio and reconnect preference persist. Previously active monitoring reconnects on reopening. A sticky service also attempts read-only native monitoring after a system-requested service restart; it hands the connection back to Flutter when the app connects. Recovery remains best effort and does not override force-stop, revoked permissions, unavailable Bluetooth or OEM restrictions.
 
 Nodes refresh validates the complete contact stream before publishing it. Advertised positions are separate from actual GPS-tagged LoRa reception observations. Nodes → Manage contacts, channels and diagnostics adds:
 
@@ -16,11 +16,11 @@ Nodes refresh validates the complete contact stream before publishing it. Advert
 
 All companion commands share the existing operation lock. Commands exceeding negotiated MTU are rejected before writing. Uncertain writes/replies require reconnecting and are never automatically repeated. Repeater passwords and outgoing CLI commands are not saved. Queued CLI responses are manually fetched in Messages and clearly labeled.
 
-Messages supports direct/channel text, manual queue retrieval, local atomic persistence and JSON/CSV export. A live matching ACK confirms direct delivery; companion OK only confirms channel acceptance. No automatic sends or queue drain. Fetch removes each message from the companion before the app persists it; process failure in that interval can lose a message. Notification alerts are opt-in. Histories contain private text/location data in Android app-private storage.
+Messages supports direct/channel text, manual queue retrieval, local atomic persistence and JSON/CSV export. A live matching ACK confirms direct delivery; companion OK only confirms channel acceptance. Automatic sends are never performed. Inbox retrieval can be explicitly enabled at 30-second intervals while connected and idle; failures pause it until manual retrieval. Received frames are atomically checkpointed before completing retrieval, then decoded and saved to history before the next queue request. Restart recovers the checkpoint, deduplicating by a unique checkpoint ID if history was already published. Unsupported frames remain as labeled raw messages. Power loss before the checkpoint is durable can still lose a removed queue item; the radio protocol has no transactional dequeue acknowledgement. Conversations are grouped by companion radio and recipient/channel, with persistent unread counts, explicit Mark read and confirmed individual deletion. Notification alerts are opt-in. Histories contain private text/location data in Android app-private storage.
 
 ## Mapping and field tools
 
-GPS recording, completed sessions, names, GeoJSON/CSV export and fresh GPS-associated raw LoRa reception observations remain available. Background GPS is optional, starts while visible, uses a location foreground service and checkpoints GPS fixes. Process interruption recovers GPS geometry, not unsaved LoRa observations.
+GPS recording, completed sessions, names, GeoJSON/CSV export and fresh GPS-associated raw LoRa reception observations remain available. Background GPS is optional, starts while visible, uses a location foreground service and checkpoints GPS fixes. Foreground and background recordings checkpoint geometry and associated LoRa observations. Process interruption recovers the latest durable route and observations on reopening; checkpoints do not continue collecting after the GPS process stops.
 
 Coverage → Summaries, comparisons, waypoints and route import provides side-by-side summaries of two sessions, route distance, mean/range RSSI, mean SNR and sample counts. Measured signal bars group observations in 0.001° cells; cell size varies with latitude. Cells without observations have no inferred coverage. Raw LoRa metrics are last-hop reception, not verified sender identity or proof of two-way coverage.
 
@@ -36,11 +36,11 @@ Import raster MBTiles supports worldwide and larger regions from user-provided P
 
 ## Backup, merge and cloud document
 
-Legacy JSON backup/restore remains compatible. Settings → Full backup supports a version-2 ZIP bundle containing completed routes, observations, message history, waypoints/notes and reconnect/background-GPS preferences. Saved raster maps are optional (maximum 500 MB / 50,000 entries and five areas). Radio secrets, notification grants, cloud-provider permissions, scheduling secrets and in-progress recordings are excluded.
+Legacy JSON backup/restore remains compatible. Settings → Full backup supports a version-2 ZIP bundle containing completed routes, observations, message history, waypoints/notes and preferred-radio/reconnect/background-GPS/automatic-inbox preferences. Saved raster maps are optional (maximum 500 MB / 50,000 entries and five areas). Radio secrets, notification grants, cloud-provider permissions, scheduling secrets and in-progress recordings are excluded.
 
 Encryption uses PBKDF2-HMAC-SHA256 (150,000 iterations, random 128-bit salt) and AES-256-GCM authenticated 64 KiB records, distinct indexed nonces and an authenticated terminal record. A 12-character minimum passphrase is required for encryption. Missing/tampered/reordered records, trailing bytes and wrong passwords reject the entire file before extraction or restore. Keep the passphrase: the app cannot recover it.
 
-Restore first stages bounded entries in private storage, rejects unexpected paths and validates the data, waypoint/map limits and raster images. A preview offers Cancel, Merge or Replace. Merge keeps current session/waypoint IDs and preferences, deduplicates messages by radio/peer/time/direction/body and adds map areas up to the five-area limit. ID collisions keep the current record. Replace restores included history/preferences/maps. Data and included maps publish through one atomic private profile pointer. Maps omitted from a backup remain referenced by the restored profile. Old profiles remain private to preserve referenced maps; repeated restores may use additional disk space.
+Restore first stages bounded entries in private storage, rejects unexpected paths and validates the data, waypoint/map limits and raster images. A preview offers Cancel, Merge or Replace. Merge keeps current session/waypoint IDs and preferences, deduplicates messages by radio/peer/time/direction/body and adds map areas up to the five-area limit. ID collisions keep the current record. Replace restores included history/preferences/maps. Data and included maps publish through one atomic private profile pointer. Maps omitted from a backup remain referenced by the restored profile. Old profiles remain private to preserve referenced maps. Settings → Storage can remove unused restore profiles, protecting both the active profile and any profile containing its referenced maps.
 
 Stop recording/downloads, wait for saves and disconnect the radio before backup/restore. Reconnect/background-GPS preferences persist and are applied after restore. Restored notification permissions are never silently granted.
 
@@ -51,6 +51,8 @@ Daily encrypted backups are explicitly enabled after choosing a target. Android 
 ## Build verification and limits
 
 CI pins Flutter 3.47.7, compile SDK 37, AGP 9.2.1, Gradle 9.4.1 and Java 17. It preserves owned Android sources, enforces the lockfile, formatting and strict analysis, runs Dart tests with coverage, builds a debug APK with the stable private test signer, then runs JVM backup-authentication tests. No private signing key is committed. Updates over 0.2.1+ retain data; production signing/store release is separate work.
+
+Settings → Storage displays history limits, saved-map size and total private file/cache usage. Confirmed cleanup can keep the latest 200 messages, keep the latest 20 sessions, discard paused map-download staging, or remove unused restore profiles. No history is automatically deleted. Export or back up before cleanup; stop recording and disconnect first. Individual route/map deletion remains available in History/Map.
 
 Tests cover protocol validation, stream sequencing, reconnect cancellation, GPS association/persistence, backup validation/merge, diagnostic decoding, failed-download retention and reuse on resume, plus native encryption roundtrip, wrong password, truncation and tampering. CI success establishes software checks and APK compilation; it does not establish real BLE firmware interoperability, Android document dialogs, Keystore behavior on every OEM, large MBTiles imports, background service survival or cloud-provider/job timing. These require physical phone/radio testing.
 

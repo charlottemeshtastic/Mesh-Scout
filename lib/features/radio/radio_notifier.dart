@@ -137,11 +137,16 @@ class RadioNotifier extends Notifier<RadioState> {
   RadioDevice? _target;
   RadioDevice? preferred;
   bool resumeMonitoring = false;
-  void restorePreferred(RadioDevice device, List<MeshContact> contacts, DateTime? synced) {
+  void restorePreferred(
+      RadioDevice device, List<MeshContact> contacts, DateTime? synced) {
     preferred = device;
-    state = state.copyWith(contacts: List.unmodifiable(contacts), syncedAt: synced,
-      contactMessage: 'Saved contacts for ${device.name}; refresh to verify.');
+    state = state.copyWith(
+        contacts: List.unmodifiable(contacts),
+        syncedAt: synced,
+        contactMessage:
+            'Saved contacts for ${device.name}; refresh to verify.');
   }
+
   Future<void> connectPreferred() async {
     final device = preferred;
     if (device == null || state.busy) return;
@@ -164,8 +169,12 @@ class RadioNotifier extends Notifier<RadioState> {
   bool _current(int generation) => !_disposed && generation == _generation;
   RadioState _empty(
           {RadioPhase phase = RadioPhase.idle, RadioFailure? failure}) =>
-      RadioState(phase: phase, failure: failure, autoReconnect: _autoReconnect,
-        contacts: state.contacts, syncedAt: state.syncedAt);
+      RadioState(
+          phase: phase,
+          failure: failure,
+          autoReconnect: _autoReconnect,
+          contacts: state.contacts,
+          syncedAt: state.syncedAt);
 
   @override
   RadioState build() {
@@ -547,8 +556,13 @@ class RadioNotifier extends Notifier<RadioState> {
       } else {
         if ([7, 8, 16, 17, 27].contains(bytes.first)) {
           final generation = _generation;
-          unawaited(ref.read(inboxJournalProvider).write(bytes, _target!.id).then((_) {
-            if (_current(generation) && !reply.isCompleted) reply.complete(List<int>.unmodifiable(bytes));
+          unawaited(ref
+              .read(inboxJournalProvider)
+              .write(bytes, _target!.id)
+              .then((_) {
+            if (_current(generation) && !reply.isCompleted) {
+              reply.complete(List<int>.unmodifiable(bytes));
+            }
           }, onError: (Object error, StackTrace stack) {
             if (!reply.isCompleted) reply.completeError(error, stack);
           }));

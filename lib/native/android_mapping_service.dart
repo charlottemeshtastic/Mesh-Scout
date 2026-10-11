@@ -5,7 +5,10 @@ import 'package:permission_handler/permission_handler.dart';
 import '../features/mapping/mapping_service.dart';
 
 class AndroidMappingService
-    implements MappingService, BackgroundMappingService, CheckpointMappingService {
+    implements
+        MappingService,
+        BackgroundMappingService,
+        CheckpointMappingService {
   static const _methods = MethodChannel('org.meshscout/mapping');
   bool _background = false;
   DateTime? _started;
@@ -17,7 +20,8 @@ class AndroidMappingService
   }
 
   @override
-  Future<void> checkpoint(MappingSession session) => _methods.invokeMethod<void>('checkpoint', jsonEncode(session.toJson()));
+  Future<void> checkpoint(MappingSession session) =>
+      _methods.invokeMethod<void>('checkpoint', jsonEncode(session.toJson()));
   static const _events = EventChannel('org.meshscout/positions');
 
   @override

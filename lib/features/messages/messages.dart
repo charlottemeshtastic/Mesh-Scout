@@ -119,10 +119,11 @@ class MessageState {
 class Messages extends Notifier<MessageState> {
   int _lastTimestamp = 0;
   bool _autoPaused = false;
+  bool _inboxPending = false;
   final _acks = <String>{};
   final _live = <String>{};
   List<Map<String, dynamic>>? _unsaved;
-  bool get hasUnsaved => _unsaved != null;
+  bool get hasUnsaved => _unsaved != null || _inboxPending;
   @override
   MessageState build() {
     final timer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -160,20 +161,21 @@ class Messages extends Notifier<MessageState> {
 
   Future<File> _file() async =>
       File('${await ref.read(dataDirectoryProvider)()}/messages.json');
-  Future<void> load() async {
-    if (state.loaded || state.busy) {
+  Future<void> load({bool recover = false}) async {
+    if (state.loaded && !recover || state.busy) {
       return;
     }
     state = MessageState(items: state.items, busy: true);
     try {
       final file = await _file();
       final pending = File('${file.path}.pending');
-      final source = pending.existsSync() ? pending : file;
-      final items = source.existsSync()
-          ? (jsonDecode(await source.readAsString()) as List<dynamic>)
-              .map((m) => Map<String, dynamic>.from(m as Map<String, dynamic>))
-              .toList()
-          : <Map<String, dynamic>>[];
+      List<Map<String,dynamic>> decode(String text) => (jsonDecode(text) as List<dynamic>).map((m) => Map<String,dynamic>.from(m as Map<String,dynamic>)).toList();
+      var pendingValid = false;
+      List<Map<String,dynamic>> items;
+      if (pending.existsSync()) {
+        try { items = decode(await pending.readAsString()); pendingValid = true; }
+        on FormatException { items = file.existsSync() ? decode(await file.readAsString()) : <Map<String,dynamic>>[]; }
+      } else { items = file.existsSync() ? decode(await file.readAsString()) : <Map<String,dynamic>>[]; }
       if (items.length > 1000 ||
           items.any((m) =>
               m['body'] is! String ||
@@ -186,17 +188,19 @@ class Messages extends Notifier<MessageState> {
       }
       final checkpoint = await ref.read(inboxJournalProvider).read();
       if (checkpoint != null) {
+        _inboxPending = true;
         final bytes = List<int>.from(checkpoint['frame'] as List);
         final record = recoveredMessage(bytes)..['radio'] = checkpoint['radio']..['unread'] = true..['_checkpoint'] = jsonEncode(checkpoint);
         if (!items.any((m) => m['_checkpoint'] == record['_checkpoint'])) {
-          if (items.length >= 1000) throw StateError('History full; inbox checkpoint retained.');
+          if (items.length >= 1000) { throw StateError('History full; } inbox checkpoint retained.');
           items.add(record);
         }
         await _save(items);
         await ref.read(inboxJournalProvider).clear();
-      } else if (pending.existsSync()) {
+      } else if (pendingValid) {
         await pending.rename(file.path);
       }
+      _inboxPending = false;
       // Stored acceptance is not a fresh delivery acknowledgement.
       if (ref.mounted) {
         state = MessageState(items: items, loaded: true);
@@ -223,7 +227,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   void _confirm() {
-    if (state.busy || _unsaved != null || !state.loaded) {
+    if (state.busy || hasUnsaved || !state.loaded) {
       return;
     }
     final updated = [
@@ -266,20 +270,20 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> pruneHistory() async {
-    if (!state.loaded || state.busy || hasUnsaved || state.items.length <= 200) return;
+    if (!state.loaded || state.busy || hasUnsaved || state.items.length <= 200) { return; }
     await _persistChange(state.items.skip(state.items.length - 200).toList());
   }
   Future<void> deleteMessage(Map<String,dynamic> message) async {
-    if (!state.loaded || state.busy || hasUnsaved) return;
+    if (!state.loaded || state.busy || hasUnsaved) { return; }
     await _persistChange(state.items.where((m) => !identical(m, message)).toList());
   }
   Future<void> markRead(String conversation) async {
-    if (!state.loaded || state.busy || hasUnsaved) return;
+    if (!state.loaded || state.busy || hasUnsaved) { return; }
     await _persistChange([for (final m in state.items)
       if (conversationKey(m) == conversation) {...m, 'unread': false} else m]);
   }
   Future<void> clearHistory() async {
-    if (!state.loaded || state.busy || _unsaved != null) {
+    if (!state.loaded || state.busy || hasUnsaved) {
       return;
     }
     _live.clear();
@@ -288,22 +292,24 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> retrySave() async {
+    if (_inboxPending && _unsaved == null && !state.busy) { await load(recover: true); return; }
     if (_unsaved == null || state.busy) {
       return;
     }
     await _persistChange(_unsaved!);
-    if (!hasUnsaved) {
+    if (_unsaved == null) {
       final checkpoint = await ref.read(inboxJournalProvider).read();
       if (checkpoint != null && state.items.any((m) => m['_checkpoint'] == jsonEncode(checkpoint))) {
         await ref.read(inboxJournalProvider).clear();
       }
+      _inboxPending = false;
     }
   }
 
   bool get available =>
       state.loaded &&
       !state.busy &&
-      _unsaved == null &&
+      !hasUnsaved &&
       state.items.length < 1000 &&
       !ref.read(radioProvider).controlsBusy;
   Future<void> send(String key, String text, {int? channel}) async {
@@ -420,15 +426,18 @@ class Messages extends Notifier<MessageState> {
         if (radio.sessionToken != token) {
           throw StateError('Radio changed during retrieval.');
         }
+        _inboxPending = true;
         final reply = await radio.messageCommand([10], {10, 7, 8, 16, 17, 27});
         if (reply.length == 1 && reply.first == 10) {
+          _inboxPending = false;
           break;
         }
         final checkpoint = await ref.read(inboxJournalProvider).read();
         final record = recoveredMessage(reply)..['radio'] = radio.companionId..['unread'] = true;
-        if (checkpoint != null) record['_checkpoint'] = jsonEncode(checkpoint);
+        if (checkpoint != null) { record['_checkpoint'] = jsonEncode(checkpoint); }
         await _save([...state.items, record]);
         await ref.read(inboxJournalProvider).clear();
+        _inboxPending = false;
       }
     } catch (e) {
       _autoPaused = true;
@@ -695,7 +704,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                       title: const Text('Delete this message?'), content: Text(item['body'] as String),
                       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
                         TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete'))]));
-                    if (yes == true) await actions.deleteMessage(item);
+                    if (yes == true) { await actions.deleteMessage(item); }
                   }),
                 title: Text(item['body'] as String),
                 subtitle: Text(
