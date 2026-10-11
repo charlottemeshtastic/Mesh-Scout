@@ -88,21 +88,35 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
   };
 }
 
-final inboxTimerProvider = Provider<Timer Function(Duration, void Function(Timer))>((ref) => Timer.periodic);
+final inboxTimerProvider =
+    Provider<Timer Function(Duration, void Function(Timer))>(
+        (ref) => Timer.periodic);
 final autoInboxProvider = NotifierProvider<AutoInbox, bool>(AutoInbox.new);
+
 class AutoInbox extends Notifier<bool> {
   @override
   bool build() => false;
   void set(bool value) => state = value;
 }
-Map<String,dynamic> recoveredMessage(List<int> bytes) {
-  try { return incomingMessage(bytes); } on FormatException {
-    return {'peer': 'Unsupported radio payload', 'body': bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' '),
-      'time': DateTime.now().millisecondsSinceEpoch ~/ 1000, 'status': 'Raw received frame · could not decode', 'outgoing': false};
+
+Map<String, dynamic> recoveredMessage(List<int> bytes) {
+  try {
+    return incomingMessage(bytes);
+  } on FormatException {
+    return {
+      'peer': 'Unsupported radio payload',
+      'body': bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' '),
+      'time': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'status': 'Raw received frame · could not decode',
+      'outgoing': false
+    };
   }
 }
-String conversationKey(Map<String,dynamic> message) => '${message['radio']}|${message['peer']}';
-int unreadCount(Iterable<Map<String,dynamic>> messages) => messages.where((m) => m['outgoing'] == false && m['unread'] == true).length;
+
+String conversationKey(Map<String, dynamic> message) =>
+    '${message['radio']}|${message['peer']}';
+int unreadCount(Iterable<Map<String, dynamic>> messages) =>
+    messages.where((m) => m['outgoing'] == false && m['unread'] == true).length;
 
 final messagesProvider = NotifierProvider<Messages, MessageState>(Messages.new);
 
@@ -135,12 +149,16 @@ class Messages extends Notifier<MessageState> {
       timer = ref.read(inboxTimerProvider)(const Duration(seconds: 30), (_) {
         if (ref.mounted && !_autoPaused && available) {
           final radio = ref.read(radioProvider);
-          if (radio.phase == RadioPhase.ready && !radio.syncing && !radio.messagingBusy && !radio.channelsLoading) {
+          if (radio.phase == RadioPhase.ready &&
+              !radio.syncing &&
+              !radio.messagingBusy &&
+              !radio.channelsLoading) {
             unawaited(fetch(automatic: true));
           }
         }
       });
     }
+
     schedule(ref.read(autoInboxProvider));
     ref.listen(autoInboxProvider, (_, enabled) => schedule(enabled));
     ref.onDispose(() => timer?.cancel());
@@ -178,13 +196,26 @@ class Messages extends Notifier<MessageState> {
     try {
       final file = await _file();
       final pending = File('${file.path}.pending');
-      List<Map<String,dynamic>> decode(String text) => (jsonDecode(text) as List<dynamic>).map((m) => Map<String,dynamic>.from(m as Map<String,dynamic>)).toList();
+      List<Map<String, dynamic>> decode(String text) =>
+          (jsonDecode(text) as List<dynamic>)
+              .map((m) => Map<String, dynamic>.from(m as Map<String, dynamic>))
+              .toList();
       var pendingValid = false;
-      List<Map<String,dynamic>> items;
+      List<Map<String, dynamic>> items;
       if (pending.existsSync()) {
-        try { items = decode(await pending.readAsString()); pendingValid = true; }
-        on FormatException { items = file.existsSync() ? decode(await file.readAsString()) : <Map<String,dynamic>>[]; }
-      } else { items = file.existsSync() ? decode(await file.readAsString()) : <Map<String,dynamic>>[]; }
+        try {
+          items = decode(await pending.readAsString());
+          pendingValid = true;
+        } on FormatException {
+          items = file.existsSync()
+              ? decode(await file.readAsString())
+              : <Map<String, dynamic>>[];
+        }
+      } else {
+        items = file.existsSync()
+            ? decode(await file.readAsString())
+            : <Map<String, dynamic>>[];
+      }
       if (items.length > 1000 ||
           items.any((m) =>
               m['body'] is! String ||
@@ -199,9 +230,14 @@ class Messages extends Notifier<MessageState> {
       if (checkpoint != null) {
         _inboxPending = true;
         final bytes = List<int>.from(checkpoint['frame'] as List);
-        final record = recoveredMessage(bytes)..['radio'] = checkpoint['radio']..['unread'] = true..['_checkpoint'] = jsonEncode(checkpoint);
+        final record = recoveredMessage(bytes)
+          ..['radio'] = checkpoint['radio']
+          ..['unread'] = true
+          ..['_checkpoint'] = jsonEncode(checkpoint);
         if (!items.any((m) => m['_checkpoint'] == record['_checkpoint'])) {
-          if (items.length >= 1000) { throw StateError('History full; inbox checkpoint retained.'); }
+          if (items.length >= 1000) {
+            throw StateError('History full; inbox checkpoint retained.');
+          }
           items.add(record);
         }
         await _save(items);
@@ -279,18 +315,33 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> pruneHistory() async {
-    if (!state.loaded || state.busy || hasUnsaved || state.items.length <= 200) { return; }
+    if (!state.loaded ||
+        state.busy ||
+        hasUnsaved ||
+        state.items.length <= 200) {
+      return;
+    }
     await _persistChange(state.items.skip(state.items.length - 200).toList());
   }
-  Future<void> deleteMessage(Map<String,dynamic> message) async {
-    if (!state.loaded || state.busy || hasUnsaved) { return; }
-    await _persistChange(state.items.where((m) => !identical(m, message)).toList());
+
+  Future<void> deleteMessage(Map<String, dynamic> message) async {
+    if (!state.loaded || state.busy || hasUnsaved) {
+      return;
+    }
+    await _persistChange(
+        state.items.where((m) => !identical(m, message)).toList());
   }
+
   Future<void> markRead(String conversation) async {
-    if (!state.loaded || state.busy || hasUnsaved) { return; }
-    await _persistChange([for (final m in state.items)
-      if (conversationKey(m) == conversation) {...m, 'unread': false} else m]);
+    if (!state.loaded || state.busy || hasUnsaved) {
+      return;
+    }
+    await _persistChange([
+      for (final m in state.items)
+        if (conversationKey(m) == conversation) {...m, 'unread': false} else m
+    ]);
   }
+
   Future<void> clearHistory() async {
     if (!state.loaded || state.busy || hasUnsaved) {
       return;
@@ -301,14 +352,18 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> retrySave() async {
-    if (_inboxPending && _unsaved == null && !state.busy) { await load(recover: true); return; }
+    if (_inboxPending && _unsaved == null && !state.busy) {
+      await load(recover: true);
+      return;
+    }
     if (_unsaved == null || state.busy) {
       return;
     }
     await _persistChange(_unsaved!);
     if (_unsaved == null) {
       final checkpoint = await ref.read(inboxJournalProvider).read();
-      if (checkpoint != null && state.items.any((m) => m['_checkpoint'] == jsonEncode(checkpoint))) {
+      if (checkpoint != null &&
+          state.items.any((m) => m['_checkpoint'] == jsonEncode(checkpoint))) {
         await ref.read(inboxJournalProvider).clear();
       }
       _inboxPending = false;
@@ -442,8 +497,12 @@ class Messages extends Notifier<MessageState> {
           break;
         }
         final checkpoint = await ref.read(inboxJournalProvider).read();
-        final record = recoveredMessage(reply)..['radio'] = radio.companionId..['unread'] = true;
-        if (checkpoint != null) { record['_checkpoint'] = jsonEncode(checkpoint); }
+        final record = recoveredMessage(reply)
+          ..['radio'] = radio.companionId
+          ..['unread'] = true;
+        if (checkpoint != null) {
+          record['_checkpoint'] = jsonEncode(checkpoint);
+        }
         await _save([...state.items, record]);
         await ref.read(inboxJournalProvider).clear();
         _inboxPending = false;
@@ -520,8 +579,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final radio = ref.watch(radioProvider);
     final actions = ref.read(messagesProvider.notifier);
     final contacts = radio.contacts.where((c) => c.type == 1).toList();
-    final conversations = state.items.map(conversationKey).toSet().toList()..sort();
-    final visible = filterMessages(state.items, _query, _direction).where((m) => _conversation == null || conversationKey(m) == _conversation).toList();
+    final conversations = state.items.map(conversationKey).toSet().toList()
+      ..sort();
+    final visible = filterMessages(state.items, _query, _direction)
+        .where(
+            (m) => _conversation == null || conversationKey(m) == _conversation)
+        .toList();
     final ready = !_exporting &&
         radio.phase == RadioPhase.ready &&
         !radio.syncing &&
@@ -671,20 +734,40 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
               child: Text(_channelMode
                   ? 'Send channel message'
                   : 'Send direct message')),
-          SwitchListTile(title: const Text('Automatic inbox retrieval'),
-              subtitle: const Text('Check every 30 seconds while connected. Stops on errors or a full history. Never sends messages automatically.'),
+          SwitchListTile(
+              title: const Text('Automatic inbox retrieval'),
+              subtitle: const Text(
+                  'Check every 30 seconds while connected. Stops on errors or a full history. Never sends messages automatically.'),
               value: ref.watch(autoInboxProvider),
-              onChanged: (value) => ref.read(autoInboxProvider.notifier).set(value)),
+              onChanged: (value) =>
+                  ref.read(autoInboxProvider.notifier).set(value)),
           Text('${unreadCount(state.items)} unread messages'),
-          DropdownButtonFormField<String>(key: ValueKey('conversation-$_conversation-${conversations.length}'),
-              initialValue: conversations.contains(_conversation) ? _conversation : null,
+          DropdownButtonFormField<String>(
+              key: ValueKey(
+                  'conversation-$_conversation-${conversations.length}'),
+              initialValue:
+                  conversations.contains(_conversation) ? _conversation : null,
               decoration: const InputDecoration(labelText: 'Conversation'),
               isExpanded: true,
-              items: [for (final key in conversations) DropdownMenuItem(value: key,
-                child: Text('$key · ${unreadCount(state.items.where((m) => conversationKey(m) == key))} unread', overflow: TextOverflow.ellipsis))],
+              items: [
+                for (final key in conversations)
+                  DropdownMenuItem(
+                      value: key,
+                      child: Text(
+                          '$key · ${unreadCount(state.items.where((m) => conversationKey(m) == key))} unread',
+                          overflow: TextOverflow.ellipsis))
+              ],
               onChanged: (value) => setState(() => _conversation = value)),
-          Row(children: [TextButton(onPressed: () => setState(() => _conversation = null), child: const Text('All conversations')),
-            TextButton(onPressed: _conversation == null || state.busy ? null : () => actions.markRead(_conversation!), child: const Text('Mark read'))]),
+          Row(children: [
+            TextButton(
+                onPressed: () => setState(() => _conversation = null),
+                child: const Text('All conversations')),
+            TextButton(
+                onPressed: _conversation == null || state.busy
+                    ? null
+                    : () => actions.markRead(_conversation!),
+                child: const Text('Mark read'))
+          ]),
           TextField(
               decoration:
                   const InputDecoration(labelText: 'Search message history'),
@@ -706,15 +789,35 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           if (visible.isEmpty) const Text('No matching messages.'),
           for (final item in visible.reversed)
             ListTile(
-                leading: item['unread'] == true ? const Icon(Icons.mark_email_unread_outlined) : null,
-                trailing: IconButton(tooltip: 'Delete message', icon: const Icon(Icons.delete_outline),
-                  onPressed: state.busy || actions.hasUnsaved ? null : () async {
-                    final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
-                      title: const Text('Delete this message?'), content: Text(item['body'] as String),
-                      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                        TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete'))]));
-                    if (yes == true) { await actions.deleteMessage(item); }
-                  }),
+                leading: item['unread'] == true
+                    ? const Icon(Icons.mark_email_unread_outlined)
+                    : null,
+                trailing: IconButton(
+                    tooltip: 'Delete message',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: state.busy || actions.hasUnsaved
+                        ? null
+                        : () async {
+                            final yes = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                        title:
+                                            const Text('Delete this message?'),
+                                        content: Text(item['body'] as String),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(c, false),
+                                              child: const Text('Cancel')),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(c, true),
+                                              child: const Text('Delete'))
+                                        ]));
+                            if (yes == true) {
+                              await actions.deleteMessage(item);
+                            }
+                          }),
                 title: Text(item['body'] as String),
                 subtitle: Text(
                     '${item['outgoing'] == true ? 'Outgoing' : 'Incoming'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}')),

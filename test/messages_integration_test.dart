@@ -76,7 +76,9 @@ void main() {
       bleServiceProvider.overrideWithValue(ble),
       inboxTimerProvider.overrideWithValue((duration, tick) {
         final timer = Timer(const Duration(days: 1), () {});
-        inboxTick = () { if (timer.isActive) tick(timer); };
+        inboxTick = () {
+          if (timer.isActive) tick(timer);
+        };
         return timer;
       }),
       offlineDirectoryProvider.overrideWithValue(() async => directory.path)
@@ -111,11 +113,15 @@ void main() {
     await ble.close();
     await directory.delete(recursive: true);
   });
-  test('automatic inbox is opt-in, retrieves while idle, and stops when disabled', () async {
+  test(
+      'automatic inbox is opt-in, retrieves while idle, and stops when disabled',
+      () async {
     expect(inboxTick, isNull);
     container.read(autoInboxProvider.notifier).set(true);
     inboxTick!();
-    for (var i = 0; i < 200 && (ble.fetches < 2 || container.read(messagesProvider).busy); i++) {
+    for (var i = 0;
+        i < 200 && (ble.fetches < 2 || container.read(messagesProvider).busy);
+        i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(ble.fetches, 2);

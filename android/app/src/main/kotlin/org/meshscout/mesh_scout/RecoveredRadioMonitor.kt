@@ -28,6 +28,7 @@ class RecoveredRadioMonitor(private val context: Context, private val status: (S
     private var stage = 0
     private var stopped = false
     private var alerted = false
+    private var waitingDuringHandshake = false
     private val deadline = Runnable { if (!stopped && stage != 3) retry() }
     fun start() {
         try {
@@ -46,6 +47,7 @@ class RecoveredRadioMonitor(private val context: Context, private val status: (S
         if (stopped || attempt >= 5) { status("Recovery could not reconnect. Open MeshScout."); return }
         attempt++
         stage = 0
+        waitingDuringHandshake = false
         try {
             val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             val device = manager.adapter.getRemoteDevice(target!!)
@@ -120,11 +122,13 @@ class RecoveredRadioMonitor(private val context: Context, private val status: (S
     private fun receive(value: BluetoothGatt, bytes: ByteArray) {
         handler.post {
             if (!current(value) || bytes.isEmpty()) return@post
+            if (RecoveryProtocol.waiting(bytes) && stage != 3) waitingDuringHandshake = true
             when {
                 stage == 1 && RecoveryProtocol.selfInfo(bytes) -> { stage = 2; write(value, RecoveryProtocol.deviceQuery()) }
                 stage == 2 && RecoveryProtocol.deviceInfo(bytes) -> {
                     stage = 3; handler.removeCallbacks(deadline)
                     status("Recovered radio monitoring. Open MeshScout for messages and controls.")
+                    if (waitingDuringHandshake) alert()
                 }
                 stage == 3 && RecoveryProtocol.waiting(bytes) -> alert()
             }
