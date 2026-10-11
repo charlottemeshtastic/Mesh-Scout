@@ -192,7 +192,7 @@ class Messages extends Notifier<MessageState> {
         final bytes = List<int>.from(checkpoint['frame'] as List);
         final record = recoveredMessage(bytes)..['radio'] = checkpoint['radio']..['unread'] = true..['_checkpoint'] = jsonEncode(checkpoint);
         if (!items.any((m) => m['_checkpoint'] == record['_checkpoint'])) {
-          if (items.length >= 1000) { throw StateError('History full; } inbox checkpoint retained.');
+          if (items.length >= 1000) { throw StateError('History full; inbox checkpoint retained.'); }
           items.add(record);
         }
         await _save(items);
