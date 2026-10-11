@@ -298,7 +298,8 @@ void main() {
     expect(find.text('1. Connect your radio'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.scrollUntilVisible(
-        find.text('Privacy and network access'), 180,
+        find.text('Privacy and network access'), 400,
+        maxIteration: 100,
         scrollable: find
             .descendant(
                 of: find.byType(HelpScreen), matching: find.byType(Scrollable))
