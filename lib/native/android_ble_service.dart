@@ -49,9 +49,10 @@ class AndroidBleService implements BleService {
   }
 
   @override
-  Stream<RadioDevice> scan() => _ble
-      .scanForDevices(withServices: [_service], scanMode: ScanMode.lowLatency)
-      .map((d) => RadioDevice(d.id, d.name, d.rssi));
+  Stream<RadioDevice> scan() => _ble.scanForDevices(
+      withServices: [_service],
+      scanMode:
+          ScanMode.lowLatency).map((d) => RadioDevice(d.id, d.name, d.rssi));
 
   @override
   Stream<RadioLink> connect(String id) async* {

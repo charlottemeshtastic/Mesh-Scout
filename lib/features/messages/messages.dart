@@ -78,24 +78,24 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
     'peer': channel
         ? 'Channel ${bytes[prefix]}'
         : bytes
-              .sublist(prefix, prefix + 6)
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join(),
+            .sublist(prefix, prefix + 6)
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join(),
     'body': utf8.decode(bytes.sublist(offset)),
     'time': data.getUint32(typeOffset + 1, Endian.little),
     'status': type == 2
         ? 'Received forwarded message · origin unverified'
         : type == 1
-        ? 'Received repeater CLI response'
-        : 'Received',
+            ? 'Received repeater CLI response'
+            : 'Received',
     'outgoing': false,
   };
 }
 
 final inboxTimerProvider =
     Provider<Timer Function(Duration, void Function(Timer))>(
-      (ref) => Timer.periodic,
-    );
+  (ref) => Timer.periodic,
+);
 final autoInboxProvider = NotifierProvider<AutoInbox, bool>(AutoInbox.new);
 
 class AutoInbox extends Notifier<bool> {
@@ -262,7 +262,8 @@ class Messages extends Notifier<MessageState> {
     } catch (_) {
       if (ref.mounted) {
         state = const MessageState(
-          notice: 'Could not load message history. Sending and fetching are blocked.',
+          notice:
+              'Could not load message history. Sending and fetching are blocked.',
         );
       }
     }
@@ -485,9 +486,8 @@ class Messages extends Notifier<MessageState> {
         state = MessageState(
           items: _unsaved ?? state.items,
           loaded: true,
-          notice: _unsaved != null
-              ? 'Save failed. Retry saving.'
-              : state.notice,
+          notice:
+              _unsaved != null ? 'Save failed. Retry saving.' : state.notice,
         );
         _confirm();
       }
@@ -562,16 +562,17 @@ List<Map<String, dynamic>> filterMessages(
   List<Map<String, dynamic>> items,
   String query,
   String direction,
-) => items
-    .where(
-      (item) =>
-          (direction == 'all' ||
-              (direction == 'outgoing') == (item['outgoing'] == true)) &&
-          '${item['peer']} ${item['body']} ${item['status']} ${item['radio']}'
-              .toLowerCase()
-              .contains(query.toLowerCase()),
-    )
-    .toList();
+) =>
+    items
+        .where(
+          (item) =>
+              (direction == 'all' ||
+                  (direction == 'outgoing') == (item['outgoing'] == true)) &&
+              '${item['peer']} ${item['body']} ${item['status']} ${item['radio']}'
+                  .toLowerCase()
+                  .contains(query.toLowerCase()),
+        )
+        .toList();
 
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
@@ -617,8 +618,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           (m) => _conversation == null || conversationKey(m) == _conversation,
         )
         .toList();
-    final ready =
-        !_exporting &&
+    final ready = !_exporting &&
         radio.phase == RadioPhase.ready &&
         !radio.syncing &&
         !radio.messagingBusy &&
@@ -637,8 +637,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           OutlinedButton.icon(
             onPressed:
                 !state.loaded || state.busy || _exporting || state.items.isEmpty
-                ? null
-                : () => _export(state.items),
+                    ? null
+                    : () => _export(state.items),
             icon: const Icon(Icons.ios_share),
             label: const Text('Export message history'),
           ),
@@ -691,8 +691,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           ),
           if (_channelMode) ...[
             OutlinedButton(
-              onPressed:
-                  radio.phase == RadioPhase.ready &&
+              onPressed: radio.phase == RadioPhase.ready &&
                       !state.busy &&
                       !radio.syncing &&
                       !radio.messagingBusy &&
@@ -760,8 +759,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             ),
           ),
           FilledButton(
-            onPressed:
-                ready &&
+            onPressed: ready &&
                     (_channelMode
                         ? radio.channels.any((c) => c.index == _channel)
                         : contacts.any((c) => c.key == _key))
@@ -777,8 +775,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                       return;
                     }
                     final latest = ref.read(messagesProvider);
-                    final accepted =
-                        latest.items.length > before &&
+                    final accepted = latest.items.length > before &&
                         latest.items.last['body'] == body &&
                         (latest.items.last['status'] == 'Delivery confirmed' ||
                             (latest.items.last['status'] as String).startsWith(
@@ -792,7 +789,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                         content: Text(
                           accepted
                               ? 'Radio accepted the message. Check delivery status below.'
-                              : latest.notice ?? 'Message was not accepted. Check connection and recipient.',
+                              : latest.notice ??
+                                  'Message was not accepted. Check connection and recipient.',
                         ),
                       ),
                     );
@@ -816,9 +814,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             key: ValueKey(
               'conversation-$_conversation-${conversations.length}',
             ),
-            initialValue: conversations.contains(_conversation)
-                ? _conversation
-                : null,
+            initialValue:
+                conversations.contains(_conversation) ? _conversation : null,
             decoration: const InputDecoration(labelText: 'Conversation'),
             isExpanded: true,
             items: [
@@ -915,7 +912,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   Future<void> _export(List<Map<String, dynamic>> items) async {
     setState(() => _exporting = true);
     try {
-      final choice = await showDialog<({MessageExportFormat format, bool share})>(
+      final choice =
+          await showDialog<({MessageExportFormat format, bool share})>(
         context: context,
         builder: (c) => SimpleDialog(
           title: const Text('Export message history'),
@@ -952,8 +950,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             content: Text(
               done
                   ? (choice.share
-                        ? 'Share menu opened'
-                        : 'Message history saved')
+                      ? 'Share menu opened'
+                      : 'Message history saved')
                   : 'Save cancelled',
             ),
           ),

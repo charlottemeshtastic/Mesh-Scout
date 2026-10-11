@@ -14,8 +14,7 @@ final bleServiceProvider = Provider<BleService>(
   (ref) => throw UnimplementedError(),
 );
 final reconnectDelayProvider = Provider<Duration Function(int)>(
-  (ref) =>
-      (attempt) => Duration(seconds: [3, 6, 12, 24, 30][attempt - 1]),
+  (ref) => (attempt) => Duration(seconds: [3, 6, 12, 24, 30][attempt - 1]),
 );
 final reconnectTimerProvider =
     Provider<Timer Function(Duration, void Function())>((ref) => Timer.new);
@@ -103,26 +102,27 @@ class RadioState {
     bool? channelsLoading,
     bool? controlsBusy,
     RadioPreset? preset,
-  }) => RadioState(
-    preset: preset ?? this.preset,
-    heard: heard ?? this.heard,
-    remoteEvent: remoteEvent ?? this.remoteEvent,
-    phase: phase ?? this.phase,
-    devices: devices ?? this.devices,
-    failure: failure,
-    contacts: contacts ?? this.contacts,
-    syncing: syncing ?? this.syncing,
-    contactMessage: contactMessage,
-    syncedAt: syncedAt ?? this.syncedAt,
-    lastRx: lastRx ?? this.lastRx,
-    autoReconnect: autoReconnect ?? this.autoReconnect,
-    retryAttempt: retryAttempt ?? this.retryAttempt,
-    messagingBusy: messagingBusy ?? this.messagingBusy,
-    messageEvent: messageEvent ?? this.messageEvent,
-    channels: channels ?? this.channels,
-    channelsLoading: channelsLoading ?? this.channelsLoading,
-    controlsBusy: controlsBusy ?? this.controlsBusy,
-  );
+  }) =>
+      RadioState(
+        preset: preset ?? this.preset,
+        heard: heard ?? this.heard,
+        remoteEvent: remoteEvent ?? this.remoteEvent,
+        phase: phase ?? this.phase,
+        devices: devices ?? this.devices,
+        failure: failure,
+        contacts: contacts ?? this.contacts,
+        syncing: syncing ?? this.syncing,
+        contactMessage: contactMessage,
+        syncedAt: syncedAt ?? this.syncedAt,
+        lastRx: lastRx ?? this.lastRx,
+        autoReconnect: autoReconnect ?? this.autoReconnect,
+        retryAttempt: retryAttempt ?? this.retryAttempt,
+        messagingBusy: messagingBusy ?? this.messagingBusy,
+        messageEvent: messageEvent ?? this.messageEvent,
+        channels: channels ?? this.channels,
+        channelsLoading: channelsLoading ?? this.channelsLoading,
+        controlsBusy: controlsBusy ?? this.controlsBusy,
+      );
 }
 
 class RadioNotifier extends Notifier<RadioState> {
@@ -187,13 +187,14 @@ class RadioNotifier extends Notifier<RadioState> {
   RadioState _empty({
     RadioPhase phase = RadioPhase.idle,
     RadioFailure? failure,
-  }) => RadioState(
-    phase: phase,
-    failure: failure,
-    autoReconnect: _autoReconnect,
-    contacts: state.contacts,
-    syncedAt: state.syncedAt,
-  );
+  }) =>
+      RadioState(
+        phase: phase,
+        failure: failure,
+        autoReconnect: _autoReconnect,
+        contacts: state.contacts,
+        syncedAt: state.syncedAt,
+      );
 
   @override
   RadioState build() {
@@ -280,26 +281,24 @@ class RadioNotifier extends Notifier<RadioState> {
         _fail(generation, const RadioException(RadioFailure.transport)),
       ),
     );
-    _link = _service
-        .connect(id)
-        .listen(
-          (link) {
-            if (!_current(generation)) return;
-            if (link == RadioLink.connected &&
-                state.phase == RadioPhase.connecting) {
-              state = state.copyWith(phase: RadioPhase.identifying);
-              unawaited(_identify(generation, id));
-            } else if (link == RadioLink.disconnected) {
-              unawaited(
-                _fail(generation, const RadioException(RadioFailure.transport)),
-              );
-            }
-          },
-          onError: (Object e) => unawaited(_fail(generation, e)),
-          onDone: () => unawaited(
+    _link = _service.connect(id).listen(
+      (link) {
+        if (!_current(generation)) return;
+        if (link == RadioLink.connected &&
+            state.phase == RadioPhase.connecting) {
+          state = state.copyWith(phase: RadioPhase.identifying);
+          unawaited(_identify(generation, id));
+        } else if (link == RadioLink.disconnected) {
+          unawaited(
             _fail(generation, const RadioException(RadioFailure.transport)),
-          ),
-        );
+          );
+        }
+      },
+      onError: (Object e) => unawaited(_fail(generation, e)),
+      onDone: () => unawaited(
+        _fail(generation, const RadioException(RadioFailure.transport)),
+      ),
+    );
   }
 
   Future<void> _identify(int generation, String id) async {
@@ -393,7 +392,8 @@ class RadioNotifier extends Notifier<RadioState> {
     }
     if (_mtu < 151) {
       state = state.copyWith(
-        contactMessage: 'Radio Bluetooth MTU is too small for contacts. Reconnect and retry.',
+        contactMessage:
+            'Radio Bluetooth MTU is too small for contacts. Reconnect and retry.',
       );
       return;
     }
@@ -626,19 +626,16 @@ class RadioNotifier extends Notifier<RadioState> {
           _messageTypes = {};
           final generation = _generation;
           unawaited(
-            ref
-                .read(inboxJournalProvider)
-                .write(bytes, _target!.id)
-                .then(
-                  (_) {
-                    if (_current(generation) && !reply.isCompleted) {
-                      reply.complete(List<int>.unmodifiable(bytes));
-                    }
-                  },
-                  onError: (Object error, StackTrace stack) {
-                    if (!reply.isCompleted) reply.completeError(error, stack);
-                  },
-                ),
+            ref.read(inboxJournalProvider).write(bytes, _target!.id).then(
+              (_) {
+                if (_current(generation) && !reply.isCompleted) {
+                  reply.complete(List<int>.unmodifiable(bytes));
+                }
+              },
+              onError: (Object error, StackTrace stack) {
+                if (!reply.isCompleted) reply.completeError(error, stack);
+              },
+            ),
           );
         } else {
           reply.complete(List<int>.unmodifiable(bytes));
@@ -730,11 +727,9 @@ class RadioNotifier extends Notifier<RadioState> {
 
   Future<void> _fail(int generation, Object error) async {
     if (!_current(generation)) return;
-    final failure = error is RadioException
-        ? error.failure
-        : RadioFailure.transport;
-    final retry =
-        failure == RadioFailure.transport &&
+    final failure =
+        error is RadioException ? error.failure : RadioFailure.transport;
+    final retry = failure == RadioFailure.transport &&
         _identifiedBefore &&
         _autoReconnect &&
         _target != null &&

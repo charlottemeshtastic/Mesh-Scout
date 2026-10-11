@@ -295,13 +295,13 @@ void main() {
 
   test('nodes on one rooftop share a marker unless grouping is off', () {
     MeshContact node(String key, double lat) => MeshContact(
-      key: key,
-      name: key,
-      type: 2,
-      lastAdvert: null,
-      latitude: lat,
-      longitude: -80,
-    );
+          key: key,
+          name: key,
+          type: 2,
+          lastAdvert: null,
+          latitude: lat,
+          longitude: -80,
+        );
     final nodes = [node('a', 35), node('b', 35.00001), node('c', 35.01)];
     final groups = groupNodes(nodes);
     expect(groups.length, 2);

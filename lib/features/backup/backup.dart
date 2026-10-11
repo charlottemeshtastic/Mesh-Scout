@@ -24,11 +24,11 @@ class ScoutBackup {
   final List<MappingSession> sessions;
   final List<Map<String, dynamic>> messages;
   String encode() => jsonEncode({
-    'format': 'meshscout-backup',
-    'version': 1,
-    'sessions': sessions.map((s) => s.toJson()).toList(),
-    'messages': messages,
-  });
+        'format': 'meshscout-backup',
+        'version': 1,
+        'sessions': sessions.map((s) => s.toJson()).toList(),
+        'messages': messages,
+      });
   factory ScoutBackup.decode(String text) {
     if (utf8.encode(text).length > 20 * 1024 * 1024) {
       throw const FormatException('Backup exceeds 20 MB.');

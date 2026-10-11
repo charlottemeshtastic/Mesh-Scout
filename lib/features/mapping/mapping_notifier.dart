@@ -54,8 +54,8 @@ class MappingState {
   final List<CoverageObservation> observations;
   List<CoverageObservation> get displayedObservations =>
       recording || points.isNotEmpty
-      ? observations
-      : selected?.observations ?? const [];
+          ? observations
+          : selected?.observations ?? const [];
   final String? message;
   List<GpsPoint> get displayedPoints =>
       recording || points.isNotEmpty ? points : selected?.points ?? const [];
@@ -152,7 +152,8 @@ class MappingNotifier extends Notifier<MappingState> {
       state = MappingState(
         loading: false,
         sessions: state.sessions,
-        message: 'Session storage is full. Back up and remove older sessions before recording.',
+        message:
+            'Session storage is full. Back up and remove older sessions before recording.',
       );
       return;
     }
@@ -220,7 +221,8 @@ class MappingNotifier extends Notifier<MappingState> {
             if (++_airborneFixes >= 2) {
               unawaited(
                 stop(
-                  reason: 'Recording stopped: altitude above 6,000 m or speed above 250 km/h looks like a flight. Earlier route saved.',
+                  reason:
+                      'Recording stopped: altitude above 6,000 m or speed above 250 km/h looks like a flight. Earlier route saved.',
                 ),
               );
             }
@@ -324,7 +326,8 @@ class MappingNotifier extends Notifier<MappingState> {
         sessions: sessions,
         points: points,
         observations: observations,
-        message: 'Could not save this route. Tap Retry save before starting another.',
+        message:
+            'Could not save this route. Tap Retry save before starting another.',
       );
     }
   }
@@ -563,9 +566,8 @@ class MappingNotifier extends Notifier<MappingState> {
       selected: previous.selected,
     );
     try {
-      final updated = previous.sessions
-          .where((s) => s.id != session.id)
-          .toList();
+      final updated =
+          previous.sessions.where((s) => s.id != session.id).toList();
       await _service.save(encodeSessions(updated));
       if (_disposed) {
         return;
@@ -573,9 +575,8 @@ class MappingNotifier extends Notifier<MappingState> {
       state = MappingState(
         loading: false,
         sessions: List.unmodifiable(updated),
-        selected: previous.selected?.id == session.id
-            ? null
-            : previous.selected,
+        selected:
+            previous.selected?.id == session.id ? null : previous.selected,
       );
     } catch (_) {
       if (!_disposed) {

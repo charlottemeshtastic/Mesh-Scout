@@ -97,11 +97,9 @@ void main() {
     ble.devices.add(device);
     await radio.connect(device);
     ble.links.add(RadioLink.connected);
-    for (
-      var i = 0;
-      i < 30 && container.read(radioProvider).phase != RadioPhase.ready;
-      i++
-    ) {
+    for (var i = 0;
+        i < 30 && container.read(radioProvider).phase != RadioPhase.ready;
+        i++) {
       await Future<void>.delayed(Duration.zero);
     }
     expect(container.read(radioProvider).phase, RadioPhase.ready);
@@ -129,11 +127,9 @@ void main() {
       expect(inboxTick, isNull);
       container.read(autoInboxProvider.notifier).set(true);
       inboxTick!();
-      for (
-        var i = 0;
-        i < 200 && (ble.fetches < 2 || container.read(messagesProvider).busy);
-        i++
-      ) {
+      for (var i = 0;
+          i < 200 && (ble.fetches < 2 || container.read(messagesProvider).busy);
+          i++) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(ble.fetches, 2);
@@ -209,13 +205,11 @@ void main() {
     () async {
       ble.immediateAck = true;
       await messages.send(key, 'hello');
-      for (
-        var i = 0;
-        i < 200 &&
-            container.read(messagesProvider).items.single['status'] !=
-                'Delivery confirmed';
-        i++
-      ) {
+      for (var i = 0;
+          i < 200 &&
+              container.read(messagesProvider).items.single['status'] !=
+                  'Delivery confirmed';
+          i++) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(
@@ -233,20 +227,20 @@ void main() {
       contains('Received'),
     );
   });
-  test('failed persistence stops retrieval and explicit retry preserves popped data', () async {
+  test(
+      'failed persistence stops retrieval and explicit retry preserves popped data',
+      () async {
     await Directory('${directory.path}/messages.json.pending').create();
     await messages.fetch();
     expect(ble.fetches, 1);
     expect(container.read(messagesProvider).notice, contains('Save failed'));
     await Directory('${directory.path}/messages.json.pending').delete();
     await messages.retrySave();
-    for (
-      var i = 0;
-      i < 200 &&
-          container.read(messagesProvider).items.single['status'] !=
-              'Delivery confirmed';
-      i++
-    ) {
+    for (var i = 0;
+        i < 200 &&
+            container.read(messagesProvider).items.single['status'] !=
+                'Delivery confirmed';
+        i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(container.read(messagesProvider).items.single['body'], 'A');

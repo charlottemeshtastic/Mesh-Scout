@@ -75,9 +75,7 @@ class ScoutPreferences extends Notifier<String?> {
               state = 'Contact cache could not be loaded; refresh from radio.';
             }
           }
-          ref
-              .read(radioProvider.notifier)
-              .restorePreferred(
+          ref.read(radioProvider.notifier).restorePreferred(
                 RadioDevice(
                   preferred['id'] as String,
                   preferred['name'] as String,
@@ -88,9 +86,7 @@ class ScoutPreferences extends Notifier<String?> {
               );
         }
         if (data['field'] is Map) {
-          ref
-              .read(fieldSettingsProvider.notifier)
-              .set(
+          ref.read(fieldSettingsProvider.notifier).set(
                 FieldSettings.fromJson(
                   Map<String, dynamic>.from(data['field'] as Map),
                 ),
@@ -109,8 +105,7 @@ class ScoutPreferences extends Notifier<String?> {
       final fileData = file.existsSync()
           ? jsonDecode(await file.readAsString()) as Map<String, dynamic>
           : <String, dynamic>{};
-      final shouldResume =
-          fileData['resumeMonitoring'] == true &&
+      final shouldResume = fileData['resumeMonitoring'] == true &&
           ref.read(radioProvider).autoReconnect;
       if (shouldResume) {
         await ref.read(radioProvider.notifier).connectPreferred();

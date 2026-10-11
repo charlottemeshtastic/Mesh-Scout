@@ -147,9 +147,12 @@ class RadioControls extends Notifier<ControlState> {
         await radio.messageCommand(change, {0}, control: true);
       }
       final self = await radio.messageCommand(appStart, {5}, control: true);
-      final device = await radio.messageCommand(deviceQuery, {
-        13,
-      }, control: true);
+      final device = await radio.messageCommand(
+          deviceQuery,
+          {
+            13,
+          },
+          control: true);
       final battery = await radio.messageCommand([20], {12}, control: true);
       final details = RadioDetails.parse(self, device, battery);
       if (ref.mounted && radio.sessionToken == token) {
@@ -182,8 +185,7 @@ class RadioControlsPanel extends ConsumerWidget {
     final state = ref.watch(radioControlsProvider);
     final radio = ref.watch(radioProvider);
     final actions = ref.read(radioControlsProvider.notifier);
-    final ready =
-        radio.phase == RadioPhase.ready &&
+    final ready = radio.phase == RadioPhase.ready &&
         !state.busy &&
         !radio.syncing &&
         !radio.messagingBusy &&
@@ -304,22 +306,22 @@ class _RadioValueState extends State<_RadioValueDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.title),
-    content: TextField(
-      controller: text,
-      keyboardType: widget.numeric
-          ? const TextInputType.numberWithOptions(signed: true)
-          : TextInputType.text,
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, text.text),
-        child: const Text('Apply'),
-      ),
-    ],
-  );
+        title: Text(widget.title),
+        content: TextField(
+          controller: text,
+          keyboardType: widget.numeric
+              ? const TextInputType.numberWithOptions(signed: true)
+              : TextInputType.text,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, text.text),
+            child: const Text('Apply'),
+          ),
+        ],
+      );
 }

@@ -342,7 +342,9 @@ void main() {
     expect(ble.writes, [appStart, appStart]);
     expect(scheduler.timers.any((t) => t.isActive), isFalse);
   });
-  test('teardown cancels pending discovery deadlines and ignores its late completion', () async {
+  test(
+      'teardown cancels pending discovery deadlines and ignores its late completion',
+      () async {
     final pendingBle = FakeBle()..discoveryGate = Completer<void>();
     final scheduler = ManualScheduler();
     final owned = ProviderContainer(

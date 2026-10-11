@@ -19,12 +19,12 @@ class MeshContact {
   final double? latitude;
   final double? longitude;
   String get typeLabel => switch (type) {
-    1 => 'Chat node',
-    2 => 'Repeater',
-    3 => 'Room server',
-    4 => 'Sensor',
-    _ => 'Unknown type',
-  };
+        1 => 'Chat node',
+        2 => 'Repeater',
+        3 => 'Room server',
+        4 => 'Sensor',
+        _ => 'Unknown type',
+      };
   static MeshContact parse(List<int> bytes) {
     if (bytes.length < 148 || (bytes[0] != 3 && bytes[0] != 0x8a)) {
       throw const FormatException('Invalid contact frame');

@@ -35,16 +35,12 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
   final tiles = <MapTile>[];
   for (var z = sideKm > 12 ? 10 : 12; z <= (sideKm > 12 ? 14 : 16); z++) {
     final n = 1 << z;
-    for (
-      var col = x(longitude - lonDelta, n);
-      col <= x(longitude + lonDelta, n);
-      col++
-    ) {
-      for (
-        var row = y(latitude + latDelta, n);
-        row <= y(latitude - latDelta, n);
-        row++
-      ) {
+    for (var col = x(longitude - lonDelta, n);
+        col <= x(longitude + lonDelta, n);
+        col++) {
+      for (var row = y(latitude + latDelta, n);
+          row <= y(latitude - latDelta, n);
+          row++) {
         tiles.add((z: z, x: col, y: row));
       }
     }
@@ -75,22 +71,18 @@ class OfflineArea {
 }
 
 final offlineDirectoryProvider = Provider<Future<String> Function()>(
-  (ref) =>
-      () async =>
-          (await const MethodChannel('org.meshscout/files')
-              .invokeMethod<String>('directory'))!,
+  (ref) => () async => (await const MethodChannel('org.meshscout/files')
+      .invokeMethod<String>('directory'))!,
 );
 final dataDirectoryProvider = Provider<Future<String> Function()>(
   (ref) => ref.read(offlineDirectoryProvider),
 );
 final mapDirectoryProvider = Provider<Future<String> Function()>(
-  (ref) =>
-      () async => "${await ref.read(offlineDirectoryProvider)()}/offline",
+  (ref) => () async => "${await ref.read(offlineDirectoryProvider)()}/offline",
 );
 final offlineTileUrlProvider = Provider<String Function(MapTile)>(
-  (ref) =>
-      (tile) =>
-          'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/${tile.z}/${tile.y}/${tile.x}',
+  (ref) => (tile) =>
+      'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/${tile.z}/${tile.y}/${tile.x}',
 );
 final offlineThrottleProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 100),
@@ -314,8 +306,8 @@ class OfflineMaps extends Notifier<OfflineState> {
           'MeshScout/0.9 (independent Android mapping app)',
         );
         final response = await request.close().timeout(
-          const Duration(seconds: 20),
-        );
+              const Duration(seconds: 20),
+            );
         if (response.statusCode != 200 ||
             !(response.headers.contentType?.mimeType.startsWith('image/') ??
                 false)) {

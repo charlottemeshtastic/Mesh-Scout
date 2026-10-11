@@ -60,31 +60,32 @@ class FieldSettings {
     bool? groupNodes,
     bool? matchPreset,
     bool? guideSeen,
-  }) => FieldSettings(
-    autoStopParked: autoStopParked ?? this.autoStopParked,
-    parkedMinutes: parkedMinutes ?? this.parkedMinutes,
-    aircraftGuard: aircraftGuard ?? this.aircraftGuard,
-    disconnectAlert: disconnectAlert ?? this.disconnectAlert,
-    allCoverage: allCoverage ?? this.allCoverage,
-    recentCoverageOnly: recentCoverageOnly ?? this.recentCoverageOnly,
-    recentCoverageDays: recentCoverageDays ?? this.recentCoverageDays,
-    groupNodes: groupNodes ?? this.groupNodes,
-    matchPreset: matchPreset ?? this.matchPreset,
-    guideSeen: guideSeen ?? this.guideSeen,
-  );
+  }) =>
+      FieldSettings(
+        autoStopParked: autoStopParked ?? this.autoStopParked,
+        parkedMinutes: parkedMinutes ?? this.parkedMinutes,
+        aircraftGuard: aircraftGuard ?? this.aircraftGuard,
+        disconnectAlert: disconnectAlert ?? this.disconnectAlert,
+        allCoverage: allCoverage ?? this.allCoverage,
+        recentCoverageOnly: recentCoverageOnly ?? this.recentCoverageOnly,
+        recentCoverageDays: recentCoverageDays ?? this.recentCoverageDays,
+        groupNodes: groupNodes ?? this.groupNodes,
+        matchPreset: matchPreset ?? this.matchPreset,
+        guideSeen: guideSeen ?? this.guideSeen,
+      );
 
   Map<String, Object> toJson() => {
-    'autoStopParked': autoStopParked,
-    'parkedMinutes': parkedMinutes,
-    'aircraftGuard': aircraftGuard,
-    'disconnectAlert': disconnectAlert,
-    'allCoverage': allCoverage,
-    'recentCoverageOnly': recentCoverageOnly,
-    'recentCoverageDays': recentCoverageDays,
-    'groupNodes': groupNodes,
-    'matchPreset': matchPreset,
-    'guideSeen': guideSeen,
-  };
+        'autoStopParked': autoStopParked,
+        'parkedMinutes': parkedMinutes,
+        'aircraftGuard': aircraftGuard,
+        'disconnectAlert': disconnectAlert,
+        'allCoverage': allCoverage,
+        'recentCoverageOnly': recentCoverageOnly,
+        'recentCoverageDays': recentCoverageDays,
+        'groupNodes': groupNodes,
+        'matchPreset': matchPreset,
+        'guideSeen': guideSeen,
+      };
 
   /// Reads saved values, keeping defaults for anything missing or invalid.
   factory FieldSettings.fromJson(Map<String, dynamic> json) {
@@ -121,8 +122,8 @@ class FieldSettings {
 
 final fieldSettingsProvider =
     NotifierProvider<FieldSettingsNotifier, FieldSettings>(
-      FieldSettingsNotifier.new,
-    );
+  FieldSettingsNotifier.new,
+);
 
 class FieldSettingsNotifier extends Notifier<FieldSettings> {
   @override

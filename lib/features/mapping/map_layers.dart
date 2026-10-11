@@ -60,11 +60,10 @@ List<CoverageCell> coverageCells(
       );
     }
   }
-  final result =
-      cells.values
-          .where((c) => since == null || !c.latest.isBefore(since))
-          .toList()
-        ..sort((a, b) => b.latest.compareTo(a.latest));
+  final result = cells.values
+      .where((c) => since == null || !c.latest.isBefore(since))
+      .toList()
+    ..sort((a, b) => b.latest.compareTo(a.latest));
   return result.length > maxCoverageCells
       ? result.sublist(0, maxCoverageCells)
       : result;
@@ -80,8 +79,8 @@ final savedCoverageProvider = Provider<List<CoverageCell>>((ref) {
       : null;
   final since = settings.recentCoverageOnly
       ? ref
-            .read(mappingClockProvider)()
-            .subtract(Duration(days: settings.recentCoverageDays))
+          .read(mappingClockProvider)()
+          .subtract(Duration(days: settings.recentCoverageDays))
       : null;
   return coverageCells(sessions, preset: preset, since: since);
 });
@@ -97,9 +96,8 @@ class NodeGroup {
 /// Groups located nodes within about 11 m of each other. With [group] false
 /// every node gets its own marker.
 List<NodeGroup> groupNodes(Iterable<MeshContact> nodes, {bool group = true}) {
-  final located = nodes
-      .where((n) => n.latitude != null && n.longitude != null)
-      .toList();
+  final located =
+      nodes.where((n) => n.latitude != null && n.longitude != null).toList();
   if (!group) {
     return [
       for (final n in located) NodeGroup([n]),
@@ -126,11 +124,11 @@ Color advertColor(DateTime? lastAdvert, DateTime now) {
 }
 
 IconData nodeIcon(int type) => switch (type) {
-  2 => Icons.cell_tower,
-  3 => Icons.forum_outlined,
-  4 => Icons.sensors,
-  _ => Icons.person_outline,
-};
+      2 => Icons.cell_tower,
+      3 => Icons.forum_outlined,
+      4 => Icons.sensors,
+      _ => Icons.person_outline,
+    };
 
 /// Neutral-bodied node marker with a coloured edge and optional count badge.
 class NodeMarker extends StatelessWidget {

@@ -119,9 +119,8 @@ class SessionExportService {
     return await channel.invokeMethod<bool>(share ? 'share' : 'save', {
           'name':
               'MeshScout-${session.started.toUtc().millisecondsSinceEpoch}.$extension',
-          'mime': format == ExportFormat.csv
-              ? 'text/csv'
-              : 'application/geo+json',
+          'mime':
+              format == ExportFormat.csv ? 'text/csv' : 'application/geo+json',
           'content': exportSession(session, format),
         }) ??
         false;

@@ -14,8 +14,7 @@ double distanceMetres(GpsPoint a, GpsPoint b) {
   double rad(double degrees) => degrees * math.pi / 180;
   final dLat = rad(b.latitude - a.latitude);
   final dLon = rad(b.longitude - a.longitude);
-  final h =
-      math.pow(math.sin(dLat / 2), 2) +
+  final h = math.pow(math.sin(dLat / 2), 2) +
       math.cos(rad(a.latitude)) *
           math.cos(rad(b.latitude)) *
           math.pow(math.sin(dLon / 2), 2);

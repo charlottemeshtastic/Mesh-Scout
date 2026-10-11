@@ -69,7 +69,8 @@ class MessageAlerts extends Notifier<AlertState> {
           state = AlertState(
             enabled: state.enabled,
             busy: state.busy,
-            notice: 'Message alerts could not be updated. Check Android notification settings.',
+            notice:
+                'Message alerts could not be updated. Check Android notification settings.',
           );
         }
       }

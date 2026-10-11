@@ -23,8 +23,8 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
           (c) =>
               (!_repeatersOnly || c.type == 2) &&
               ('${c.name} ${c.key}'.toLowerCase().contains(
-                _query.toLowerCase(),
-              )),
+                    _query.toLowerCase(),
+                  )),
         )
         .toList();
     return ListView(
@@ -56,8 +56,7 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
           label: const Text('Messages'),
         ),
         FilledButton.icon(
-          onPressed:
-              radio.phase == RadioPhase.ready &&
+          onPressed: radio.phase == RadioPhase.ready &&
                   !radio.syncing &&
                   !radio.messagingBusy
               ? () async => ref.read(radioProvider.notifier).refreshContacts()

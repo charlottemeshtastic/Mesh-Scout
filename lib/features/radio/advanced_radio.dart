@@ -39,9 +39,8 @@ List<int> contactCommand(
       'Use a name of 1–31 UTF-8 bytes and node type 1–4.',
     );
   }
-  final frame = original.length == 148
-      ? [...original]
-      : List<int>.filled(148, 0);
+  final frame =
+      original.length == 148 ? [...original] : List<int>.filled(148, 0);
   frame[0] = 9;
   frame.setRange(1, 33, publicKey(key));
   frame[33] = type;
@@ -149,7 +148,8 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           token == radio.sessionToken &&
           notice == 'Waiting for companion…') {
         setState(
-          () => notice = 'Companion accepted request. Remote requests need a reply to confirm success.',
+          () => notice =
+              'Companion accepted request. Remote requests need a reply to confirm success.',
         );
       }
     } catch (_) {
@@ -175,108 +175,118 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
     List<String> labels, {
     List<String>? initial,
     bool secret = false,
-  }) => showDialog<List<String>>(
-    context: context,
-    builder: (_) =>
-        _Fields(title: title, labels: labels, initial: initial, secret: secret),
-  );
+  }) =>
+      showDialog<List<String>>(
+        context: context,
+        builder: (_) => _Fields(
+            title: title, labels: labels, initial: initial, secret: secret),
+      );
   Future<void> guarded(Future<void> Function() operation) async {
     try {
       await operation();
     } catch (e) {
       if (mounted) {
         setState(
-          () => notice = e is FormatException
-              ? e.message.toString()
-              : 'Operation failed.',
+          () => notice =
+              e is FormatException ? e.message.toString() : 'Operation failed.',
         );
       }
     }
   }
 
   Future<void> editContact([MeshContact? c]) => guarded(() async {
-    final values = await form(
-      c == null ? 'Add contact' : 'Edit contact',
-      ['Public key', 'Name', 'Type: 1 chat, 2 repeater, 3 room, 4 sensor'],
-      initial: [c?.key ?? '', c?.name ?? '', '${c?.type ?? 1}'],
-    );
-    if (values == null) {
-      return;
-    }
-    if (c != null && values[0].toLowerCase() != c.key) {
-      throw const FormatException(
-        'A public key cannot be edited. Add a new contact instead.',
-      );
-    }
-    await run(
-      contactCommand(
-        values[0],
-        values[1],
-        int.parse(values[2]),
-        original: c?.frame ?? const [],
-      ),
-      refresh: true,
-    );
-  });
+        final values = await form(
+          c == null ? 'Add contact' : 'Edit contact',
+          ['Public key', 'Name', 'Type: 1 chat, 2 repeater, 3 room, 4 sensor'],
+          initial: [c?.key ?? '', c?.name ?? '', '${c?.type ?? 1}'],
+        );
+        if (values == null) {
+          return;
+        }
+        if (c != null && values[0].toLowerCase() != c.key) {
+          throw const FormatException(
+            'A public key cannot be edited. Add a new contact instead.',
+          );
+        }
+        await run(
+          contactCommand(
+            values[0],
+            values[1],
+            int.parse(values[2]),
+            original: c?.frame ?? const [],
+          ),
+          refresh: true,
+        );
+      });
   Future<void> remote(MeshContact c, int command) => guarded(() async {
-    final key = publicKey(c.key);
-    List<int> frame;
-    if (command == 26) {
-      final values = await form('Log in to ${c.name}', [
-        'Repeater password (never saved)',
-      ], secret: true);
-      if (values == null) {
-        return;
-      }
-      final password = utf8.encode(values.first);
-      if (password.isEmpty ||
-          password.length > 64 ||
-          values.first.contains('\u0000')) {
-        throw const FormatException('Use a password of 1–64 UTF-8 bytes.');
-      }
-      frame = [26, ...key, ...password];
-    } else if (command == 2) {
-      if (ref
-              .read(radioProvider)
-              .contacts
-              .where((node) => node.key.startsWith(c.key.substring(0, 12)))
-              .length !=
-          1) {
-        throw const FormatException(
-          'Ambiguous recipient prefix. CLI was not sent.',
-        );
-      }
-      final values = await form('Repeater CLI command', [
-        'Command (may change remote configuration)',
-      ]);
-      if (values == null) {
-        return;
-      }
-      final body = utf8.encode(values.first);
-      if (body.isEmpty ||
-          body.length > 133 ||
-          values.first.contains('\u0000')) {
-        throw const FormatException('Use a command of 1–133 UTF-8 bytes.');
-      }
-      final time = ByteData(4)
-        ..setUint32(
-          0,
-          DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          Endian.little,
-        );
-      frame = [2, 1, 0, ...time.buffer.asUint8List(), ...key.take(6), ...body];
-    } else {
-      frame = switch (command) {
-        52 => [52, 0, ...key],
-        39 => [39, 0, 0, 0, ...key],
-        _ => [command, ...key],
-      };
-    }
-    requestedAt = DateTime.now();
-    pendingKey = c.key.substring(0, 12);
-    pendingToken = ref.read(radioProvider.notifier).sessionToken;
-    await run(frame, replies: const {6});
-  });
+        final key = publicKey(c.key);
+        List<int> frame;
+        if (command == 26) {
+          final values = await form(
+              'Log in to ${c.name}',
+              [
+                'Repeater password (never saved)',
+              ],
+              secret: true);
+          if (values == null) {
+            return;
+          }
+          final password = utf8.encode(values.first);
+          if (password.isEmpty ||
+              password.length > 64 ||
+              values.first.contains('\u0000')) {
+            throw const FormatException('Use a password of 1–64 UTF-8 bytes.');
+          }
+          frame = [26, ...key, ...password];
+        } else if (command == 2) {
+          if (ref
+                  .read(radioProvider)
+                  .contacts
+                  .where((node) => node.key.startsWith(c.key.substring(0, 12)))
+                  .length !=
+              1) {
+            throw const FormatException(
+              'Ambiguous recipient prefix. CLI was not sent.',
+            );
+          }
+          final values = await form('Repeater CLI command', [
+            'Command (may change remote configuration)',
+          ]);
+          if (values == null) {
+            return;
+          }
+          final body = utf8.encode(values.first);
+          if (body.isEmpty ||
+              body.length > 133 ||
+              values.first.contains('\u0000')) {
+            throw const FormatException('Use a command of 1–133 UTF-8 bytes.');
+          }
+          final time = ByteData(4)
+            ..setUint32(
+              0,
+              DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              Endian.little,
+            );
+          frame = [
+            2,
+            1,
+            0,
+            ...time.buffer.asUint8List(),
+            ...key.take(6),
+            ...body
+          ];
+        } else {
+          frame = switch (command) {
+            52 => [52, 0, ...key],
+            39 => [39, 0, 0, 0, ...key],
+            _ => [command, ...key],
+          };
+        }
+        requestedAt = DateTime.now();
+        pendingKey = c.key.substring(0, 12);
+        pendingToken = ref.read(radioProvider.notifier).sessionToken;
+        await run(frame, replies: const {6});
+      });
   @override
   Widget build(BuildContext buildContext) {
     final state = ref.watch(radioProvider);
@@ -301,29 +311,27 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
         details = next.first == 0x8b
             ? telemetryDescription(next.sublist(8))
             : next.first == 0x8d
-            ? pathDescription(next)
-            : next
-                  .skip(8)
-                  .map((b) => b.toRadixString(16).padLeft(2, '0'))
-                  .join(' ');
+                ? pathDescription(next)
+                : next
+                    .skip(8)
+                    .map((b) => b.toRadixString(16).padLeft(2, '0'))
+                    .join(' ');
       } on FormatException {
         setState(() => notice = 'Malformed remote response; result unknown.');
         return;
       }
       setState(
-        () => notice =
-            '${switch (next.first) {
-              0x85 => "Login accepted",
-              0x86 => "Login rejected",
-              0x87 => "Status response received: node reachable now",
-              0x8b => "Telemetry response received",
-              0x8d => "Path response received",
-              _ => "Response",
-            }} at ${DateTime.now().toLocal()}. Payload (firmware format): $details',
+        () => notice = '${switch (next.first) {
+          0x85 => "Login accepted",
+          0x86 => "Login rejected",
+          0x87 => "Status response received: node reachable now",
+          0x8b => "Telemetry response received",
+          0x8d => "Path response received",
+          _ => "Response",
+        }} at ${DateTime.now().toLocal()}. Payload (firmware format): $details',
       );
     });
-    final ready =
-        !busy &&
+    final ready = !busy &&
         !importing &&
         state.phase == RadioPhase.ready &&
         !state.controlsBusy &&
@@ -373,90 +381,90 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           OutlinedButton(
             onPressed: ready
                 ? () => guarded(() async {
-                    final text = await const MethodChannel(
-                      'org.meshscout/files',
-                    ).invokeMethod<String>('openBackup');
-                    if (text == null) {
-                      return;
-                    }
-                    final data = jsonDecode(text) as Map<String, dynamic>;
-                    if (data['format'] != 'meshscout-contacts' ||
-                        data['version'] != 1 ||
-                        data['contacts'] is! List ||
-                        (data['contacts'] as List).length > 5000) {
-                      throw const FormatException(
-                        'Choose a MeshScout contact export with up to 5,000 contacts.',
-                      );
-                    }
-                    final commands = <List<int>>[];
-                    for (final value in data['contacts'] as List) {
-                      final row = value as Map<String, dynamic>;
-                      final raw =
-                          (row['frame'] as List?)?.cast<int>() ?? const <int>[];
-                      if (raw.isNotEmpty &&
-                          (raw.length != 148 ||
-                              raw.any((v) => v < 0 || v > 255) ||
-                              MeshContact.parse([3, ...raw.skip(1)]).key !=
-                                  row['key'])) {
-                        throw const FormatException('Invalid contact data.');
+                      final text = await const MethodChannel(
+                        'org.meshscout/files',
+                      ).invokeMethod<String>('openBackup');
+                      if (text == null) {
+                        return;
                       }
-                      commands.add(
-                        contactCommand(
-                          row['key'] as String,
-                          row['name'] as String,
-                          row['type'] as int,
-                          original: raw,
-                        ),
-                      );
-                    }
-                    if (!mounted) {
-                      return;
-                    }
-                    final yes = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: Text('Import ${commands.length} contacts?'),
-                        content: const Text(
-                          'Existing public keys are updated. Other contacts are retained.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Import'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (yes != true) {
-                      return;
-                    }
-                    if (!mounted) return;
-                    setState(() => importing = true);
-                    var accepted = 0;
-                    try {
-                      for (final command in commands) {
-                        if (!mounted) break;
-                        await run(command);
-                        if (!notice.startsWith('Companion accepted')) break;
-                        accepted++;
-                      }
-                      if (mounted) {
-                        await ref
-                            .read(radioProvider.notifier)
-                            .refreshContacts();
-                        setState(
-                          () => notice =
-                              '$accepted of ${commands.length} contacts accepted. Refresh verifies the stored table.',
+                      final data = jsonDecode(text) as Map<String, dynamic>;
+                      if (data['format'] != 'meshscout-contacts' ||
+                          data['version'] != 1 ||
+                          data['contacts'] is! List ||
+                          (data['contacts'] as List).length > 5000) {
+                        throw const FormatException(
+                          'Choose a MeshScout contact export with up to 5,000 contacts.',
                         );
                       }
-                    } finally {
-                      if (mounted) setState(() => importing = false);
-                    }
-                  })
+                      final commands = <List<int>>[];
+                      for (final value in data['contacts'] as List) {
+                        final row = value as Map<String, dynamic>;
+                        final raw = (row['frame'] as List?)?.cast<int>() ??
+                            const <int>[];
+                        if (raw.isNotEmpty &&
+                            (raw.length != 148 ||
+                                raw.any((v) => v < 0 || v > 255) ||
+                                MeshContact.parse([3, ...raw.skip(1)]).key !=
+                                    row['key'])) {
+                          throw const FormatException('Invalid contact data.');
+                        }
+                        commands.add(
+                          contactCommand(
+                            row['key'] as String,
+                            row['name'] as String,
+                            row['type'] as int,
+                            original: raw,
+                          ),
+                        );
+                      }
+                      if (!mounted) {
+                        return;
+                      }
+                      final yes = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: Text('Import ${commands.length} contacts?'),
+                          content: const Text(
+                            'Existing public keys are updated. Other contacts are retained.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Import'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (yes != true) {
+                        return;
+                      }
+                      if (!mounted) return;
+                      setState(() => importing = true);
+                      var accepted = 0;
+                      try {
+                        for (final command in commands) {
+                          if (!mounted) break;
+                          await run(command);
+                          if (!notice.startsWith('Companion accepted')) break;
+                          accepted++;
+                        }
+                        if (mounted) {
+                          await ref
+                              .read(radioProvider.notifier)
+                              .refreshContacts();
+                          setState(
+                            () => notice =
+                                '$accepted of ${commands.length} contacts accepted. Refresh verifies the stored table.',
+                          );
+                        }
+                      } finally {
+                        if (mounted) setState(() => importing = false);
+                      }
+                    })
                 : null,
             child: const Text('Import contacts'),
           ),
@@ -471,14 +479,14 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
               trailing: TextButton(
                 onPressed: ready
                     ? () => run(
-                        contactCommand(
-                          c.key,
-                          c.name,
-                          c.type,
-                          original: c.frame,
-                        ),
-                        refresh: true,
-                      )
+                          contactCommand(
+                            c.key,
+                            c.name,
+                            c.type,
+                            original: c.frame,
+                          ),
+                          refresh: true,
+                        )
                     : null,
                 child: const Text('Import'),
               ),
@@ -487,116 +495,118 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
           OutlinedButton(
             onPressed: ready
                 ? () => guarded(() async {
-                    final values = await form('Create or replace channel', [
-                      'Slot index',
-                      'Name',
-                      '128-bit key: 32 hex characters (leave empty to generate)',
-                    ]);
-                    if (values == null) {
-                      return;
-                    }
-                    final generated = List.generate(
-                      16,
-                      (_) => Random.secure().nextInt(256),
-                    ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-                    final secret = values[2].isEmpty ? generated : values[2];
-                    final command = channelCommand(
-                      int.parse(values[0]),
-                      ref.read(radioProvider.notifier).channelCapacity,
-                      values[1],
-                      secret,
-                    );
-                    if (!mounted) {
-                      return;
-                    }
-                    final yes = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: const Text('Replace this channel slot?'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Keep this key securely to configure other radios. Existing keys are never read or exported.',
+                      final values = await form('Create or replace channel', [
+                        'Slot index',
+                        'Name',
+                        '128-bit key: 32 hex characters (leave empty to generate)',
+                      ]);
+                      if (values == null) {
+                        return;
+                      }
+                      final generated = List.generate(
+                        16,
+                        (_) => Random.secure().nextInt(256),
+                      ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+                      final secret = values[2].isEmpty ? generated : values[2];
+                      final command = channelCommand(
+                        int.parse(values[0]),
+                        ref.read(radioProvider.notifier).channelCapacity,
+                        values[1],
+                        secret,
+                      );
+                      if (!mounted) {
+                        return;
+                      }
+                      final yes = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Replace this channel slot?'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Keep this key securely to configure other radios. Existing keys are never read or exported.',
+                              ),
+                              SelectableText(secret),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c),
+                              child: const Text('Cancel'),
                             ),
-                            SelectableText(secret),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Apply'),
+                            ),
                           ],
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Apply'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (yes == true) {
-                      await run(command);
-                      await ref.read(radioProvider.notifier).refreshChannels();
-                    }
-                  })
+                      );
+                      if (yes == true) {
+                        await run(command);
+                        await ref
+                            .read(radioProvider.notifier)
+                            .refreshChannels();
+                      }
+                    })
                 : null,
             child: const Text('Create / edit channel and key'),
           ),
           OutlinedButton(
             onPressed: ready
                 ? () => guarded(() async {
-                    final values = await form(
-                      'Advanced radio settings',
-                      [
-                        'Frequency MHz',
-                        'Bandwidth kHz',
-                        'Spreading factor',
-                        'Coding rate',
-                        'Client repeat: 0 off / 1 on (firmware 9+)',
-                      ],
-                      initial: const ['', '', '7', '5', '0'],
-                    );
-                    if (values == null) {
-                      return;
-                    }
-                    if (!['0', '1'].contains(values[4])) {
-                      throw const FormatException(
-                        'Client repeat must be 0 or 1.',
-                      );
-                    }
-                    final command = parametersCommand(
-                      double.parse(values[0]),
-                      double.parse(values[1]),
-                      int.parse(values[2]),
-                      int.parse(values[3]),
-                      repeat: values[4] == '1',
-                    );
-                    if (!mounted) {
-                      return;
-                    }
-                    final yes = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: const Text('Apply radio parameters?'),
-                        content: const Text(
-                          'Use values permitted for your radio and region. Client repeat is set to the value entered. These must match your mesh. A mismatch can stop communication.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Apply'),
-                          ),
+                      final values = await form(
+                        'Advanced radio settings',
+                        [
+                          'Frequency MHz',
+                          'Bandwidth kHz',
+                          'Spreading factor',
+                          'Coding rate',
+                          'Client repeat: 0 off / 1 on (firmware 9+)',
                         ],
-                      ),
-                    );
-                    if (yes == true) {
-                      await run(command);
-                    }
-                  })
+                        initial: const ['', '', '7', '5', '0'],
+                      );
+                      if (values == null) {
+                        return;
+                      }
+                      if (!['0', '1'].contains(values[4])) {
+                        throw const FormatException(
+                          'Client repeat must be 0 or 1.',
+                        );
+                      }
+                      final command = parametersCommand(
+                        double.parse(values[0]),
+                        double.parse(values[1]),
+                        int.parse(values[2]),
+                        int.parse(values[3]),
+                        repeat: values[4] == '1',
+                      );
+                      if (!mounted) {
+                        return;
+                      }
+                      final yes = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Apply radio parameters?'),
+                          content: const Text(
+                            'Use values permitted for your radio and region. Client repeat is set to the value entered. These must match your mesh. A mismatch can stop communication.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Apply'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (yes == true) {
+                        await run(command);
+                      }
+                    })
                 : null,
             child: const Text('Frequency, bandwidth, SF and CR'),
           ),
@@ -615,29 +625,29 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                     TextButton(
                       onPressed: ready
                           ? () => guarded(() async {
-                              final yes = await showDialog<bool>(
-                                context: context,
-                                builder: (d) => AlertDialog(
-                                  title: Text('Delete ${c.name}?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(d),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () => Navigator.pop(d, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (yes == true) {
-                                await run([
-                                  15,
-                                  ...publicKey(c.key),
-                                ], refresh: true);
-                              }
-                            })
+                                final yes = await showDialog<bool>(
+                                  context: context,
+                                  builder: (d) => AlertDialog(
+                                    title: Text('Delete ${c.name}?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(d),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(d, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (yes == true) {
+                                  await run([
+                                    15,
+                                    ...publicKey(c.key),
+                                  ], refresh: true);
+                                }
+                              })
                           : null,
                       child: const Text('Delete'),
                     ),
@@ -707,30 +717,30 @@ class _FieldsState extends State<_Fields> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.title),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < fields.length; i++)
-            TextField(
-              controller: fields[i],
-              obscureText: widget.secret,
-              decoration: InputDecoration(labelText: widget.labels[i]),
-            ),
+        title: Text(widget.title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < fields.length; i++)
+                TextField(
+                  controller: fields[i],
+                  obscureText: widget.secret,
+                  decoration: InputDecoration(labelText: widget.labels[i]),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, [for (final f in fields) f.text]),
+            child: const Text('Apply'),
+          ),
         ],
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () =>
-            Navigator.pop(context, [for (final f in fields) f.text]),
-        child: const Text('Apply'),
-      ),
-    ],
-  );
+      );
 }

@@ -424,8 +424,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
         ),
         Expanded(
-          child:
-              widget.mapContent ??
+          child: widget.mapContent ??
               FlutterMap(
                 mapController: _controller,
                 options: MapOptions(
@@ -452,9 +451,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                   MarkerLayer(
                     markers: [
-                      for (final note
-                          in ref.watch(fieldNotesProvider).value ??
-                              <Map<String, dynamic>>[])
+                      for (final note in ref.watch(fieldNotesProvider).value ??
+                          <Map<String, dynamic>>[])
                         Marker(
                           width: 48,
                           height: 48,
@@ -606,10 +604,10 @@ class MappingAvailability extends ConsumerWidget {
               state.busy
                   ? 'Please wait…'
                   : state.recording
-                  ? 'Stop and save route'
-                  : retry
-                  ? 'Retry save'
-                  : 'Start Mapping',
+                      ? 'Stop and save route'
+                      : retry
+                          ? 'Retry save'
+                          : 'Start Mapping',
             ),
           ),
           const SizedBox(height: 6),
@@ -639,8 +637,8 @@ class HistoryScreen extends ConsumerWidget {
     final sessions = preset == null
         ? state.sessions
         : state.sessions
-              .where((s) => s.planned || s.preset == preset.key)
-              .toList();
+            .where((s) => s.planned || s.preset == preset.key)
+            .toList();
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -674,8 +672,8 @@ class HistoryScreen extends ConsumerWidget {
               session.planned
                   ? '${session.points.length} planned route points · no GPS measurements'
                   : '${session.points.length} GPS points · ${session.observations.length} LoRa observations · '
-                        '${session.ended.difference(session.started).inMinutes} min'
-                        '${RadioPreset.parse(session.preset) == null ? "" : " · ${RadioPreset.parse(session.preset)!.label}"}',
+                      '${session.ended.difference(session.started).inMinutes} min'
+                      '${RadioPreset.parse(session.preset) == null ? "" : " · ${RadioPreset.parse(session.preset)!.label}"}',
             ),
             onTap: state.recording || state.busy || state.points.isNotEmpty
                 ? null
@@ -691,17 +689,17 @@ class HistoryScreen extends ConsumerWidget {
                   tooltip: 'Name session',
                   onPressed:
                       state.recording || state.busy || state.points.isNotEmpty
-                      ? null
-                      : () async {
-                          final name = await showDialog<String>(
-                            context: context,
-                            builder: (_) =>
-                                _SessionNameDialog(name: session.name),
-                          );
-                          if (name != null) {
-                            await actions.rename(session, name);
-                          }
-                        },
+                          ? null
+                          : () async {
+                              final name = await showDialog<String>(
+                                context: context,
+                                builder: (_) =>
+                                    _SessionNameDialog(name: session.name),
+                              );
+                              if (name != null) {
+                                await actions.rename(session, name);
+                              }
+                            },
                 ),
                 IconButton(
                   icon: const Icon(Icons.ios_share),
@@ -709,30 +707,30 @@ class HistoryScreen extends ConsumerWidget {
                   onPressed: () async {
                     final choice =
                         await showDialog<({ExportFormat format, bool share})>(
-                          context: context,
-                          builder: (c) => SimpleDialog(
-                            title: const Text('Export session'),
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.all(16),
+                      context: context,
+                      builder: (c) => SimpleDialog(
+                        title: const Text('Export session'),
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text(
+                              'Export includes precise route locations and reception times. Choose where to save or share it.',
+                            ),
+                          ),
+                          for (final format in ExportFormat.values)
+                            for (final share in [false, true])
+                              SimpleDialogOption(
+                                onPressed: () => Navigator.pop(c, (
+                                  format: format,
+                                  share: share,
+                                )),
                                 child: Text(
-                                  'Export includes precise route locations and reception times. Choose where to save or share it.',
+                                  '${share ? "Share" : "Save"} ${format == ExportFormat.csv ? "CSV" : "GeoJSON"}',
                                 ),
                               ),
-                              for (final format in ExportFormat.values)
-                                for (final share in [false, true])
-                                  SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(c, (
-                                      format: format,
-                                      share: share,
-                                    )),
-                                    child: Text(
-                                      '${share ? "Share" : "Save"} ${format == ExportFormat.csv ? "CSV" : "GeoJSON"}',
-                                    ),
-                                  ),
-                            ],
-                          ),
-                        );
+                        ],
+                      ),
+                    );
                     if (choice == null) return;
                     try {
                       final done = await SessionExportService().send(
@@ -746,8 +744,8 @@ class HistoryScreen extends ConsumerWidget {
                             content: Text(
                               done
                                   ? choice.share
-                                        ? 'Share menu opened'
-                                        : 'Session saved'
+                                      ? 'Share menu opened'
+                                      : 'Session saved'
                                   : 'Save cancelled',
                             ),
                           ),
@@ -769,8 +767,9 @@ class HistoryScreen extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'Delete session',
-                  onPressed:
-                      state.recording || state.busy || state.points.isNotEmpty
+                  onPressed: state.recording ||
+                          state.busy ||
+                          state.points.isNotEmpty
                       ? null
                       : () async {
                           final confirmed = await showDialog<bool>(
@@ -821,23 +820,23 @@ class _SessionNameDialogState extends State<_SessionNameDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Name session'),
-    content: TextField(
-      controller: controller,
-      maxLength: 80,
-      decoration: const InputDecoration(labelText: 'Session name'),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, controller.text),
-        child: const Text('Save'),
-      ),
-    ],
-  );
+        title: const Text('Name session'),
+        content: TextField(
+          controller: controller,
+          maxLength: 80,
+          decoration: const InputDecoration(labelText: 'Session name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      );
 }
 
 class FeaturePlaceholder extends StatelessWidget {
@@ -855,24 +854,24 @@ class FeaturePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      Text(title, style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 32),
-      Icon(icon, size: 48),
-      const SizedBox(height: 16),
-      Text(message, style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 12),
-      Text(detail),
-    ],
-  );
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(title, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 32),
+          Icon(icon, size: 48),
+          const SizedBox(height: 16),
+          Text(message, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          Text(detail),
+        ],
+      );
 }
 
 Color signalColor(int rssi) => rssi >= -90
     ? Colors.green
     : rssi >= -110
-    ? Colors.orange
-    : Colors.red;
+        ? Colors.orange
+        : Colors.red;
 
 class CoverageScreen extends ConsumerWidget {
   const CoverageScreen({super.key});
@@ -937,62 +936,62 @@ class SettingsScreen extends ConsumerWidget {
   final VoidCallback onRadios;
 
   void _open(BuildContext context, Widget page) => unawaited(
-    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page)),
-  );
+        Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page)),
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 16),
-      ListTile(
-        leading: const Icon(Icons.bluetooth),
-        title: const Text('Bluetooth radios'),
-        subtitle: const Text(
-          'Scan, connect, or disconnect a MeshCore companion',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onRadios,
-      ),
-      SettingsFolderTile(
-        icon: Icons.settings_input_antenna,
-        title: 'Radio and alerts',
-        subtitle: 'Reconnect, disconnect alert, message alerts',
-        onTap: () => _open(context, const RadioAlertSettingsPage()),
-      ),
-      SettingsFolderTile(
-        icon: Icons.route,
-        title: 'Recording',
-        subtitle: 'Background GPS, auto-stop when parked, flight check',
-        onTap: () => _open(context, const RecordingSettingsPage()),
-      ),
-      SettingsFolderTile(
-        icon: Icons.map_outlined,
-        title: 'Map',
-        subtitle: 'Saved coverage, recent-only filter, node grouping',
-        onTap: () => _open(context, const MapSettingsPage()),
-      ),
-      SettingsFolderTile(
-        icon: Icons.save_outlined,
-        title: 'Backup and storage',
-        subtitle: 'Backups, restore, cloud document, cleanup',
-        onTap: () => _open(context, const BackupSettingsPage()),
-      ),
-      SettingsFolderTile(
-        icon: Icons.info_outline,
-        title: 'About and support',
-        subtitle: 'Quick guide, getting started, privacy, version',
-        onTap: () => _open(context, const AboutSettingsPage()),
-      ),
-      ListTile(
-        leading: const Icon(Icons.security),
-        title: const Text('App permissions'),
-        subtitle: const Text('Manage Bluetooth access in Android settings'),
-        onTap: () async => ref.read(radioProvider.notifier).openSettings(),
-      ),
-      if (ref.watch(preferencesProvider) != null)
-        Text(ref.watch(preferencesProvider)!),
-    ],
-  );
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.bluetooth),
+            title: const Text('Bluetooth radios'),
+            subtitle: const Text(
+              'Scan, connect, or disconnect a MeshCore companion',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onRadios,
+          ),
+          SettingsFolderTile(
+            icon: Icons.settings_input_antenna,
+            title: 'Radio and alerts',
+            subtitle: 'Reconnect, disconnect alert, message alerts',
+            onTap: () => _open(context, const RadioAlertSettingsPage()),
+          ),
+          SettingsFolderTile(
+            icon: Icons.route,
+            title: 'Recording',
+            subtitle: 'Background GPS, auto-stop when parked, flight check',
+            onTap: () => _open(context, const RecordingSettingsPage()),
+          ),
+          SettingsFolderTile(
+            icon: Icons.map_outlined,
+            title: 'Map',
+            subtitle: 'Saved coverage, recent-only filter, node grouping',
+            onTap: () => _open(context, const MapSettingsPage()),
+          ),
+          SettingsFolderTile(
+            icon: Icons.save_outlined,
+            title: 'Backup and storage',
+            subtitle: 'Backups, restore, cloud document, cleanup',
+            onTap: () => _open(context, const BackupSettingsPage()),
+          ),
+          SettingsFolderTile(
+            icon: Icons.info_outline,
+            title: 'About and support',
+            subtitle: 'Quick guide, getting started, privacy, version',
+            onTap: () => _open(context, const AboutSettingsPage()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.security),
+            title: const Text('App permissions'),
+            subtitle: const Text('Manage Bluetooth access in Android settings'),
+            onTap: () async => ref.read(radioProvider.notifier).openSettings(),
+          ),
+          if (ref.watch(preferencesProvider) != null)
+            Text(ref.watch(preferencesProvider)!),
+        ],
+      );
 }

@@ -51,15 +51,17 @@ void main() {
     await directory.delete(recursive: true);
   });
   Map<String, dynamic> message(int n) => {
-    'peer': 'peer',
-    'body': '$n',
-    'radio': 'radio',
-    'time': n,
-    'outgoing': false,
-    'status': 'Received',
-    'unread': true,
-  };
-  test('inbox checkpoint survives restart and replays once after history was published', () async {
+        'peer': 'peer',
+        'body': '$n',
+        'radio': 'radio',
+        'time': n,
+        'outgoing': false,
+        'status': 'Received',
+        'unread': true,
+      };
+  test(
+      'inbox checkpoint survives restart and replays once after history was published',
+      () async {
     final journal = container.read(inboxJournalProvider);
     await journal.write([7, 1, 2, 3, 4, 5, 6, 0, 0, 1, 0, 0, 0, 65], 'radio');
     final checkpoint = await journal.read();
@@ -88,13 +90,17 @@ void main() {
       expect(await journal.read(), isNull);
     },
   );
-  test('unsupported checkpoint is kept as a raw message rather than blocking history', () async {
+  test(
+      'unsupported checkpoint is kept as a raw message rather than blocking history',
+      () async {
     await container.read(inboxJournalProvider).write([27, 2, 255], 'radio');
     await container.read(messagesProvider.notifier).load();
     expect(container.read(messagesProvider).loaded, true);
     expect(container.read(messagesProvider).items.single['body'], '1b 02 ff');
   });
-  test('completed pending history recovers and per-conversation read and deletion persist', () async {
+  test(
+      'completed pending history recovers and per-conversation read and deletion persist',
+      () async {
     await File('${directory.path}/messages.json.pending').writeAsString(
       jsonEncode([
         message(1),
@@ -111,7 +117,8 @@ void main() {
     expect(
       (jsonDecode(
         await File('${directory.path}/messages.json').readAsString(),
-      ) as List).length,
+      ) as List)
+          .length,
       1,
     );
   });
@@ -138,7 +145,9 @@ void main() {
       expect(container.read(messagesProvider).items.first['time'], 50);
     },
   );
-  test('preferred radio and matching contacts reload without initiating a disconnected session', () async {
+  test(
+      'preferred radio and matching contacts reload without initiating a disconnected session',
+      () async {
     final frame = List<int>.filled(148, 0)
       ..[0] = 3
       ..[33] = 1;
@@ -167,7 +176,9 @@ void main() {
     expect(container.read(autoInboxProvider), true);
     await container.read(preferencesProvider.notifier).pending;
   });
-  test('GPS and associated LoRa observation share a recovery checkpoint before stop', () async {
+  test(
+      'GPS and associated LoRa observation share a recovery checkpoint before stop',
+      () async {
     final mapping = CheckpointMapping();
     final local = ProviderContainer(
       overrides: [mappingServiceProvider.overrideWithValue(mapping)],

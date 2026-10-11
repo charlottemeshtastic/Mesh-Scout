@@ -40,8 +40,7 @@ String exportMessages(
   String cell(String value) {
     // Quoting alone does not neutralize spreadsheet formulas from received text.
     final trimmed = value.trimLeft();
-    final safe =
-        trimmed.isNotEmpty &&
+    final safe = trimmed.isNotEmpty &&
             ('=+-@'.contains(trimmed[0]) || trimmed.codeUnitAt(0) < 32)
         ? "'$value"
         : value;

@@ -6,38 +6,40 @@ import 'package:mesh_scout/features/radio/radio_controls.dart';
 
 void main() {
   Map<String, dynamic> fixture() => {
-    'format': 'meshscout-backup',
-    'version': 1,
-    'sessions': [
-      {
-        'id': 'a',
-        'name': 'Trail',
-        'started': '2026-10-10T10:00:00Z',
-        'ended': '2026-10-10T10:01:00Z',
-        'points': [
+        'format': 'meshscout-backup',
+        'version': 1,
+        'sessions': [
           {
-            'lat': 35.2,
-            'lon': -80.8,
-            'accuracy': 5,
-            'time': '2026-10-10T10:00:30Z',
+            'id': 'a',
+            'name': 'Trail',
+            'started': '2026-10-10T10:00:00Z',
+            'ended': '2026-10-10T10:01:00Z',
+            'points': [
+              {
+                'lat': 35.2,
+                'lon': -80.8,
+                'accuracy': 5,
+                'time': '2026-10-10T10:00:30Z',
+              },
+            ],
           },
         ],
-      },
-    ],
-    'messages': [
-      {
-        'body': 'hello 🌲',
-        'peer': 'abc',
-        'radio': 'radio',
-        'status': 'Accepted by radio · delivery unconfirmed',
-        'time': 1000,
-        'outgoing': true,
-        'tag': 42,
-        'secret': 'excluded',
-      },
-    ],
-  };
-  test('backup round trip retains history but excludes radio secrets and live ACK tags', () {
+        'messages': [
+          {
+            'body': 'hello 🌲',
+            'peer': 'abc',
+            'radio': 'radio',
+            'status': 'Accepted by radio · delivery unconfirmed',
+            'time': 1000,
+            'outgoing': true,
+            'tag': 42,
+            'secret': 'excluded',
+          },
+        ],
+      };
+  test(
+      'backup round trip retains history but excludes radio secrets and live ACK tags',
+      () {
     final backup = ScoutBackup.decode(jsonEncode(fixture()));
     final decoded = ScoutBackup.decode(backup.encode());
     expect(decoded.sessions.single.name, 'Trail');
@@ -113,7 +115,9 @@ void main() {
       expect(() => radioPowerCommand(23, 22), throwsFormatException);
     },
   );
-  test('status parses signed power and optional storage without exposing PIN/key bytes', () {
+  test(
+      'status parses signed power and optional storage without exposing PIN/key bytes',
+      () {
     final self = List<int>.filled(58, 0)
       ..[0] = 5
       ..[2] = 247

@@ -20,7 +20,9 @@ void main() {
       CoverageObservation(point: point, rssi: -101, snr: -2.25, time: time),
     ],
   );
-  test('GeoJSON uses longitude/latitude, retains measurements and avoids one-point lines', () {
+  test(
+      'GeoJSON uses longitude/latitude, retains measurements and avoids one-point lines',
+      () {
     final json = jsonDecode(
       exportSession(session, ExportFormat.geoJson),
     ) as Map<String, dynamic>;
@@ -76,7 +78,9 @@ void main() {
       expect(() => areaTiles(double.nan, -80), throwsFormatException);
     },
   );
-  test('complete download publishes only finished area and reloads without network', () async {
+  test(
+      'complete download publishes only finished area and reloads without network',
+      () async {
     final directory = await Directory.systemTemp.createTemp(
       'meshscout-map-test',
     );

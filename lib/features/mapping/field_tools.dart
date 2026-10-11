@@ -30,8 +30,7 @@ class CoverageSummary {
       final a = session.points[i - 1], b = session.points[i];
       final lat = (b.latitude - a.latitude) * math.pi / 180,
           lon = (b.longitude - a.longitude) * math.pi / 180;
-      final h =
-          math.pow(math.sin(lat / 2), 2) +
+      final h = math.pow(math.sin(lat / 2), 2) +
           math.cos(a.latitude * math.pi / 180) *
               math.cos(b.latitude * math.pi / 180) *
               math.pow(math.sin(lon / 2), 2);
@@ -106,8 +105,8 @@ MappingSession importRoute(String text) {
 
 final fieldNotesProvider =
     AsyncNotifierProvider<FieldNotes, List<Map<String, dynamic>>>(
-      FieldNotes.new,
-    );
+  FieldNotes.new,
+);
 
 class FieldNotes extends AsyncNotifier<List<Map<String, dynamic>>> {
   Future<File> file() async =>
@@ -117,8 +116,8 @@ class FieldNotes extends AsyncNotifier<List<Map<String, dynamic>>> {
     final f = await file();
     return f.existsSync()
         ? (jsonDecode(await f.readAsString()) as List)
-              .map((v) => Map<String, dynamic>.from(v as Map))
-              .toList()
+            .map((v) => Map<String, dynamic>.from(v as Map))
+            .toList()
         : [];
   }
 
@@ -209,12 +208,11 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                 SizedBox(
                   width: 100,
                   child: LinearProgressIndicator(
-                    value:
-                        ((cell.value.reduce((a, b) => a + b) /
-                                        cell.value.length +
-                                    140) /
-                                100)
-                            .clamp(0, 1),
+                    value: ((cell.value.reduce((a, b) => a + b) /
+                                    cell.value.length +
+                                140) /
+                            100)
+                        .clamp(0, 1),
                   ),
                 ),
                 Text(' ${cell.value.length} samples'),
@@ -263,48 +261,45 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
           ))
             summary(s),
           OutlinedButton(
-            onPressed:
-                busy ||
+            onPressed: busy ||
                     mapping.recording ||
                     mapping.busy ||
                     mapping.points.isNotEmpty
                 ? null
                 : () => action(() async {
-                    final text = await const MethodChannel(
-                      'org.meshscout/files',
-                    ).invokeMethod<String>('openBackup');
-                    if (text == null) {
-                      return;
-                    }
-                    final route = importRoute(text);
-                    await ref
-                        .read(mappingProvider.notifier)
-                        .importSession(route);
-                    notice = 'Planned route imported into History.';
-                  }),
+                      final text = await const MethodChannel(
+                        'org.meshscout/files',
+                      ).invokeMethod<String>('openBackup');
+                      if (text == null) {
+                        return;
+                      }
+                      final route = importRoute(text);
+                      await ref
+                          .read(mappingProvider.notifier)
+                          .importSession(route);
+                      notice = 'Planned route imported into History.';
+                    }),
             child: const Text('Import GeoJSON route'),
           ),
           FilledButton(
             onPressed: busy || !notes.hasValue
                 ? null
                 : () => action(() async {
-                    final values = await showDialog<List<String>>(
-                      context: context,
-                      builder: (_) => const _WaypointDialog(),
-                    );
-                    if (values == null) {
-                      return;
-                    }
-                    await ref
-                        .read(fieldNotesProvider.notifier)
-                        .add(
-                          values[0],
-                          values[1],
-                          double.parse(values[2]),
-                          double.parse(values[3]),
-                        );
-                    notice = 'Waypoint saved.';
-                  }),
+                      final values = await showDialog<List<String>>(
+                        context: context,
+                        builder: (_) => const _WaypointDialog(),
+                      );
+                      if (values == null) {
+                        return;
+                      }
+                      await ref.read(fieldNotesProvider.notifier).add(
+                            values[0],
+                            values[1],
+                            double.parse(values[2]),
+                            double.parse(values[3]),
+                          );
+                      notice = 'Waypoint saved.';
+                    }),
             child: const Text('Add waypoint and note'),
           ),
           if (notes.hasError)
@@ -319,32 +314,30 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
                 onPressed: busy
                     ? null
                     : () => action(() async {
-                        final yes = await showDialog<bool>(
-                          context: context,
-                          builder: (c) => AlertDialog(
-                            title: const Text('Delete waypoint?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(c),
-                                child: const Text('Cancel'),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(c, true),
-                                child: const Text('Delete'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (yes == true) {
-                          await ref
-                              .read(fieldNotesProvider.notifier)
-                              .save(
-                                notes.requireValue
-                                    .where((v) => v['id'] != n['id'])
-                                    .toList(),
-                              );
-                        }
-                      }),
+                          final yes = await showDialog<bool>(
+                            context: context,
+                            builder: (c) => AlertDialog(
+                              title: const Text('Delete waypoint?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(c),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(c, true),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (yes == true) {
+                            await ref.read(fieldNotesProvider.notifier).save(
+                                  notes.requireValue
+                                      .where((v) => v['id'] != n['id'])
+                                      .toList(),
+                                );
+                          }
+                        }),
               ),
             ),
         ],
@@ -371,31 +364,36 @@ class _WaypointState extends State<_WaypointDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Waypoint'),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < 4; i++)
-            TextField(
-              controller: fields[i],
-              decoration: InputDecoration(
-                labelText: const ['Name', 'Note', 'Latitude', 'Longitude'][i],
-              ),
-            ),
+        title: const Text('Waypoint'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < 4; i++)
+                TextField(
+                  controller: fields[i],
+                  decoration: InputDecoration(
+                    labelText: const [
+                      'Name',
+                      'Note',
+                      'Latitude',
+                      'Longitude'
+                    ][i],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, fields.map((c) => c.text).toList()),
+            child: const Text('Save'),
+          ),
         ],
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () =>
-            Navigator.pop(context, fields.map((c) => c.text).toList()),
-        child: const Text('Save'),
-      ),
-    ],
-  );
+      );
 }

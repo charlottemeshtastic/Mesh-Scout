@@ -6,16 +6,18 @@ import 'package:mesh_scout/features/messages/messages.dart';
 
 void main() {
   Map<String, dynamic> item(String body, {bool outgoing = false}) => {
-    'radio': 'radio-a',
-    'peer': 'Channel 0',
-    'body': body,
-    'time': 1,
-    'status': 'delivery unconfirmed',
-    'outgoing': outgoing,
-    'tag': 42,
-    'secret': 'do not export',
-  };
-  test('JSON preserves exact text, UTC, direction and status, omitting extra fields', () {
+        'radio': 'radio-a',
+        'peer': 'Channel 0',
+        'body': body,
+        'time': 1,
+        'status': 'delivery unconfirmed',
+        'outgoing': outgoing,
+        'tag': 42,
+        'secret': 'do not export',
+      };
+  test(
+      'JSON preserves exact text, UTC, direction and status, omitting extra fields',
+      () {
     final data = jsonDecode(
       exportMessages([item('=1+1\n"héllo"')], MessageExportFormat.json),
     ) as Map<String, dynamic>;

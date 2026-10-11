@@ -70,14 +70,17 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
               RadioPhase.identifying => 'Checking MeshCore companion protocol…',
               RadioPhase.ready => 'MeshCore companion connected',
               RadioPhase.failed => switch (state.failure) {
-                RadioFailure.denied =>
-                  'Permission denied. Allow Bluetooth access to scan.',
-                RadioFailure.permanentlyDenied =>
-                  'Permission blocked. Enable it in app settings.',
-                RadioFailure.unavailable => 'Bluetooth unavailable. Enable Bluetooth and, on older Android, location services.',
-                RadioFailure.protocol => 'MeshCore identification failed or timed out. Check companion firmware and pairing.',
-                _ => 'Bluetooth connection failed. Check your radio and retry.',
-              },
+                  RadioFailure.denied =>
+                    'Permission denied. Allow Bluetooth access to scan.',
+                  RadioFailure.permanentlyDenied =>
+                    'Permission blocked. Enable it in app settings.',
+                  RadioFailure.unavailable =>
+                    'Bluetooth unavailable. Enable Bluetooth and, on older Android, location services.',
+                  RadioFailure.protocol =>
+                    'MeshCore identification failed or timed out. Check companion firmware and pairing.',
+                  _ =>
+                    'Bluetooth connection failed. Check your radio and retry.',
+                },
             }),
             const SizedBox(height: 12),
             if (!state.busy && actions.preferred != null)
@@ -116,8 +119,7 @@ class _RadioScreenState extends ConsumerState<RadioScreen>
                 ),
                 subtitle: Text('${device.id} · BLE signal ${device.rssi} dBm'),
                 trailing: TextButton(
-                  onPressed:
-                      state.phase == RadioPhase.idle ||
+                  onPressed: state.phase == RadioPhase.idle ||
                           state.phase == RadioPhase.scanning
                       ? () async => actions.connect(device)
                       : null,

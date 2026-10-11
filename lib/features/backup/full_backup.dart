@@ -157,7 +157,8 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
       }
       await refresh();
     } catch (_) {
-      notice = 'Operation failed. Check passphrase, available storage and document-provider access. Existing app data was retained unless restore already completed.';
+      notice =
+          'Operation failed. Check passphrase, available storage and document-provider access. Existing app data was retained unless restore already completed.';
     } finally {
       secret = '';
       ref.read(maintenanceProvider.notifier).set(false);
@@ -218,15 +219,13 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
         Wrap(
           children: [
             OutlinedButton(
-              onPressed: available && !busy
-                  ? () => perform('saveBundle')
-                  : null,
+              onPressed:
+                  available && !busy ? () => perform('saveBundle') : null,
               child: const Text('Save full backup'),
             ),
             OutlinedButton(
-              onPressed: available && !busy
-                  ? () => perform('openBundle')
-                  : null,
+              onPressed:
+                  available && !busy ? () => perform('openBundle') : null,
               child: const Text('Open / merge / restore'),
             ),
           ],
@@ -301,25 +300,25 @@ class _PassphraseState extends State<_Passphrase> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Backup passphrase'),
-    content: TextField(
-      controller: text,
-      obscureText: true,
-      autocorrect: false,
-      enableSuggestions: false,
-      decoration: const InputDecoration(
-        labelText: '12+ characters to encrypt; empty for plain restore',
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, text.text),
-        child: const Text('Continue'),
-      ),
-    ],
-  );
+        title: const Text('Backup passphrase'),
+        content: TextField(
+          controller: text,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: const InputDecoration(
+            labelText: '12+ characters to encrypt; empty for plain restore',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, text.text),
+            child: const Text('Continue'),
+          ),
+        ],
+      );
 }

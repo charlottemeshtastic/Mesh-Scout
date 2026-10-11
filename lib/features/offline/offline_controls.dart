@@ -32,8 +32,8 @@ class OfflineControls extends ConsumerWidget {
             onChanged: offline.busy
                 ? null
                 : (path) => actions.select(
-                    offline.areas.firstWhere((a) => a.path == path),
-                  ),
+                      offline.areas.firstWhere((a) => a.path == path),
+                    ),
           ),
         if (offline.busy)
           LinearProgressIndicator(
@@ -100,9 +100,8 @@ class OfflineControls extends ConsumerWidget {
             const Text('Offline'),
             Switch(
               value: offline.enabled,
-              onChanged: offline.busy || offline.area == null
-                  ? null
-                  : actions.enable,
+              onChanged:
+                  offline.busy || offline.area == null ? null : actions.enable,
             ),
             if (offline.area != null)
               IconButton(
@@ -235,21 +234,21 @@ class _AreaNameState extends State<_AreaNameDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Name offline area'),
-    content: TextField(
-      controller: text,
-      maxLength: 60,
-      decoration: const InputDecoration(labelText: 'Area name (optional)'),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, text.text),
-        child: const Text('Download'),
-      ),
-    ],
-  );
+        title: const Text('Name offline area'),
+        content: TextField(
+          controller: text,
+          maxLength: 60,
+          decoration: const InputDecoration(labelText: 'Area name (optional)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, text.text),
+            child: const Text('Download'),
+          ),
+        ],
+      );
 }

@@ -28,12 +28,12 @@ class SettingsFolderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: Icon(icon),
-    title: Text(title),
-    subtitle: Text(subtitle),
-    trailing: const Icon(Icons.chevron_right),
-    onTap: onTap,
-  );
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      );
 }
 
 class _SettingsPage extends StatelessWidget {
@@ -43,14 +43,14 @@ class _SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: children,
-      ),
-    ),
-  );
+        appBar: AppBar(title: Text(title)),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: children,
+          ),
+        ),
+      );
 }
 
 class RadioAlertSettingsPage extends ConsumerWidget {
@@ -92,7 +92,7 @@ class RadioAlertSettingsPage extends ConsumerWidget {
           onChanged: alerts.busy
               ? null
               : (enabled) async =>
-                    ref.read(messageAlertsProvider.notifier).configure(enabled),
+                  ref.read(messageAlertsProvider.notifier).configure(enabled),
         ),
         if (alerts.notice != null)
           Padding(
@@ -252,9 +252,9 @@ class BackupSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const _SettingsPage(
-    title: 'Backup and storage',
-    children: [BackupControls(), FullBackupControls(), StorageControls()],
-  );
+        title: 'Backup and storage',
+        children: [BackupControls(), FullBackupControls(), StorageControls()],
+      );
 }
 
 class AboutSettingsPage extends StatelessWidget {
@@ -262,56 +262,57 @@ class AboutSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _SettingsPage(
-    title: 'About and support',
-    children: [
-      ListTile(
-        leading: const Icon(Icons.auto_stories_outlined),
-        title: const Text('Quick guide'),
-        subtitle: const Text('The short tour shown on first launch'),
-        onTap: () => unawaited(
-          Navigator.push(
-            context,
-            MaterialPageRoute<void>(builder: (_) => const QuickGuideScreen()),
+        title: 'About and support',
+        children: [
+          ListTile(
+            leading: const Icon(Icons.auto_stories_outlined),
+            title: const Text('Quick guide'),
+            subtitle: const Text('The short tour shown on first launch'),
+            onTap: () => unawaited(
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                    builder: (_) => const QuickGuideScreen()),
+              ),
+            ),
           ),
-        ),
-      ),
-      ListTile(
-        leading: const Icon(Icons.help_outline),
-        title: const Text('Getting started and privacy'),
-        subtitle: const Text(
-          'Connect a radio, record a route and protect your data',
-        ),
-        onTap: () => unawaited(
-          Navigator.push(
-            context,
-            MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Getting started and privacy'),
+            subtitle: const Text(
+              'Connect a radio, record a route and protect your data',
+            ),
+            onTap: () => unawaited(
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+              ),
+            ),
           ),
-        ),
-      ),
-      const ListTile(
-        leading: Icon(Icons.location_off_outlined),
-        title: Text('GPS route recording'),
-        subtitle: Text(
-          'Precise location is requested when you start a route. '
-          'Routes save on this phone. Background recording is optional. Checkpointed routes recover after an interruption.',
-        ),
-      ),
-      const ListTile(
-        leading: Icon(Icons.privacy_tip_outlined),
-        title: Text('Privacy'),
-        subtitle: Text(
-          'Saved sessions stay on this phone until you export/share them. Online map tiles '
-          'use OpenStreetMap; offline downloads use USGS. Offline mode makes no tile requests.',
-        ),
-      ),
-      const ListTile(
-        leading: Icon(Icons.info_outline),
-        title: Text('MeshScout 1.3'),
-        subtitle: Text(
-          'Radio connections stay active while switching apps. '
-          'Android may still end them if the process is stopped.',
-        ),
-      ),
-    ],
-  );
+          const ListTile(
+            leading: Icon(Icons.location_off_outlined),
+            title: Text('GPS route recording'),
+            subtitle: Text(
+              'Precise location is requested when you start a route. '
+              'Routes save on this phone. Background recording is optional. Checkpointed routes recover after an interruption.',
+            ),
+          ),
+          const ListTile(
+            leading: Icon(Icons.privacy_tip_outlined),
+            title: Text('Privacy'),
+            subtitle: Text(
+              'Saved sessions stay on this phone until you export/share them. Online map tiles '
+              'use OpenStreetMap; offline downloads use USGS. Offline mode makes no tile requests.',
+            ),
+          ),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('MeshScout 1.3'),
+            subtitle: Text(
+              'Radio connections stay active while switching apps. '
+              'Android may still end them if the process is stopped.',
+            ),
+          ),
+        ],
+      );
 }

@@ -44,12 +44,10 @@ class AndroidMappingService
   }
 
   @override
-  Stream<GpsPoint> positions() => _events
-      .receiveBroadcastStream({
+  Stream<GpsPoint> positions() => _events.receiveBroadcastStream({
         'background': _background,
         'started': _started?.microsecondsSinceEpoch,
-      })
-      .map((event) {
+      }).map((event) {
         final data = event as Map<dynamic, dynamic>;
         return GpsPoint(
           (data['lat'] as num).toDouble(),

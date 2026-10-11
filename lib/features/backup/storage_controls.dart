@@ -23,8 +23,7 @@ class _StorageControlsState extends ConsumerState<StorageControls> {
     final mapping = ref.watch(mappingProvider);
     final messages = ref.watch(messagesProvider);
     final offline = ref.watch(offlineProvider);
-    final idle =
-        !busy &&
+    final idle = !busy &&
         !mapping.loading &&
         !mapping.busy &&
         !mapping.recording &&
@@ -60,36 +59,36 @@ class _StorageControlsState extends ConsumerState<StorageControls> {
         TextButton(
           onPressed: idle && messages.items.length > 200
               ? () => confirm(
-                  'Keep only the latest 200 messages?',
-                  ref.read(messagesProvider.notifier).pruneHistory,
-                )
+                    'Keep only the latest 200 messages?',
+                    ref.read(messagesProvider.notifier).pruneHistory,
+                  )
               : null,
           child: const Text('Keep latest 200 messages'),
         ),
         TextButton(
           onPressed: idle && mapping.sessions.length > 20
               ? () => confirm(
-                  'Keep only the latest 20 sessions?',
-                  ref.read(mappingProvider.notifier).pruneHistory,
-                )
+                    'Keep only the latest 20 sessions?',
+                    ref.read(mappingProvider.notifier).pruneHistory,
+                  )
               : null,
           child: const Text('Keep latest 20 sessions'),
         ),
         TextButton(
           onPressed: idle
               ? () => confirm(
-                  'Delete the paused map download?',
-                  ref.read(offlineProvider.notifier).discardPending,
-                )
+                    'Delete the paused map download?',
+                    ref.read(offlineProvider.notifier).discardPending,
+                  )
               : null,
           child: const Text('Remove paused download'),
         ),
         TextButton(
           onPressed: idle
               ? () => confirm(
-                  'Remove unused restore profiles?',
-                  () => run('cleanRetiredProfiles'),
-                )
+                    'Remove unused restore profiles?',
+                    () => run('cleanRetiredProfiles'),
+                  )
               : null,
           child: const Text('Remove unused restore profiles'),
         ),
