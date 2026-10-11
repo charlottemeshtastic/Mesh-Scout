@@ -24,9 +24,10 @@ class _SyncControlsState extends ConsumerState<CloudSyncControls> {
       await action();
       if (mounted) setState(() => error = null);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => error =
             'Could not change sync settings. Check provider access and passphrase.');
+      }
     }
   }
 

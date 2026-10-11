@@ -38,20 +38,20 @@ class SettingsFolderTile extends StatelessWidget {
       );
 }
 
-class _SettingsPage extends StatelessWidget {
+class _SettingsPage extends ConsumerWidget {
   const _SettingsPage({required this.title, required this.children});
   final String title;
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: SafeArea(
+        body: AbsorbPointer(absorbing: ref.watch(maintenanceProvider), child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: children,
           ),
-        ),
+        )),
       );
 }
 

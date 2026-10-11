@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../backup/backup.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -331,6 +332,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> pruneHistory() async {
+    if (ref.read(maintenanceProvider)) return;
     if (!state.loaded ||
         state.busy ||
         hasUnsaved ||
@@ -341,6 +343,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> deleteMessage(Map<String, dynamic> message) async {
+    if (ref.read(maintenanceProvider)) return;
     if (!state.loaded || state.busy || hasUnsaved) {
       return;
     }
@@ -350,6 +353,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> markRead(String conversation) async {
+    if (ref.read(maintenanceProvider)) return;
     if (!state.loaded || state.busy || hasUnsaved) {
       return;
     }
@@ -360,6 +364,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> clearHistory() async {
+    if (ref.read(maintenanceProvider)) return;
     if (!state.loaded || state.busy || hasUnsaved) {
       return;
     }
@@ -369,6 +374,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   Future<void> retrySave() async {
+    if (ref.read(maintenanceProvider)) return;
     if (_inboxPending && _unsaved == null && !state.busy) {
       await load(recover: true);
       return;
@@ -388,6 +394,7 @@ class Messages extends Notifier<MessageState> {
   }
 
   bool get available =>
+      !ref.read(maintenanceProvider) &&
       state.loaded &&
       !state.busy &&
       !hasUnsaved &&

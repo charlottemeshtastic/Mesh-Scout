@@ -67,7 +67,7 @@ class CloudSync extends Notifier<CloudSyncState> {
         !m.recording &&
         !m.busy &&
         m.points.isEmpty &&
-        !ref.read(messagesProvider).busy &&
+        ref.read(messagesProvider).loaded && !ref.read(messagesProvider).busy &&
         !ref.read(messagesProvider.notifier).hasUnsaved &&
         !ref.read(offlineProvider).busy &&
         !ref.read(fieldNotesProvider).isLoading &&
@@ -87,15 +87,18 @@ class CloudSync extends Notifier<CloudSyncState> {
               ? 'Automatic sync waits for the app to be open, idle and disconnected from the radio.'
               : 'Automatic sync is off.');
       _timer?.cancel();
-      if (state.enabled)
+      if (state.enabled) {
         _timer = Timer.periodic(ref.read(syncIntervalProvider), (_) {
-          if (_foreground && state.enabled && !state.attention && available)
+          if (_foreground && state.enabled && !state.attention && available) {
             unawaited(run());
+          }
         });
+      }
     } catch (_) {
-      if (ref.mounted)
+      if (ref.mounted) {
         state =
             const CloudSyncState(notice: 'Sync settings could not be loaded.');
+      }
     }
   }
 
@@ -130,9 +133,10 @@ class CloudSync extends Notifier<CloudSyncState> {
       final raw =
           Map<String, dynamic>.from(await service.call('syncLocal') as Map);
       final backup = ScoutBackup.decode(raw['data'] as String);
-      final notes = (jsonDecode(raw['notes'] as String) as List).cast<Map<String, dynamic>>();
-      final repeaters =
-          (jsonDecode(raw['repeaters'] as String) as List).cast<Map<String, dynamic>>();
+      final notes = (jsonDecode(raw['notes'] as String) as List)
+          .cast<Map<String, dynamic>>();
+      final repeaters = (jsonDecode(raw['repeaters'] as String) as List)
+          .cast<Map<String, dynamic>>();
       final local = <String, Map<String, dynamic>>{
         for (final s in backup.sessions) 'session:${s.id}': s.toJson(),
         for (final m in backup.messages) 'message:${messageSyncId(m)}': m,
@@ -168,9 +172,10 @@ class CloudSync extends Notifier<CloudSyncState> {
           }
       ];
       final conflictText = jsonEncode(conflicts);
-      if (utf8.encode(conflictText).length > 4 * 1024 * 1024)
+      if (utf8.encode(conflictText).length > 4 * 1024 * 1024) {
         throw const FormatException(
             'Conflict details exceed 4 MB; use manual backups to resolve.');
+      }
       final descriptions = [
         for (final id in merged.conflicts)
           '${id.split(':').first}: ${local[id]?['name'] ?? local[id]?['site'] ?? local[id]?['body'] ?? id.split(':').last}\nThis phone: ${_summary(local[id])}\nProposed: ${_summary(merged.snapshot.records[id]?.value)}'
@@ -219,12 +224,13 @@ class CloudSync extends Notifier<CloudSyncState> {
           'Sync paused. Check folder access, passphrase, storage and data limits, then retry. Provider delays may postpone remote changes.';
     } finally {
       if (ref.mounted) maintenance.set(false);
-      if (ref.mounted)
+      if (ref.mounted) {
         state = CloudSyncState(
             enabled: enabled,
             folder: folder,
             attention: attention,
             notice: notice);
+      }
     }
   }
 }

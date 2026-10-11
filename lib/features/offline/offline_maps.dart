@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
+import '../backup/backup.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef MapTile = ({int z, int x, int y});
@@ -130,6 +131,7 @@ class OfflineMaps extends Notifier<OfflineState> {
   Future<Directory> _root() async =>
       Directory(await ref.read(mapDirectoryProvider)());
   Future<void> discardPending() async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.busy || _running || _committing) return;
     final pending = Directory('${(await _root()).path}/pending');
     if (pending.existsSync()) await pending.delete(recursive: true);
@@ -227,6 +229,7 @@ class OfflineMaps extends Notifier<OfflineState> {
     int sideKm = 4,
     String? name,
   }) async {
+    if (ref.read(maintenanceProvider)) return;
     if (_running || state.busy) {
       return;
     }
@@ -427,6 +430,7 @@ class OfflineMaps extends Notifier<OfflineState> {
   }
 
   Future<void> rename(String name) async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.busy || state.area == null) {
       return;
     }
@@ -460,6 +464,7 @@ class OfflineMaps extends Notifier<OfflineState> {
   }
 
   Future<void> delete() async {
+    if (ref.read(maintenanceProvider)) return;
     if (_running || state.busy || state.area == null) {
       return;
     }

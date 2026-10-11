@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'mapping_service.dart';
+import '../backup/backup.dart';
 import 'trip_guard.dart';
 import '../../common/mesh_data.dart';
 import '../radio/radio_notifier.dart';
@@ -117,6 +118,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> importSession(MappingSession session) async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.loading ||
         state.busy ||
         state.recording ||
@@ -153,6 +155,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> start({bool background = false}) async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.loading ||
         state.busy ||
         state.recording ||
@@ -466,6 +469,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> rename(MappingSession session, String input) async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.recording ||
         state.busy ||
         _loadFailed ||
@@ -526,6 +530,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> pruneHistory() async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.loading ||
         state.busy ||
         state.recording ||
@@ -566,6 +571,7 @@ class MappingNotifier extends Notifier<MappingState> {
   }
 
   Future<void> delete(MappingSession session) async {
+    if (ref.read(maintenanceProvider)) return;
     if (state.recording ||
         state.busy ||
         _loadFailed ||

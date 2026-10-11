@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../common/mesh_data.dart';
+import '../backup/backup.dart';
 import '../offline/offline_maps.dart';
 import '../radio/advanced_radio.dart';
 
@@ -59,6 +60,7 @@ class RepeaterDetails extends AsyncNotifier<List<Map<String, String>>> {
   }
 
   Future<void> save(Map<String, dynamic> value) async {
+    if (ref.read(maintenanceProvider)) throw StateError('Wait for sync or restore to finish.');
     if (state.isLoading || state.hasError)
       throw StateError('Wait for repeater information to load.');
     final row = validateRepeaterDetails(value);
@@ -108,6 +110,7 @@ class _RepeaterDetailsState extends ConsumerState<RepeaterDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final details = ref.watch(repeaterDetailsProvider);
+    final blocked = ref.watch(maintenanceProvider);
     if (!loaded && details.hasValue) {
       final match =
           details.requireValue.where((r) => r['key'] == widget.contact.key);
@@ -155,7 +158,7 @@ class _RepeaterDetailsState extends ConsumerState<RepeaterDetailsScreen> {
                                 : null,
                       )),
                 FilledButton(
-                    onPressed: loaded && !details.isLoading && !details.hasError
+                    onPressed: !blocked && loaded && !details.isLoading && !details.hasError
                         ? () async {
                             if (!form.currentState!.validate()) return;
                             try {
@@ -178,7 +181,7 @@ class _RepeaterDetailsState extends ConsumerState<RepeaterDetailsScreen> {
                         : null,
                     child: const Text('Save repeater information')),
                 OutlinedButton(
-                    onPressed: () => Navigator.push(
+                    onPressed: blocked ? null : () => Navigator.push(
                         context,
                         MaterialPageRoute<void>(
                             builder: (_) =>

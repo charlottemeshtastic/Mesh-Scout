@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../offline/offline_maps.dart';
+import '../backup/backup.dart';
 import 'mapping_notifier.dart';
 import 'mapping_service.dart';
 
@@ -122,9 +123,11 @@ class FieldNotes extends AsyncNotifier<List<Map<String, dynamic>>> {
   }
 
   Future<void> save(List<Map<String, dynamic>> notes) async {
+    if (ref.read(maintenanceProvider)) throw StateError('Wait for sync or restore to finish.');
     final previous = state;
-    if (state.isLoading)
+    if (state.isLoading) {
       throw StateError('Wait for waypoint saving to finish.');
+    }
     state = const AsyncLoading();
     try {
       final f = await file(), tmp = await file();

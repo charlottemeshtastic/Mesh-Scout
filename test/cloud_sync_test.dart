@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mesh_scout/features/backup/backup.dart';
+import 'package:mesh_scout/features/messages/messages.dart';
 import 'package:mesh_scout/features/mapping/field_tools.dart';
 import 'package:mesh_scout/features/mapping/mapping_notifier.dart';
 import 'package:mesh_scout/features/nodes/repeater_details.dart';
@@ -49,6 +50,7 @@ void main() {
       radioProvider.overrideWith(IdleSyncRadio.new),mappingProvider.overrideWith(IdleSyncMapping.new),
       dataDirectoryProvider.overrideWithValue(() async => root.path),mapDirectoryProvider.overrideWithValue(() async => '${root.path}/offline'),
       syncIntervalProvider.overrideWithValue(const Duration(days:1))]);
+    await container.read(messagesProvider.notifier).load();
     await container.read(fieldNotesProvider.future);await container.read(repeaterDetailsProvider.future);
     await container.read(cloudSyncProvider.notifier).initialize();
   });

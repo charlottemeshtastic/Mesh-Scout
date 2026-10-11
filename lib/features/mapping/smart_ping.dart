@@ -21,7 +21,9 @@ bool recentlyMeasured(GpsPoint point, Iterable<MappingSession> sessions,
     for (final o in session.observations) {
       if (!o.time.isAfter(now) &&
           !o.time.isBefore(cutoff) &&
-          pingCell(o.point) == pingCell(point)) return true;
+          pingCell(o.point) == pingCell(point)) {
+        return true;
+      }
     }
   }
   return false;
@@ -52,17 +54,19 @@ class SmartPing extends Notifier<SmartPingState> {
   @override
   SmartPingState build() {
     final interval = ref.read(smartPingTickProvider);
-    if (interval != null)
+    if (interval != null) {
       _timer = Timer.periodic(interval, (_) => unawaited(send()));
+    }
     ref.listen(fieldSettingsProvider.select((s) => s.smartPing), (_, enabled) {
       _generation++;
-      if (!enabled)
+      if (!enabled) {
         state = SmartPingState(
             busy: state.busy,
             sent: state.sent,
             held: state.held,
             notice:
                 'Automatic pings stopped. A command already sent to the radio cannot be withdrawn.');
+      }
     });
     ref.listen(mappingProvider.select((s) => s.recording), (before, after) {
       _generation++;
@@ -101,14 +105,18 @@ class SmartPing extends Notifier<SmartPingState> {
         radio.syncing ||
         radio.messagingBusy ||
         radio.controlsBusy ||
-        radio.channelsLoading) return;
+        radio.channelsLoading) {
+      return;
+    }
     final token = ref.read(radioProvider.notifier).sessionToken;
     if (_failedToken == token && !manual) return;
     // Manual sends also respect the minimum interval; switching modes cannot
     // create a burst or retry an uncertain send automatically.
     if (_lastAttempt != null &&
-        now.difference(_lastAttempt!) < Duration(minutes: settings.pingMinutes))
+        now.difference(_lastAttempt!) <
+            Duration(minutes: settings.pingMinutes)) {
       return;
+    }
     final point = mapping.points.last;
     final age = now.difference(point.time);
     if (!point.valid ||
@@ -166,23 +174,26 @@ class SmartPing extends Notifier<SmartPingState> {
           .read(radioProvider.notifier)
           .messageCommand(const [7, 0], const {0});
       _pingedCells[cell] = now;
-      if (_pingedCells.length > 1000)
+      if (_pingedCells.length > 1000) {
         _pingedCells.remove(_pingedCells.keys.first);
-      if (ref.mounted)
+      }
+      if (ref.mounted) {
         state = SmartPingState(
             sent: sent + 1,
             held: held,
             notice: generation == _generation
                 ? 'Radio accepted the discovery ping. Reception or two-way coverage is not confirmed.'
                 : 'Ping command completed; automatic pinging remains stopped or paused.');
+      }
     } catch (_) {
       _failedToken = token;
-      if (ref.mounted)
+      if (ref.mounted) {
         state = SmartPingState(
             sent: sent,
             held: held,
             notice:
                 'Ping result unknown. Automatic pings paused until reconnect; no automatic resend.');
+      }
     }
   }
 }
@@ -204,23 +215,27 @@ class SmartPingControls extends ConsumerWidget {
           subtitle: const Text(
               'Opt-in zero-hop advertisements while recording with the app open. Skips cells measured recently on the same preset. Pings do not create coverage measurements. Uses the radio’s existing advertised name and location policy.'),
           onChanged: (v) => update((s) => s.copyWith(smartPing: v))),
-      Wrap(spacing: 12, children: [
+      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const Text('Minimum ping interval'),
         DropdownButton<int>(
+            isExpanded: true,
             value: settings.pingMinutes,
             hint: const Text('Ping interval'),
             items: [
               for (final m in const [2, 5, 10])
-                DropdownMenuItem(value: m, child: Text('Every $m min'))
+                DropdownMenuItem(value: m, child: Text('$m minutes'))
             ],
             onChanged: (v) {
               if (v != null) update((s) => s.copyWith(pingMinutes: v));
             }),
+        const Text('Recent coverage window'),
         DropdownButton<int>(
+            isExpanded: true,
             value: settings.pingDays,
             hint: const Text('Coverage age'),
             items: [
               for (final d in const [7, 14, 30, 90])
-                DropdownMenuItem(value: d, child: Text('Coverage: $d days'))
+                DropdownMenuItem(value: d, child: Text('$d days'))
             ],
             onChanged: (v) {
               if (v != null) update((s) => s.copyWith(pingDays: v));

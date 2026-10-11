@@ -92,8 +92,9 @@ class SyncSnapshot {
     final records = <String, SyncRecord>{};
     for (final row in data['records'] as List) {
       final record = SyncRecord.fromJson(Map<String, dynamic>.from(row as Map));
-      if (records.containsKey(record.id))
+      if (records.containsKey(record.id)) {
         throw const FormatException('Duplicate sync record.');
+      }
       records[record.id] = record;
     }
     validateSyncValues(records);
@@ -125,12 +126,14 @@ void validateSyncValues(Map<String, SyncRecord> records) {
   }));
   for (final session in backup.sessions) {
     if (canonical(records['session:${session.id}']?.value) !=
-        canonical(session.toJson()))
+        canonical(session.toJson())) {
       throw const FormatException('Session identity mismatch.');
+    }
   }
   for (final r in live.where((r) => r.id.startsWith('message:'))) {
-    if (r.id != 'message:${messageSyncId(r.value!)}')
+    if (r.id != 'message:${messageSyncId(r.value!)}') {
       throw const FormatException('Message identity mismatch.');
+    }
     if (r.value!.keys.any((k) => !const [
           'body',
           'peer',
@@ -145,8 +148,9 @@ void validateSyncValues(Map<String, SyncRecord> records) {
   }
   final notes = live.where((r) => r.id.startsWith('note:')).toList();
   final repeaters = live.where((r) => r.id.startsWith('repeater:')).toList();
-  if (notes.length > 1000 || repeaters.length > 1000)
+  if (notes.length > 1000 || repeaters.length > 1000) {
     throw const FormatException('Sync record limit reached.');
+  }
   for (final r in notes) {
     final n = r.value!;
     if (r.id != 'note:${n['id']}' ||
@@ -169,8 +173,9 @@ void validateSyncValues(Map<String, SyncRecord> records) {
   }
   for (final r in repeaters) {
     final details = validateRepeaterDetails(r.value!);
-    if (r.id != 'repeater:${details['key']}')
+    if (r.id != 'repeater:${details['key']}') {
       throw const FormatException('Repeater identity mismatch.');
+    }
   }
 }
 
@@ -211,8 +216,9 @@ SyncMerge mergeSync({
         continue;
       }
       if (old.revision == next.revision && old.actor == next.actor) {
-        if (canonical(old.value) != canonical(next.value))
+        if (canonical(old.value) != canonical(next.value)) {
           throw const FormatException('Conflicting revision identity.');
+        }
         continue;
       }
       final newer = next.revision > old.revision ||
@@ -228,11 +234,13 @@ SyncMerge mergeSync({
       if (newer) result[entry.key] = next;
     }
   }
-  if (result.length > 8000)
+  if (result.length > 8000) {
     throw const FormatException('Sync is full; deletion history is retained.');
+  }
   validateSyncValues(result);
   final snapshot = SyncSnapshot(actor, sequence, result);
-  if (utf8.encode(snapshot.encode()).length > 20 * 1024 * 1024)
+  if (utf8.encode(snapshot.encode()).length > 20 * 1024 * 1024) {
     throw const FormatException('Merged sync exceeds 20 MB.');
+  }
   return SyncMerge(snapshot, conflicts.toSet().take(50).toList());
 }
