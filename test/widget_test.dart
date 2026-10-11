@@ -299,7 +299,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.scrollUntilVisible(
         find.text('Privacy and network access'), 400,
-        maxIteration: 100,
+        maxScrolls: 100,
         scrollable: find
             .descendant(
                 of: find.byType(HelpScreen), matching: find.byType(Scrollable))
