@@ -103,7 +103,8 @@ List<int> parametersCommand(
 }
 
 class AdvancedRadioScreen extends ConsumerStatefulWidget {
-  const AdvancedRadioScreen({super.key});
+  const AdvancedRadioScreen({super.key, this.contactKey});
+  final String? contactKey;
   @override
   ConsumerState<AdvancedRadioScreen> createState() => _AdvancedRadioState();
 }
@@ -611,8 +612,9 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
             child: const Text('Frequency, bandwidth, SF and CR'),
           ),
           const Divider(),
-          for (final c in state.contacts)
+          for (final c in state.contacts.where((c) => widget.contactKey == null || c.key == widget.contactKey))
             ExpansionTile(
+              initiallyExpanded: widget.contactKey != null,
               title: Text(c.name),
               subtitle: Text(c.typeLabel),
               children: [

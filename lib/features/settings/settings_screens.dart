@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../alerts/message_alerts.dart';
 import '../backup/backup.dart';
+import '../sync/sync_controls.dart';
 import '../backup/full_backup.dart';
 import '../backup/storage_controls.dart';
 import '../mapping/mapping_notifier.dart';
+import '../mapping/smart_ping.dart';
 import '../radio/radio_notifier.dart';
 import '../shell/help_screen.dart';
 import '../shell/quick_guide.dart';
@@ -123,6 +125,7 @@ class RecordingSettingsPage extends ConsumerWidget {
     return _SettingsPage(
       title: 'Recording',
       children: [
+        const SmartPingControls(),
         SwitchListTile(
           title: const Text('Keep GPS recording in background'),
           subtitle: const Text(
@@ -253,7 +256,7 @@ class BackupSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const _SettingsPage(
         title: 'Backup and storage',
-        children: [BackupControls(), FullBackupControls(), StorageControls()],
+        children: [BackupControls(), FullBackupControls(), CloudSyncControls(), StorageControls()],
       );
 }
 
@@ -307,7 +310,7 @@ class AboutSettingsPage extends StatelessWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 1.4.0'),
+            title: Text('MeshScout 1.5.0'),
             subtitle: Text(
               'Radio connections stay active while switching apps. '
               'Android may still end them if the process is stopped.',

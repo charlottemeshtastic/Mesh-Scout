@@ -52,7 +52,7 @@ object ScoutStorage {
         try {
             write(File(target, "mapping-sessions.json"), backup.getJSONArray("sessions").toString())
             write(File(target, "messages.json"), backup.getJSONArray("messages").toString())
-            for (name in listOf("field-notes.json", "settings.json")) {
+            for (name in listOf("field-notes.json", "settings.json", "repeater-details.json", "sync-state.json", "sync-scope", "sync-conflicts.json")) {
                 val file = File(previous, name)
                 if (file.exists()) file.copyTo(File(target, name))
             }

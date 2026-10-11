@@ -201,7 +201,7 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
         const Divider(),
         const Text('Full backup, merge and cloud document'),
         const Text(
-          'Includes history, waypoints, notes and reconnect and background-GPS preferences; optionally saved raster maps. Radio passwords, channel keys, provider permissions and in-progress recordings are excluded. Stop recording/downloads and disconnect first. Maximum 500 MB of maps and five map areas.',
+          'Includes history, waypoints, notes and reconnect and background-GPS preferences; optionally saved raster/vector maps. Radio passwords, channel keys, provider permissions and in-progress recordings are excluded. Stop recording/downloads and disconnect first. Maximum 500 MB of maps and five map areas.',
         ),
         SwitchListTile(
           title: const Text('Include offline maps'),
@@ -235,7 +235,7 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
           child: const Text('Choose dedicated backup document'),
         ),
         const Text(
-          'Choose a cloud provider in Android’s picker if available, or a local document. Upload overwrites that dedicated document; provider interruption may leave it incomplete. Keep a separate local backup. Cloud restore always previews changes; automatic two-way sync is not enabled.',
+          'Choose a cloud provider in Android’s picker if available, or a local document. Upload overwrites that dedicated document; provider interruption may leave it incomplete. Keep a separate local backup. Cloud restore always previews changes. Automatic folder sync is configured separately below.',
         ),
         Wrap(
           children: [

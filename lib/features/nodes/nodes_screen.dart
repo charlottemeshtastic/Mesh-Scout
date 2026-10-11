@@ -5,6 +5,7 @@ import '../../common/mesh_data.dart';
 import '../radio/radio_notifier.dart';
 import '../messages/messages.dart';
 import '../radio/advanced_radio.dart';
+import 'repeater_details.dart';
 
 class NodesScreen extends ConsumerStatefulWidget {
   const NodesScreen({super.key});
@@ -104,7 +105,9 @@ class _NodesScreenState extends ConsumerState<NodesScreen> {
             subtitle: Text(
               '${contact.typeLabel} · ${contact.key.substring(0, 12)}…',
             ),
-            onTap: () => _details(context, contact),
+            onTap: () => contact.type == 2
+                ? Navigator.push(context, MaterialPageRoute<void>(builder: (_) => RepeaterDetailsScreen(contact: contact)))
+                : _details(context, contact),
           ),
       ],
     );

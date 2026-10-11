@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'features/offline/offline_maps.dart';
+import 'features/sync/cloud_sync.dart';
+import 'features/mapping/smart_ping.dart';
 import 'features/alerts/message_alerts.dart';
 import 'native/android_alert_service.dart';
 import 'features/alerts/link_alerts.dart';
@@ -18,6 +20,8 @@ import 'features/mapping/mapping_notifier.dart';
 void main() => runApp(
       ProviderScope(
         overrides: [
+          cloudSyncServiceProvider.overrideWithValue(AndroidCloudSyncService()),
+          smartPingTickProvider.overrideWithValue(const Duration(seconds: 10)),
           mapDirectoryProvider.overrideWithValue(
             () async => (await const MethodChannel('org.meshscout/files')
                 .invokeMethod<String>('mapDirectory'))!,

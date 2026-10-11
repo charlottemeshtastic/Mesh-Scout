@@ -13,6 +13,9 @@ class FieldSettings {
     this.groupNodes = true,
     this.matchPreset = false,
     this.guideSeen = false,
+    this.smartPing = false,
+    this.pingMinutes = 2,
+    this.pingDays = 14,
   });
 
   /// Whether a recording stops and saves after the phone stays in place.
@@ -44,6 +47,8 @@ class FieldSettings {
 
   /// Whether the first-run quick guide has been shown.
   final bool guideSeen;
+  final bool smartPing;
+  final int pingMinutes, pingDays;
 
   static const parkedRadiusMetres = 30.0;
   static const parkedChoices = [5, 10, 15, 30];
@@ -60,6 +65,9 @@ class FieldSettings {
     bool? groupNodes,
     bool? matchPreset,
     bool? guideSeen,
+    bool? smartPing,
+    int? pingMinutes,
+    int? pingDays,
   }) =>
       FieldSettings(
         autoStopParked: autoStopParked ?? this.autoStopParked,
@@ -72,6 +80,9 @@ class FieldSettings {
         groupNodes: groupNodes ?? this.groupNodes,
         matchPreset: matchPreset ?? this.matchPreset,
         guideSeen: guideSeen ?? this.guideSeen,
+        smartPing: smartPing ?? this.smartPing,
+        pingMinutes: pingMinutes ?? this.pingMinutes,
+        pingDays: pingDays ?? this.pingDays,
       );
 
   Map<String, Object> toJson() => {
@@ -85,6 +96,9 @@ class FieldSettings {
         'groupNodes': groupNodes,
         'matchPreset': matchPreset,
         'guideSeen': guideSeen,
+        'smartPing': smartPing,
+        'pingMinutes': pingMinutes,
+        'pingDays': pingDays,
       };
 
   /// Reads saved values, keeping defaults for anything missing or invalid.
@@ -116,6 +130,9 @@ class FieldSettings {
       groupNodes: flag('groupNodes', defaults.groupNodes),
       matchPreset: flag('matchPreset', defaults.matchPreset),
       guideSeen: flag('guideSeen', defaults.guideSeen),
+      smartPing: flag('smartPing', defaults.smartPing),
+      pingMinutes: choice('pingMinutes', [2,5,10], defaults.pingMinutes),
+      pingDays: choice('pingDays', [7,14,30,90], defaults.pingDays),
     );
   }
 }

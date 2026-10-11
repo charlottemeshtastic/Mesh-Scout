@@ -9,10 +9,12 @@ import java.io.File
 
 class ScoutFiles(private val activity: Activity) {
     private val bundles = ScoutBundles(activity)
+    private val sync = CloudFolderSync(activity)
     private var pending: MethodChannel.Result? = null
     private var content: String? = null
 
     fun handle(call: MethodCall, result: MethodChannel.Result) {
+        try { if (sync.handle(call, result)) return } catch(e:Exception) { result.error("sync",e.message,null);return }
         if (bundles.handle(call, result)) return
         try {
             if (call.method == "directory") {
@@ -109,6 +111,7 @@ class ScoutFiles(private val activity: Activity) {
         }
     }
     fun activityResult(request: Int, code: Int, data: Intent?): Boolean {
+        if (sync.activityResult(request, code, data)) return true
         if (bundles.activityResult(request, code, data)) return true
         if (request == 805) {
             val result = pending ?: return true
@@ -153,5 +156,5 @@ class ScoutFiles(private val activity: Activity) {
         }.start()
         return true
     }
-    fun dispose() { bundles.dispose(); pending?.error("closed", "Save interrupted", null); pending = null; content = null }
+    fun dispose() { bundles.dispose(); sync.dispose(); pending?.error("closed", "Save interrupted", null); pending = null; content = null }
 }

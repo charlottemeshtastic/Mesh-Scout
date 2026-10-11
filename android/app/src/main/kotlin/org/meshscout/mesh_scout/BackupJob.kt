@@ -45,10 +45,18 @@ class BackupJob:JobService() {
             if(existing!=null)return existing
             return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").apply{init(KeyGenParameterSpec.Builder("meshscout-backup",KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())}.generateKey()
         }
-        fun storePassword(context:Context,password:String) {
+        fun storePassword(context:Context,password:String,scope:String="backup-job") {
             val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key())
             val encrypted=cipher.doFinal(password.toByteArray(Charsets.UTF_8))
-            context.getSharedPreferences("backup-job",Context.MODE_PRIVATE).edit().putString("secret",Base64.encodeToString(encrypted,Base64.NO_WRAP)).putString("iv",Base64.encodeToString(cipher.iv,Base64.NO_WRAP)).commit()
+            context.getSharedPreferences(scope,Context.MODE_PRIVATE).edit().putString("secret",Base64.encodeToString(encrypted,Base64.NO_WRAP)).putString("iv",Base64.encodeToString(cipher.iv,Base64.NO_WRAP)).commit()
         }
+        fun readPassword(context:Context,scope:String):String {
+            val prefs=context.getSharedPreferences(scope,Context.MODE_PRIVATE)
+            val cipher=Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,Base64.decode(prefs.getString("iv",null),Base64.NO_WRAP)))
+            val raw=cipher.doFinal(Base64.decode(prefs.getString("secret",null),Base64.NO_WRAP))
+            return try { raw.toString(Charsets.UTF_8) } finally { raw.fill(0) }
+        }
+
     }
 }

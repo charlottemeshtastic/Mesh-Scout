@@ -120,7 +120,7 @@ class ScoutBundles(private val activity: Activity) {
                     val entry=zip.nextEntry?:break
                     require(++count<=50010 && !entry.isDirectory)
                     val name=entry.name
-                    require(name in setOf("data.json","field-notes.json","settings.json","manifest.json") || Regex("offline/[a-zA-Z0-9-]+/(?:area\\.json|[0-9]+/[0-9]+/[0-9]+\\.tile)").matches(name)) { "Unexpected backup entry" }
+                    require(name in setOf("data.json","field-notes.json","settings.json","repeater-details.json","manifest.json") || Regex("offline/[a-zA-Z0-9-]+/(?:area\\.json|[0-9]+/[0-9]+/[0-9]+\\.tile)").matches(name)) { "Unexpected backup entry" }
                     val target=File(stage,name);require(!target.exists());target.parentFile!!.mkdirs()
                     target.outputStream().use{out->bytes+=copyBounded(zip,out,550L*1024*1024-bytes)}
                     if(!name.endsWith(".tile"))require(target.length()<=20L*1024*1024)
@@ -176,7 +176,7 @@ class ScoutBundles(private val activity: Activity) {
                     fun text(name:String,value:String){zip.putNextEntry(ZipEntry(name));zip.write(value.toByteArray());zip.closeEntry()}
                     text("manifest.json",JSONObject().put("format","meshscout-bundle").put("version",2).put("maps",maps).toString())
                     text("data.json",ScoutStorage.readBackup(context))
-                    for(name in listOf("field-notes.json","settings.json")){val f=File(root,name);if(f.exists()){require(f.length()<=20L*1024*1024);text(name,f.readText())}}
+                    for(name in listOf("field-notes.json","settings.json","repeater-details.json")){val f=File(root,name);if(f.exists()){require(f.length()<=20L*1024*1024);text(name,f.readText())}}
                     if(maps){var bytes=0L;var count=0;val maproot=ScoutStorage.mapDirectory(context);if(maproot.exists())for(f in maproot.walkTopDown().filter{it.isFile && File(maproot,it.relativeTo(maproot).path.substringBefore('/')+"/area.json").exists()}){
                         val name="offline/"+f.relativeTo(maproot).invariantSeparatorsPath
                         if(!Regex("offline/[a-zA-Z0-9-]+/(?:area\\.json|[0-9]+/[0-9]+/[0-9]+\\.tile)").matches(name))continue
@@ -197,6 +197,13 @@ class ScoutBundles(private val activity: Activity) {
         private fun validateExtras(stage:File) {
             val notes=File(stage,"field-notes.json")
             if(notes.exists()){val rows=JSONArray(notes.readText());require(rows.length()<=1000);for(i in 0 until rows.length()){val n=rows.getJSONObject(i);require(n.getString("id").length in 1..120 && n.getString("name").length in 1..80 && n.getString("note").length<=2000 && n.getDouble("lat").isFinite() && kotlin.math.abs(n.getDouble("lat"))<=90 && n.getDouble("lon").isFinite() && kotlin.math.abs(n.getDouble("lon"))<=180)}}
+            val repeaters=File(stage,"repeater-details.json")
+            if(repeaters.exists()){
+                require(repeaters.length()<=4L*1024*1024);val rows=JSONArray(repeaters.readText());require(rows.length()<=1000)
+                val limits=mapOf("key" to 64,"site" to 120,"hardware" to 80,"antenna" to 160,"power" to 40,"preset" to 80,"notes" to 2000)
+                val seen=mutableSetOf<String>()
+                for(i in 0 until rows.length()) { val row=rows.getJSONObject(i);val key=row.getString("key");require(Regex("[a-f0-9]{64}").matches(key) && seen.add(key));for(field in row.keys()){require(field in limits && row.get(field) is String && row.getString(field).length<=limits[field]!!)} }
+            }
             val settings=File(stage,"settings.json");if(settings.exists()){require(settings.length()<10000);JSONObject(settings.readText())}
             val maps=File(stage,"offline");if(maps.exists()){val areas=maps.listFiles()?:emptyArray();require(areas.size<=5);for(a in areas){val m=JSONObject(File(a,"area.json").readText());require(m.getDouble("lat").isFinite() && kotlin.math.abs(m.getDouble("lat"))<=90 && m.getDouble("lon").isFinite() && kotlin.math.abs(m.getDouble("lon"))<=180);require(m.optInt("minZoom",12) in 0..22 && m.optInt("maxZoom",16) in m.optInt("minZoom",12)..22);require(m.optString("name").length<=60);val kind=m.optString("kind","raster");require(kind in listOf("raster","vector"));require(m.optString("attribution").length<=1000);for(f in a.walkTopDown().filter{it.extension=="tile"}){val parts=f.relativeTo(a).path.split('/');val z=parts[0].toInt();val x=parts[1].toInt();val y=parts[2].removeSuffix(".tile").toInt();require(z in 0..22 && x in 0 until (1 shl z) && y in 0 until (1 shl z) && f.length() in 1..VectorMapTile.MAX_BYTES.toLong());if(kind=="vector")VectorMapTile.layers(f.readBytes()) else validateImage(f.readBytes())}}}
         }
@@ -206,10 +213,10 @@ class ScoutBundles(private val activity: Activity) {
             try {
                 val data=JSONObject(text);require(data.getString("format")=="meshscout-backup" && data.getInt("version")==1)
                 ScoutStorage.write(File(target,"mapping-sessions.json"),data.getJSONArray("sessions").toString());ScoutStorage.write(File(target,"messages.json"),data.getJSONArray("messages").toString())
-                for(name in listOf("field-notes.json","settings.json")) {
+                for(name in listOf("field-notes.json","settings.json","repeater-details.json","sync-state.json","sync-scope","sync-conflicts.json")) {
                     val incoming=File(source,name);val existing=File(old,name)
-                    if(name=="field-notes.json" && merge && incoming.exists()) {
-                        val rows=if(existing.exists())JSONArray(existing.readText())else JSONArray();val keys=(0 until rows.length()).map{rows.getJSONObject(it).getString("id")}.toMutableSet();val added=JSONArray(incoming.readText());for(i in 0 until added.length()){val row=added.getJSONObject(i);if(keys.add(row.getString("id")))rows.put(row)};require(rows.length()<=1000);ScoutStorage.write(File(target,name),rows.toString())
+                    if(name in listOf("field-notes.json","repeater-details.json") && merge && incoming.exists()) {
+                        val identity=if(name=="field-notes.json")"id" else "key";val rows=if(existing.exists())JSONArray(existing.readText())else JSONArray();val keys=(0 until rows.length()).map{rows.getJSONObject(it).getString(identity)}.toMutableSet();val added=JSONArray(incoming.readText());for(i in 0 until added.length()){val row=added.getJSONObject(i);if(keys.add(row.getString(identity)))rows.put(row)};require(rows.length()<=1000);ScoutStorage.write(File(target,name),rows.toString())
                     }else {val f=if(merge && existing.exists())existing else if(incoming.exists())incoming else existing;if(f.exists())f.copyTo(File(target,name))}
                 }
                 val imported=File(source,"offline")

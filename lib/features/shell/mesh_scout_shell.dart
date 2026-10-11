@@ -1,4 +1,6 @@
 import '../backup/preferences.dart';
+import '../sync/cloud_sync.dart';
+import '../mapping/smart_ping.dart';
 import '../mapping/field_tools.dart';
 
 import 'dart:async';
@@ -55,12 +57,15 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
         unawaited(ref.read(offlineProvider.notifier).initialize());
         unawaited(ref.read(preferencesProvider.notifier).initialize());
         unawaited(ref.read(messagesProvider.notifier).load());
+        unawaited(ref.read(cloudSyncProvider.notifier).initialize());
       }
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    ref.read(cloudSyncProvider.notifier).foreground(state == AppLifecycleState.resumed);
+    ref.read(smartPingProvider.notifier).foreground(state == AppLifecycleState.resumed);
     if (state == AppLifecycleState.resumed) {
       unawaited(_openMessages());
     }
@@ -149,6 +154,7 @@ class _MeshScoutShellState extends ConsumerState<MeshScoutShell>
   @override
   Widget build(BuildContext context) {
     final radio = ref.watch(radioProvider);
+    ref.watch(smartPingProvider);
     ref.listen(firstRunGuideProvider, (_, pending) {
       if (pending) unawaited(_showGuide());
     });
