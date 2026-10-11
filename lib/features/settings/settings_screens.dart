@@ -307,7 +307,7 @@ class AboutSettingsPage extends StatelessWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('MeshScout 1.3.1'),
+            title: Text('MeshScout 1.4.0'),
             subtitle: Text(
               'Radio connections stay active while switching apps. '
               'Android may still end them if the process is stopped.',

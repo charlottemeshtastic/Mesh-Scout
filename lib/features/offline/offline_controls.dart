@@ -199,12 +199,12 @@ class OfflineControls extends ConsumerWidget {
                         }
                       }
                     },
-              child: const Text('Import raster MBTiles'),
+              child: const Text('Import MBTiles'),
             ),
           ],
         ),
         const Text(
-          'Raster MBTiles supports larger regions worldwide: PNG/JPEG, up to 500 MB and 50,000 tiles. Use a map pack you have permission to download. Vector MBTiles is unsupported.',
+          'Import licensed PNG/JPEG raster or OpenMapTiles PBF vector MBTiles: up to 500 MB and 50,000 tiles. Vector maps use a built-in basic style; other schemas and custom styles are unsupported.',
         ),
         if (offline.message != null)
           Text(offline.message!, style: Theme.of(context).textTheme.bodySmall),

@@ -62,8 +62,13 @@ class OfflineArea {
     this.name,
     this.minZoom = 12,
     this.maxZoom = 16,
+    this.kind = 'raster',
+    this.attribution,
   });
   final int minZoom, maxZoom;
+  final String kind;
+  final String? attribution;
+  bool get isVector => kind == 'vector';
   final String path;
   final String? name;
   final double latitude, longitude;
@@ -169,6 +174,8 @@ class OfflineMaps extends Notifier<OfflineState> {
               name: data['name'] as String?,
               minZoom: data['minZoom'] as int? ?? 12,
               maxZoom: data['maxZoom'] as int? ?? 16,
+              kind: data['kind'] as String? ?? 'raster',
+              attribution: data['attribution'] as String?,
             ),
           );
         }

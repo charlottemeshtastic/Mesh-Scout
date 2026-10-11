@@ -19,6 +19,7 @@ import '../radio/radio_screen.dart';
 import '../nodes/nodes_screen.dart';
 import '../export/session_export.dart';
 import '../offline/offline_maps.dart';
+import '../offline/vector_maps.dart';
 import '../offline/offline_controls.dart';
 import '../alerts/link_alerts.dart';
 import '../mapping/map_layers.dart';
@@ -433,7 +434,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   onMapReady: () => _mapReady = true,
                 ),
                 children: [
-                  if (offline.enabled)
+                  if (offline.enabled && offline.area!.isVector)
+                    OfflineVectorLayer(key: ValueKey(offline.area!.path), area: offline.area!)
+                  else if (offline.enabled)
                     TileLayer(
                       key: ValueKey(offline.area),
                       urlTemplate: '${offline.area!.path}/{z}/{x}/{y}.tile',
@@ -560,10 +563,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           ),
                       ],
                     ),
-                  const RichAttributionWidget(
+                  RichAttributionWidget(
                     attributions: [
                       TextSourceAttribution(
-                        'OpenStreetMap contributors · Offline: USGS National Geospatial Program',
+                        offline.enabled
+                            ? offline.area!.attribution ?? 'USGS National Geospatial Program'
+                            : 'OpenStreetMap contributors',
                       ),
                     ],
                   ),

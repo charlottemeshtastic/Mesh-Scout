@@ -141,19 +141,21 @@ class ScoutBundles(private val activity: Activity) {
             activity.contentResolver.openInputStream(uri)!!.use{input->copy.outputStream().use{out->copyBounded(input,out,500L*1024*1024)}}
             SQLiteDatabase.openDatabase(copy.path,null,SQLiteDatabase.OPEN_READONLY).use { db->
                 val meta=mutableMapOf<String,String>();db.rawQuery("SELECT name,value FROM metadata",null).use{c->while(c.moveToNext())meta[c.getString(0)]=c.getString(1)}
-                require(meta["format"] in listOf("png","jpg","jpeg")) { "Use raster PNG/JPEG MBTiles; vector maps are unsupported" }
+                require(meta["format"] in listOf("png","jpg","jpeg","pbf")) { "Use PNG/JPEG or OpenMapTiles PBF MBTiles" }
+                val vector=meta["format"]=="pbf";var supported=false
                 var count=0;var bytes=0L;var min=22;var max=0;var lat=0.0;var lon=0.0
                 db.rawQuery("SELECT zoom_level,tile_column,tile_row,tile_data FROM tiles",null).use{c->while(c.moveToNext()){
                     require(++count<=50000);val z=c.getInt(0);require(z in 0..22);val n=1 shl z;val x=c.getInt(1);val row=c.getInt(2);require(x in 0 until n && row in 0 until n)
-                    val image=c.getBlob(3);require(image.size in 8..1024*1024 && ((image[0].toInt()and 255)==137 && image[1]==80.toByte() || (image[0].toInt()and 255)==255 && (image[1].toInt()and 255)==216)) { "Invalid raster image" }
-                    validateImage(image)
+                    val raw=c.getBlob(3)
+                    val image=if(vector)VectorMapTile.unpack(raw) else raw
+                    if(vector){if(VectorMapTile.layers(image).any{it in VectorMapTile.supportedLayers})supported=true}else validateImage(image)
                     bytes+=image.size;require(bytes<=500L*1024*1024)
                     val y=n-1-row;val target=File(stage,"$z/$x/$y.tile");require(!target.exists());target.parentFile!!.mkdirs();target.writeBytes(image)
                     min=kotlin.math.min(min,z);max=kotlin.math.max(max,z)
                     if(count==1){lon=(x+0.5)/n*360-180;lat=Math.toDegrees(kotlin.math.atan(kotlin.math.sinh(Math.PI*(1-2*(y+0.5)/n))))}
                 }}
-                require(count>0)
-                ScoutStorage.write(File(stage,"area.json"),JSONObject().put("lat",lat).put("lon",lon).put("tiles",count).put("bytes",bytes).put("sideKm",0).put("minZoom",min).put("maxZoom",max).put("name",(meta["name"]?:"Imported raster map").take(60)).toString())
+                require(count>0);require(!vector || supported) { "Map pack has no supported OpenMapTiles layers" }
+                ScoutStorage.write(File(stage,"area.json"),JSONObject().put("lat",lat).put("lon",lon).put("tiles",count).put("bytes",bytes).put("sideKm",0).put("minZoom",min).put("maxZoom",max).put("name",(meta["name"]?:"Imported map").take(60)).put("kind",if(vector)"vector" else "raster").put("attribution",(meta["attribution"]?:"Imported map: see map pack license").replace(Regex("<[^>]*>"),"").take(1000)).toString())
             }
             require(stage.renameTo(File(root,"area-${System.nanoTime()}")));return true
         }catch(e:Exception){stage.deleteRecursively();throw e}finally{copy.delete()}
@@ -195,7 +197,7 @@ class ScoutBundles(private val activity: Activity) {
             val notes=File(stage,"field-notes.json")
             if(notes.exists()){val rows=JSONArray(notes.readText());require(rows.length()<=1000);for(i in 0 until rows.length()){val n=rows.getJSONObject(i);require(n.getString("id").length in 1..120 && n.getString("name").length in 1..80 && n.getString("note").length<=2000 && n.getDouble("lat").isFinite() && kotlin.math.abs(n.getDouble("lat"))<=90 && n.getDouble("lon").isFinite() && kotlin.math.abs(n.getDouble("lon"))<=180)}}
             val settings=File(stage,"settings.json");if(settings.exists()){require(settings.length()<10000);JSONObject(settings.readText())}
-            val maps=File(stage,"offline");if(maps.exists()){val areas=maps.listFiles()?:emptyArray();require(areas.size<=5);for(a in areas){val m=JSONObject(File(a,"area.json").readText());require(m.getDouble("lat").isFinite() && kotlin.math.abs(m.getDouble("lat"))<=90 && m.getDouble("lon").isFinite() && kotlin.math.abs(m.getDouble("lon"))<=180);require(m.optInt("minZoom",12) in 0..22 && m.optInt("maxZoom",16) in m.optInt("minZoom",12)..22);require(m.optString("name").length<=60);for(f in a.walkTopDown().filter{it.extension=="tile"}){val parts=f.relativeTo(a).path.split('/');val z=parts[0].toInt();val x=parts[1].toInt();val y=parts[2].removeSuffix(".tile").toInt();require(z in 0..22 && x in 0 until (1 shl z) && y in 0 until (1 shl z) && f.length() in 8..1024*1024L);validateImage(f.readBytes())}}}
+            val maps=File(stage,"offline");if(maps.exists()){val areas=maps.listFiles()?:emptyArray();require(areas.size<=5);for(a in areas){val m=JSONObject(File(a,"area.json").readText());require(m.getDouble("lat").isFinite() && kotlin.math.abs(m.getDouble("lat"))<=90 && m.getDouble("lon").isFinite() && kotlin.math.abs(m.getDouble("lon"))<=180);require(m.optInt("minZoom",12) in 0..22 && m.optInt("maxZoom",16) in m.optInt("minZoom",12)..22);require(m.optString("name").length<=60);val kind=m.optString("kind","raster");require(kind in listOf("raster","vector"));require(m.optString("attribution").length<=1000);for(f in a.walkTopDown().filter{it.extension=="tile"}){val parts=f.relativeTo(a).path.split('/');val z=parts[0].toInt();val x=parts[1].toInt();val y=parts[2].removeSuffix(".tile").toInt();require(z in 0..22 && x in 0 until (1 shl z) && y in 0 until (1 shl z) && f.length() in 1..VectorMapTile.MAX_BYTES.toLong());if(kind=="vector")VectorMapTile.layers(f.readBytes()) else validateImage(f.readBytes())}}}
         }
         fun restore(context:Context,source:File,text:String,merge:Boolean) {
             val old=ScoutStorage.directory(context);val oldmaps=ScoutStorage.mapDirectory(context)
