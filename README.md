@@ -1,6 +1,6 @@
 # MeshScout 1.5.0
 
-Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
+Independent Android MeshCore field-mapping app. Android APKs are test builds; real-device acceptance remains necessary.
 
 ## What is implemented
 

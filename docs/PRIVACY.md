@@ -1,6 +1,6 @@
 # MeshScout privacy information
 
-MeshScout is an independent Android MeshCore application. It has no MeshScout account, advertising SDK or analytics SDK and shares no data or accounts with BackCountrySignal.
+MeshScout is an independent Android MeshCore application. It has no MeshScout account, advertising SDK or analytics SDK.
 
 ## Stored on the phone
 

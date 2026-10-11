@@ -39,10 +39,12 @@ jobs:
           cp pubspec.yaml /tmp/meshscout-pubspec.yaml
           cp pubspec.lock /tmp/meshscout-pubspec.lock
           cp analysis_options.yaml /tmp/meshscout-analysis.yaml
+          cp -R android/app/src/main/res /tmp/meshscout-res
           flutter create --platforms=android --org org.meshscout --project-name mesh_scout --no-pub .
           cp -R /tmp/meshscout-kotlin/. android/app/src/main/kotlin/
           mkdir -p android/app/src/main/res/xml
           cp -R /tmp/meshscout-xml/. android/app/src/main/res/xml/
+          cp -R /tmp/meshscout-res/. android/app/src/main/res/
           cp /tmp/meshscout-manifest.xml android/app/src/main/AndroidManifest.xml
           cp /tmp/meshscout-app.gradle.kts android/app/build.gradle.kts
           cp /tmp/meshscout-settings.gradle.kts android/settings.gradle.kts
@@ -50,7 +52,7 @@ jobs:
           cp /tmp/meshscout-pubspec.yaml pubspec.yaml
           cp /tmp/meshscout-pubspec.lock pubspec.lock
           cp /tmp/meshscout-analysis.yaml analysis_options.yaml
-          git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml android/app/src/main/kotlin android/app/src/main/res/xml
+          git diff --exit-code -- lib test pubspec.yaml pubspec.lock analysis_options.yaml android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml android/app/src/main/kotlin android/app/src/main/res
       - run: flutter pub get --enforce-lockfile
       - name: Verify independent application dependencies
         run: |

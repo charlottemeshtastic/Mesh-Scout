@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
-    <application android:allowBackup="false" android:label="MeshScout" android:name="${applicationName}" android:icon="@mipmap/ic_launcher">
+    <application android:allowBackup="false" android:label="MeshScout" android:name="${applicationName}" android:icon="@drawable/ic_launcher">
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.exports" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/export_paths" />
         </provider>

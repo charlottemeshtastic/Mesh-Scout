@@ -44,7 +44,7 @@ class HelpScreen extends StatelessWidget {
             ),
             _HelpSection(
               'Testing and support',
-              'This build still needs testing on your phone and radio. Recovery is best effort; it cannot bypass force-stop or manufacturer restrictions. There is a small message-loss window before a fetched packet is saved. For an issue, record the app version, phone/Android version, radio firmware, steps and expected result. Remove private messages, coordinates, passwords and keys before sharing a report. Source and issue tracker: github.com/charlottemeshtastic/Mesh-Scout. MeshScout is independent from BackCountrySignal.',
+              'This build still needs testing on your phone and radio. Recovery is best effort; it cannot bypass force-stop or manufacturer restrictions. There is a small message-loss window before a fetched packet is saved. For an issue, record the app version, phone/Android version, radio firmware, steps and expected result. Remove private messages, coordinates, passwords and keys before sharing a report. Source and issue tracker: github.com/charlottemeshtastic/Mesh-Scout.',
             ),
           ],
         ),
