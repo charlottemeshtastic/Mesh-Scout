@@ -393,8 +393,11 @@ class _AdvancedRadioState extends ConsumerState<AdvancedRadioScreen> {
                             accepted++;
                           }
                           if (mounted) {
-                            await ref.read(radioProvider.notifier).refreshContacts();
-                            setState(() => notice = '$accepted of ${commands.length} contacts accepted. Refresh verifies the stored table.');
+                            await ref
+                                .read(radioProvider.notifier)
+                                .refreshContacts();
+                            setState(() => notice =
+                                '$accepted of ${commands.length} contacts accepted. Refresh verifies the stored table.');
                           }
                         } finally {
                           if (mounted) setState(() => importing = false);
