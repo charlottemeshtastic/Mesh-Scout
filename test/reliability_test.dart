@@ -34,6 +34,15 @@ class SlowCheckpointMapping extends CheckpointMapping {
   }
 }
 
+class GatedSaveMapping extends FakeMapping {
+  final gate = Completer<void>();
+  @override
+  Future<void> save(String json) async {
+    await gate.future;
+    await super.save(json);
+  }
+}
+
 void main() {
   late Directory directory;
   late ProviderContainer container;
@@ -226,4 +235,29 @@ void main() {
       await mapping.updates.close();
     },
   );
+  test('route import blocks recording until its save finishes', () async {
+    final mapping = GatedSaveMapping();
+    final local = ProviderContainer(
+      overrides: [mappingServiceProvider.overrideWithValue(mapping)],
+    );
+    final actions = local.read(mappingProvider.notifier);
+    await actions.initialize();
+    final now = DateTime.now();
+    final importing = actions.importSession(MappingSession(
+      id: 'planned',
+      started: now,
+      ended: now,
+      planned: true,
+      points: [GpsPoint(35, -80, 0, now), GpsPoint(36, -81, 0, now)],
+    ));
+    expect(local.read(mappingProvider).busy, true);
+    await actions.start();
+    expect(mapping.authorizations, 0);
+    mapping.gate.complete();
+    await importing;
+    expect(local.read(mappingProvider).busy, false);
+    expect(local.read(mappingProvider).sessions.single.id, 'planned');
+    local.dispose();
+    await mapping.updates.close();
+  });
 }

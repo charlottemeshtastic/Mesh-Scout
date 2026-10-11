@@ -261,30 +261,36 @@ class _FieldToolsState extends ConsumerState<FieldToolsScreen> {
           ))
             summary(s),
           for (final gpx in [false, true])
-          OutlinedButton(
-            onPressed: busy ||
-                    mapping.recording ||
-                    mapping.busy ||
-                    mapping.points.isNotEmpty
-                ? null
-                : () => action(() async {
-                      final text = await const MethodChannel(
-                        'org.meshscout/files',
-                      ).invokeMethod<String>('openBackup');
-                      if (text == null) {
-                        return;
-                      }
-                      final geometry = gpx
-                          ? jsonEncode({'type': 'LineString', 'coordinates': await const MethodChannel('org.meshscout/files').invokeMethod<List<dynamic>>('parseGpx', text)})
-                          : text;
-                      final route = importRoute(geometry);
-                      await ref
-                          .read(mappingProvider.notifier)
-                          .importSession(route);
-                      notice = 'Planned route imported into History.';
-                    }),
-            child: Text(gpx ? 'Import GPX route' : 'Import GeoJSON route'),
-          ),
+            OutlinedButton(
+              onPressed: busy ||
+                      mapping.recording ||
+                      mapping.busy ||
+                      mapping.points.isNotEmpty
+                  ? null
+                  : () => action(() async {
+                        final text = await const MethodChannel(
+                          'org.meshscout/files',
+                        ).invokeMethod<String>('openBackup');
+                        if (text == null) {
+                          return;
+                        }
+                        final geometry = gpx
+                            ? jsonEncode({
+                                'type': 'LineString',
+                                'coordinates': await const MethodChannel(
+                                        'org.meshscout/files')
+                                    .invokeMethod<List<dynamic>>(
+                                        'parseGpx', text)
+                              })
+                            : text;
+                        final route = importRoute(geometry);
+                        await ref
+                            .read(mappingProvider.notifier)
+                            .importSession(route);
+                        notice = 'Planned route imported into History.';
+                      }),
+              child: Text(gpx ? 'Import GPX route' : 'Import GeoJSON route'),
+            ),
           FilledButton(
             onPressed: busy || !notes.hasValue
                 ? null
