@@ -1,9 +1,11 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mesh_scout/features/radio/radio_controls.dart';
 import 'package:mesh_scout/features/radio/radio_notifier.dart';
 import 'package:mesh_scout/features/radio/ble_service.dart';
+
 import 'radio_test.dart' show FakeBle;
 
 class ControlBle extends FakeBle {
@@ -42,16 +44,19 @@ void main() {
   setUp(() async {
     ble = ControlBle();
     container = ProviderContainer(
-        overrides: [bleServiceProvider.overrideWithValue(ble)]);
+      overrides: [bleServiceProvider.overrideWithValue(ble)],
+    );
     radio = container.read(radioProvider.notifier);
     await radio.scan();
     const device = RadioDevice('radio', 'MeshCore', -50);
     ble.devices.add(device);
     await radio.connect(device);
     ble.links.add(RadioLink.connected);
-    for (var i = 0;
-        i < 50 && container.read(radioProvider).phase != RadioPhase.ready;
-        i++) {
+    for (
+      var i = 0;
+      i < 50 && container.read(radioProvider).phase != RadioPhase.ready;
+      i++
+    ) {
       await Future<void>.delayed(Duration.zero);
     }
     expect(container.read(radioProvider).phase, RadioPhase.ready);
@@ -60,9 +65,7 @@ void main() {
     container.dispose();
     await ble.close();
   });
-  test(
-      'status refresh and accepted settings changes read back current radio values',
-      () async {
+  test('status refresh and accepted settings changes read back current radio values', () async {
     final controls = container.read(radioControlsProvider.notifier);
     await controls.refresh();
     expect(container.read(radioControlsProvider).details!.millivolts, 4000);
@@ -74,9 +77,7 @@ void main() {
     final device = await radio.messageCommand(deviceQuery, {13});
     expect(device.sublist(4, 8), [0, 0, 0, 0]);
   });
-  test(
-      'control lock blocks message/contact operations and is cleared on disconnect',
-      () async {
+  test('control lock blocks message/contact operations and is cleared on disconnect', () async {
     expect(radio.beginControls(), isTrue);
     await expectLater(radio.messageCommand([10], {10}), throwsStateError);
     await radio.refreshContacts();
@@ -86,9 +87,7 @@ void main() {
     await radio.disconnect();
     expect(container.read(radioProvider).controlsBusy, isFalse);
   });
-  test(
-      'rejected mutation is not retried and requires reconnect before another request',
-      () async {
+  test('rejected mutation is not retried and requires reconnect before another request', () async {
     final controls = container.read(radioControlsProvider.notifier);
     await controls.refresh();
     ble.reject = true;

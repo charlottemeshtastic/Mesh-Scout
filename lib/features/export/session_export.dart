@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:flutter/services.dart';
+
 import '../mapping/mapping_service.dart';
 
 enum ExportFormat { geoJson, csv }
@@ -15,7 +17,7 @@ String exportSession(MappingSession session, ExportFormat format) {
         'accuracy_m',
         'altitude_m',
         'rssi_dbm',
-        'snr_db'
+        'snr_db',
       ],
       for (final p in session.points)
         [
@@ -26,7 +28,7 @@ String exportSession(MappingSession session, ExportFormat format) {
           session.planned ? '' : p.accuracy,
           session.planned ? '' : p.altitude ?? '',
           '',
-          ''
+          '',
         ],
       for (final o in session.observations)
         [
@@ -37,12 +39,14 @@ String exportSession(MappingSession session, ExportFormat format) {
           o.point.accuracy,
           o.point.altitude ?? '',
           o.rssi,
-          o.snr
+          o.snr,
         ],
     ];
     return rows
-        .map((r) =>
-            r.map((v) => '"${v.toString().replaceAll('"', '""')}"').join(','))
+        .map(
+          (r) =>
+              r.map((v) => '"${v.toString().replaceAll('"', '""')}"').join(','),
+        )
         .join('\r\n');
   }
   return jsonEncode({
@@ -64,9 +68,9 @@ String exportSession(MappingSession session, ExportFormat format) {
           'geometry': {
             'type': 'LineString',
             'coordinates': [
-              for (final p in session.points) [p.longitude, p.latitude]
-            ]
-          }
+              for (final p in session.points) [p.longitude, p.latitude],
+            ],
+          },
         },
       for (final p in session.points)
         {
@@ -80,8 +84,8 @@ String exportSession(MappingSession session, ExportFormat format) {
           },
           'geometry': {
             'type': 'Point',
-            'coordinates': [p.longitude, p.latitude]
-          }
+            'coordinates': [p.longitude, p.latitude],
+          },
         },
       for (final o in session.observations)
         {
@@ -93,27 +97,31 @@ String exportSession(MappingSession session, ExportFormat format) {
             'accuracy_m': o.point.accuracy,
             if (o.point.altitude != null) 'altitude_m': o.point.altitude,
             'rssi_dbm': o.rssi,
-            'snr_db': o.snr
+            'snr_db': o.snr,
           },
           'geometry': {
             'type': 'Point',
-            'coordinates': [o.point.longitude, o.point.latitude]
-          }
+            'coordinates': [o.point.longitude, o.point.latitude],
+          },
         },
-    ]
+    ],
   });
 }
 
 class SessionExportService {
   static const channel = MethodChannel('org.meshscout/files');
-  Future<bool> send(MappingSession session, ExportFormat format,
-      {required bool share}) async {
+  Future<bool> send(
+    MappingSession session,
+    ExportFormat format, {
+    required bool share,
+  }) async {
     final extension = format == ExportFormat.csv ? 'csv' : 'geojson';
     return await channel.invokeMethod<bool>(share ? 'share' : 'save', {
           'name':
               'MeshScout-${session.started.toUtc().millisecondsSinceEpoch}.$extension',
-          'mime':
-              format == ExportFormat.csv ? 'text/csv' : 'application/geo+json',
+          'mime': format == ExportFormat.csv
+              ? 'text/csv'
+              : 'application/geo+json',
           'content': exportSession(session, format),
         }) ??
         false;

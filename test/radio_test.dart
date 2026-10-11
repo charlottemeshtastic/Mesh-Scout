@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,9 +52,11 @@ class FakeBle implements BleService {
   Future<void> write(String id, List<int> bytes) async {
     writes.add(bytes);
     if (answer) {
-      packets.add(bytes.first == 1
-          ? [5, ...List.filled(57, 0)]
-          : [13, 3, ...List.filled(78, 0)]);
+      packets.add(
+        bytes.first == 1
+            ? [5, ...List.filled(57, 0)]
+            : [13, 3, ...List.filled(78, 0)],
+      );
     }
   }
 
@@ -137,7 +140,8 @@ void main() {
   setUp(() {
     ble = FakeBle();
     container = ProviderContainer(
-        overrides: [bleServiceProvider.overrideWithValue(ble)]);
+      overrides: [bleServiceProvider.overrideWithValue(ble)],
+    );
     actions = container.read(radioProvider.notifier);
   });
   tearDown(() async {
@@ -160,7 +164,7 @@ void main() {
   for (final failure in [
     RadioFailure.denied,
     RadioFailure.permanentlyDenied,
-    RadioFailure.unavailable
+    RadioFailure.unavailable,
   ]) {
     test('authorization $failure prevents scanning', () async {
       ble.authorizationFailure = failure;
@@ -169,43 +173,49 @@ void main() {
       expect(container.read(radioProvider).failure, failure);
     });
   }
-  test('deduplicates devices, updates RSSI, stops scan and rejects unknown IDs',
-      () async {
-    await actions.scan();
-    await actions.scan();
-    ble.devices.add(device);
-    ble.devices.add(const RadioDevice('radio', 'MeshCore-test', -45));
-    expect(ble.scanCalls, 1);
-    expect(container.read(radioProvider).devices.single.rssi, -45);
-    await actions.stopScan();
-    expect(ble.devices.hasListener, isFalse);
-    await actions.connect(const RadioDevice('unknown', '', 0));
-    expect(ble.links.hasListener, isFalse);
-  });
-  test('serial handshake precedes ready and disconnect releases subscriptions',
-      () async {
-    await findRadio();
-    ble.links.add(RadioLink.connected);
-    await flush();
-    expect(ble.mtuCalls, 1);
-    expect(ble.writes, [appStart, deviceQuery]);
-    expect(container.read(radioProvider).phase, RadioPhase.ready);
-    await actions.disconnect();
-    expect(ble.links.hasListener, isFalse);
-    expect(ble.packets.hasListener, isFalse);
-    expect(container.read(radioProvider).phase, RadioPhase.idle);
-  });
-  test('insufficient MTU prevents truncated identification and releases GATT',
-      () async {
-    ble.mtu = 23;
-    await findRadio();
-    ble.links.add(RadioLink.connected);
-    await flush();
-    expect(container.read(radioProvider).failure, RadioFailure.protocol);
-    expect(ble.mtuCalls, 1);
-    expect(ble.writes, isEmpty);
-    expect(ble.links.hasListener, isFalse);
-  });
+  test(
+    'deduplicates devices, updates RSSI, stops scan and rejects unknown IDs',
+    () async {
+      await actions.scan();
+      await actions.scan();
+      ble.devices.add(device);
+      ble.devices.add(const RadioDevice('radio', 'MeshCore-test', -45));
+      expect(ble.scanCalls, 1);
+      expect(container.read(radioProvider).devices.single.rssi, -45);
+      await actions.stopScan();
+      expect(ble.devices.hasListener, isFalse);
+      await actions.connect(const RadioDevice('unknown', '', 0));
+      expect(ble.links.hasListener, isFalse);
+    },
+  );
+  test(
+    'serial handshake precedes ready and disconnect releases subscriptions',
+    () async {
+      await findRadio();
+      ble.links.add(RadioLink.connected);
+      await flush();
+      expect(ble.mtuCalls, 1);
+      expect(ble.writes, [appStart, deviceQuery]);
+      expect(container.read(radioProvider).phase, RadioPhase.ready);
+      await actions.disconnect();
+      expect(ble.links.hasListener, isFalse);
+      expect(ble.packets.hasListener, isFalse);
+      expect(container.read(radioProvider).phase, RadioPhase.idle);
+    },
+  );
+  test(
+    'insufficient MTU prevents truncated identification and releases GATT',
+    () async {
+      ble.mtu = 23;
+      await findRadio();
+      ble.links.add(RadioLink.connected);
+      await flush();
+      expect(container.read(radioProvider).failure, RadioFailure.protocol);
+      expect(ble.mtuCalls, 1);
+      expect(ble.writes, isEmpty);
+      expect(ble.links.hasListener, isFalse);
+    },
+  );
   test('wrong GATT characteristics cannot be ready', () async {
     ble.validServices = false;
     await findRadio();
@@ -247,23 +257,29 @@ void main() {
     expect(ble.mtuCalls, 1);
     expect(ble.writes, [appStart, deviceQuery]);
   });
-  testWidgets('permission failure renders recovery and background cancels scan',
-      (tester) async {
-    await tester.pumpWidget(UncontrolledProviderScope(
-        container: container, child: const MaterialApp(home: RadioScreen())));
-    ble.authorizationFailure = RadioFailure.permanentlyDenied;
-    await tester.tap(find.text('Scan for radios'));
-    await tester.pumpAndSettle();
-    expect(find.text('Open app settings'), findsOneWidget);
-    ble.authorizationFailure = null;
-    await tester.tap(find.text('Scan for radios'));
-    await tester.pumpAndSettle();
-    expect(ble.devices.hasListener, isTrue);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    await tester.pump();
-    expect(ble.devices.hasListener, isFalse);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-  });
+  testWidgets(
+    'permission failure renders recovery and background cancels scan',
+    (tester) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: RadioScreen()),
+        ),
+      );
+      ble.authorizationFailure = RadioFailure.permanentlyDenied;
+      await tester.tap(find.text('Scan for radios'));
+      await tester.pumpAndSettle();
+      expect(find.text('Open app settings'), findsOneWidget);
+      ble.authorizationFailure = null;
+      await tester.tap(find.text('Scan for radios'));
+      await tester.pumpAndSettle();
+      expect(ble.devices.hasListener, isTrue);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      expect(ble.devices.hasListener, isFalse);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    },
+  );
   test('scan cancellation failure releases busy state', () async {
     final failingBle = CancelErrorBle();
     final failingContainer = ProviderContainer(
@@ -285,10 +301,12 @@ void main() {
   test('scan deadline stops after ten seconds', () async {
     container.dispose();
     final scheduler = ManualScheduler();
-    container = ProviderContainer(overrides: [
-      bleServiceProvider.overrideWithValue(ble),
-      radioTimerProvider.overrideWithValue(scheduler.schedule),
-    ]);
+    container = ProviderContainer(
+      overrides: [
+        bleServiceProvider.overrideWithValue(ble),
+        radioTimerProvider.overrideWithValue(scheduler.schedule),
+      ],
+    );
     actions = container.read(radioProvider.notifier);
     await actions.scan();
     scheduler.elapse(const Duration(seconds: 9));
@@ -302,10 +320,12 @@ void main() {
   test('short and unsolicited packets cannot satisfy identification', () async {
     container.dispose();
     final scheduler = ManualScheduler();
-    container = ProviderContainer(overrides: [
-      bleServiceProvider.overrideWithValue(ble),
-      radioTimerProvider.overrideWithValue(scheduler.schedule),
-    ]);
+    container = ProviderContainer(
+      overrides: [
+        bleServiceProvider.overrideWithValue(ble),
+        radioTimerProvider.overrideWithValue(scheduler.schedule),
+      ],
+    );
     actions = container.read(radioProvider.notifier);
     ble.answer = false;
     await findRadio();
@@ -322,15 +342,15 @@ void main() {
     expect(ble.writes, [appStart, appStart]);
     expect(scheduler.timers.any((t) => t.isActive), isFalse);
   });
-  test(
-      'teardown cancels pending discovery deadlines and ignores its late completion',
-      () async {
+  test('teardown cancels pending discovery deadlines and ignores its late completion', () async {
     final pendingBle = FakeBle()..discoveryGate = Completer<void>();
     final scheduler = ManualScheduler();
-    final owned = ProviderContainer(overrides: [
-      bleServiceProvider.overrideWithValue(pendingBle),
-      radioTimerProvider.overrideWithValue(scheduler.schedule),
-    ]);
+    final owned = ProviderContainer(
+      overrides: [
+        bleServiceProvider.overrideWithValue(pendingBle),
+        radioTimerProvider.overrideWithValue(scheduler.schedule),
+      ],
+    );
     var disposed = false;
     try {
       final notifier = owned.read(radioProvider.notifier);

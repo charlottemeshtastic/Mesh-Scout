@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../features/mapping/mapping_service.dart';
 
 class AndroidMappingService
@@ -32,7 +34,8 @@ class AndroidMappingService
     final status = await Permission.locationWhenInUse.request();
     if (!status.isGranted) {
       throw Exception(
-          'Location permission is required. Enable precise location in App permissions.');
+        'Location permission is required. Enable precise location in App permissions.',
+      );
     }
     final enabled = await _methods.invokeMethod<bool>('locationEnabled');
     if (enabled != true) {
@@ -41,19 +44,24 @@ class AndroidMappingService
   }
 
   @override
-  Stream<GpsPoint> positions() => _events.receiveBroadcastStream({
+  Stream<GpsPoint> positions() => _events
+      .receiveBroadcastStream({
         'background': _background,
-        'started': _started?.microsecondsSinceEpoch
-      }).map((event) {
+        'started': _started?.microsecondsSinceEpoch,
+      })
+      .map((event) {
         final data = event as Map<dynamic, dynamic>;
         return GpsPoint(
-            (data['lat'] as num).toDouble(),
-            (data['lon'] as num).toDouble(),
-            (data['accuracy'] as num).toDouble(),
-            DateTime.fromMillisecondsSinceEpoch((data['time'] as num).toInt(),
-                isUtc: true),
-            altitude: (data['altitude'] as num?)?.toDouble(),
-            speed: (data['speed'] as num?)?.toDouble());
+          (data['lat'] as num).toDouble(),
+          (data['lon'] as num).toDouble(),
+          (data['accuracy'] as num).toDouble(),
+          DateTime.fromMillisecondsSinceEpoch(
+            (data['time'] as num).toInt(),
+            isUtc: true,
+          ),
+          altitude: (data['altitude'] as num?)?.toDouble(),
+          speed: (data['speed'] as num?)?.toDouble(),
+        );
       });
   @override
   Future<String?> load() => _methods.invokeMethod<String>('loadSessions');

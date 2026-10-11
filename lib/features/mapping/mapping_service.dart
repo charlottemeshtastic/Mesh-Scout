@@ -1,8 +1,14 @@
 import 'dart:convert';
 
 class GpsPoint {
-  const GpsPoint(this.latitude, this.longitude, this.accuracy, this.time,
-      {this.altitude, this.speed});
+  const GpsPoint(
+    this.latitude,
+    this.longitude,
+    this.accuracy,
+    this.time, {
+    this.altitude,
+    this.speed,
+  });
   final double latitude;
   final double longitude;
   final double accuracy;
@@ -24,57 +30,60 @@ class GpsPoint {
       accuracy <= 100;
 
   Map<String, Object> toJson() => {
-        'lat': latitude,
-        'lon': longitude,
-        'accuracy': accuracy,
-        'time': time.toUtc().toIso8601String(),
-        if (altitude != null && altitude!.isFinite) 'altitude': altitude!,
-        if (speed != null && speed!.isFinite) 'speed': speed!,
-      };
+    'lat': latitude,
+    'lon': longitude,
+    'accuracy': accuracy,
+    'time': time.toUtc().toIso8601String(),
+    if (altitude != null && altitude!.isFinite) 'altitude': altitude!,
+    if (speed != null && speed!.isFinite) 'speed': speed!,
+  };
   factory GpsPoint.fromJson(Map<String, dynamic> json) => GpsPoint(
-        (json['lat'] as num).toDouble(),
-        (json['lon'] as num).toDouble(),
-        (json['accuracy'] as num).toDouble(),
-        DateTime.parse(json['time'] as String),
-        altitude: (json['altitude'] as num?)?.toDouble(),
-        speed: (json['speed'] as num?)?.toDouble(),
-      );
+    (json['lat'] as num).toDouble(),
+    (json['lon'] as num).toDouble(),
+    (json['accuracy'] as num).toDouble(),
+    DateTime.parse(json['time'] as String),
+    altitude: (json['altitude'] as num?)?.toDouble(),
+    speed: (json['speed'] as num?)?.toDouble(),
+  );
 }
 
 class CoverageObservation {
-  const CoverageObservation(
-      {required this.point,
-      required this.rssi,
-      required this.snr,
-      required this.time});
+  const CoverageObservation({
+    required this.point,
+    required this.rssi,
+    required this.snr,
+    required this.time,
+  });
   final GpsPoint point;
   final int rssi;
   final double snr;
   final DateTime time;
   Map<String, Object> toJson() => {
-        'point': point.toJson(),
-        'rssi': rssi,
-        'snr': snr,
-        'time': time.toUtc().toIso8601String()
-      };
+    'point': point.toJson(),
+    'rssi': rssi,
+    'snr': snr,
+    'time': time.toUtc().toIso8601String(),
+  };
   factory CoverageObservation.fromJson(Map<String, dynamic> json) =>
       CoverageObservation(
-          point: GpsPoint.fromJson(json['point'] as Map<String, dynamic>),
-          rssi: json['rssi'] as int,
-          snr: (json['snr'] as num).toDouble(),
-          time: DateTime.parse(json['time'] as String));
+        point: GpsPoint.fromJson(json['point'] as Map<String, dynamic>),
+        rssi: json['rssi'] as int,
+        snr: (json['snr'] as num).toDouble(),
+        time: DateTime.parse(json['time'] as String),
+      );
 }
 
 class MappingSession {
-  const MappingSession(
-      {required this.id,
-      required this.started,
-      required this.ended,
-      required this.points,
-      this.observations = const [],
-      this.name,
-      this.planned = false,
-      this.preset});
+  const MappingSession({
+    required this.id,
+    required this.started,
+    required this.ended,
+    required this.points,
+    this.observations = const [],
+    this.name,
+    this.planned = false,
+    this.preset,
+  });
   final bool planned;
   final String id;
   final String? name;
@@ -82,41 +91,47 @@ class MappingSession {
   /// Radio modem settings (RadioPreset.key) in use while this route recorded.
   final String? preset;
   MappingSession renamed(String? name) => MappingSession(
-      id: id,
-      planned: planned,
-      preset: preset,
-      started: started,
-      ended: ended,
-      points: points,
-      observations: observations,
-      name: name);
+    id: id,
+    planned: planned,
+    preset: preset,
+    started: started,
+    ended: ended,
+    points: points,
+    observations: observations,
+    name: name,
+  );
   final DateTime started;
   final DateTime ended;
   final List<GpsPoint> points;
   final List<CoverageObservation> observations;
   Map<String, Object> toJson() => {
-        'id': id,
-        if (planned) 'planned': true,
-        if (name != null) 'name': name!,
-        if (preset != null) 'preset': preset!,
-        'started': started.toUtc().toIso8601String(),
-        'ended': ended.toUtc().toIso8601String(),
-        'points': points.map((p) => p.toJson()).toList(),
-        'observations': observations.map((p) => p.toJson()).toList()
-      };
+    'id': id,
+    if (planned) 'planned': true,
+    if (name != null) 'name': name!,
+    if (preset != null) 'preset': preset!,
+    'started': started.toUtc().toIso8601String(),
+    'ended': ended.toUtc().toIso8601String(),
+    'points': points.map((p) => p.toJson()).toList(),
+    'observations': observations.map((p) => p.toJson()).toList(),
+  };
   factory MappingSession.fromJson(Map<String, dynamic> json) => MappingSession(
-        id: json['id'] as String,
-        planned: json['planned'] == true,
-        name: json['name'] as String?,
-        preset: json['preset'] is String ? json['preset'] as String : null,
-        started: DateTime.parse(json['started'] as String),
-        ended: DateTime.parse(json['ended'] as String),
-        observations: List.unmodifiable(
-            (json['observations'] as List<dynamic>? ?? []).map((p) =>
-                CoverageObservation.fromJson(p as Map<String, dynamic>))),
-        points: List.unmodifiable((json['points'] as List<dynamic>)
-            .map((p) => GpsPoint.fromJson(p as Map<String, dynamic>))),
-      );
+    id: json['id'] as String,
+    planned: json['planned'] == true,
+    name: json['name'] as String?,
+    preset: json['preset'] is String ? json['preset'] as String : null,
+    started: DateTime.parse(json['started'] as String),
+    ended: DateTime.parse(json['ended'] as String),
+    observations: List.unmodifiable(
+      (json['observations'] as List<dynamic>? ?? []).map(
+        (p) => CoverageObservation.fromJson(p as Map<String, dynamic>),
+      ),
+    ),
+    points: List.unmodifiable(
+      (json['points'] as List<dynamic>).map(
+        (p) => GpsPoint.fromJson(p as Map<String, dynamic>),
+      ),
+    ),
+  );
 }
 
 abstract interface class MappingService {
@@ -129,8 +144,8 @@ abstract interface class MappingService {
 List<MappingSession> decodeSessions(String? data) => data == null
     ? []
     : (jsonDecode(data) as List<dynamic>)
-        .map((s) => MappingSession.fromJson(s as Map<String, dynamic>))
-        .toList();
+          .map((s) => MappingSession.fromJson(s as Map<String, dynamic>))
+          .toList();
 String encodeSessions(List<MappingSession> sessions) =>
     jsonEncode(sessions.map((s) => s.toJson()).toList());
 

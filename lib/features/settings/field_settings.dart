@@ -2,17 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Field-recording preferences persisted with the other app settings.
 class FieldSettings {
-  const FieldSettings(
-      {this.autoStopParked = true,
-      this.parkedMinutes = 10,
-      this.aircraftGuard = true,
-      this.disconnectAlert = true,
-      this.allCoverage = false,
-      this.recentCoverageOnly = false,
-      this.recentCoverageDays = 30,
-      this.groupNodes = true,
-      this.matchPreset = false,
-      this.guideSeen = false});
+  const FieldSettings({
+    this.autoStopParked = true,
+    this.parkedMinutes = 10,
+    this.aircraftGuard = true,
+    this.disconnectAlert = true,
+    this.allCoverage = false,
+    this.recentCoverageOnly = false,
+    this.recentCoverageDays = 30,
+    this.groupNodes = true,
+    this.matchPreset = false,
+    this.guideSeen = false,
+  });
 
   /// Whether a recording stops and saves after the phone stays in place.
   final bool autoStopParked;
@@ -48,41 +49,42 @@ class FieldSettings {
   static const parkedChoices = [5, 10, 15, 30];
   static const recentChoices = [7, 30, 90, 365];
 
-  FieldSettings copyWith(
-          {bool? autoStopParked,
-          int? parkedMinutes,
-          bool? aircraftGuard,
-          bool? disconnectAlert,
-          bool? allCoverage,
-          bool? recentCoverageOnly,
-          int? recentCoverageDays,
-          bool? groupNodes,
-          bool? matchPreset,
-          bool? guideSeen}) =>
-      FieldSettings(
-          autoStopParked: autoStopParked ?? this.autoStopParked,
-          parkedMinutes: parkedMinutes ?? this.parkedMinutes,
-          aircraftGuard: aircraftGuard ?? this.aircraftGuard,
-          disconnectAlert: disconnectAlert ?? this.disconnectAlert,
-          allCoverage: allCoverage ?? this.allCoverage,
-          recentCoverageOnly: recentCoverageOnly ?? this.recentCoverageOnly,
-          recentCoverageDays: recentCoverageDays ?? this.recentCoverageDays,
-          groupNodes: groupNodes ?? this.groupNodes,
-          matchPreset: matchPreset ?? this.matchPreset,
-          guideSeen: guideSeen ?? this.guideSeen);
+  FieldSettings copyWith({
+    bool? autoStopParked,
+    int? parkedMinutes,
+    bool? aircraftGuard,
+    bool? disconnectAlert,
+    bool? allCoverage,
+    bool? recentCoverageOnly,
+    int? recentCoverageDays,
+    bool? groupNodes,
+    bool? matchPreset,
+    bool? guideSeen,
+  }) => FieldSettings(
+    autoStopParked: autoStopParked ?? this.autoStopParked,
+    parkedMinutes: parkedMinutes ?? this.parkedMinutes,
+    aircraftGuard: aircraftGuard ?? this.aircraftGuard,
+    disconnectAlert: disconnectAlert ?? this.disconnectAlert,
+    allCoverage: allCoverage ?? this.allCoverage,
+    recentCoverageOnly: recentCoverageOnly ?? this.recentCoverageOnly,
+    recentCoverageDays: recentCoverageDays ?? this.recentCoverageDays,
+    groupNodes: groupNodes ?? this.groupNodes,
+    matchPreset: matchPreset ?? this.matchPreset,
+    guideSeen: guideSeen ?? this.guideSeen,
+  );
 
   Map<String, Object> toJson() => {
-        'autoStopParked': autoStopParked,
-        'parkedMinutes': parkedMinutes,
-        'aircraftGuard': aircraftGuard,
-        'disconnectAlert': disconnectAlert,
-        'allCoverage': allCoverage,
-        'recentCoverageOnly': recentCoverageOnly,
-        'recentCoverageDays': recentCoverageDays,
-        'groupNodes': groupNodes,
-        'matchPreset': matchPreset,
-        'guideSeen': guideSeen,
-      };
+    'autoStopParked': autoStopParked,
+    'parkedMinutes': parkedMinutes,
+    'aircraftGuard': aircraftGuard,
+    'disconnectAlert': disconnectAlert,
+    'allCoverage': allCoverage,
+    'recentCoverageOnly': recentCoverageOnly,
+    'recentCoverageDays': recentCoverageDays,
+    'groupNodes': groupNodes,
+    'matchPreset': matchPreset,
+    'guideSeen': guideSeen,
+  };
 
   /// Reads saved values, keeping defaults for anything missing or invalid.
   factory FieldSettings.fromJson(Map<String, dynamic> json) {
@@ -92,25 +94,35 @@ class FieldSettings {
     int choice(String key, List<int> allowed, int fallback) =>
         allowed.contains(json[key]) ? json[key] as int : fallback;
     return FieldSettings(
-        autoStopParked: flag('autoStopParked', defaults.autoStopParked),
-        parkedMinutes:
-            choice('parkedMinutes', parkedChoices, defaults.parkedMinutes),
-        aircraftGuard: flag('aircraftGuard', defaults.aircraftGuard),
-        disconnectAlert: flag('disconnectAlert', defaults.disconnectAlert),
-        allCoverage: flag('allCoverage', defaults.allCoverage),
-        recentCoverageOnly:
-            flag('recentCoverageOnly', defaults.recentCoverageOnly),
-        recentCoverageDays: choice(
-            'recentCoverageDays', recentChoices, defaults.recentCoverageDays),
-        groupNodes: flag('groupNodes', defaults.groupNodes),
-        matchPreset: flag('matchPreset', defaults.matchPreset),
-        guideSeen: flag('guideSeen', defaults.guideSeen));
+      autoStopParked: flag('autoStopParked', defaults.autoStopParked),
+      parkedMinutes: choice(
+        'parkedMinutes',
+        parkedChoices,
+        defaults.parkedMinutes,
+      ),
+      aircraftGuard: flag('aircraftGuard', defaults.aircraftGuard),
+      disconnectAlert: flag('disconnectAlert', defaults.disconnectAlert),
+      allCoverage: flag('allCoverage', defaults.allCoverage),
+      recentCoverageOnly: flag(
+        'recentCoverageOnly',
+        defaults.recentCoverageOnly,
+      ),
+      recentCoverageDays: choice(
+        'recentCoverageDays',
+        recentChoices,
+        defaults.recentCoverageDays,
+      ),
+      groupNodes: flag('groupNodes', defaults.groupNodes),
+      matchPreset: flag('matchPreset', defaults.matchPreset),
+      guideSeen: flag('guideSeen', defaults.guideSeen),
+    );
   }
 }
 
 final fieldSettingsProvider =
     NotifierProvider<FieldSettingsNotifier, FieldSettings>(
-        FieldSettingsNotifier.new);
+      FieldSettingsNotifier.new,
+    );
 
 class FieldSettingsNotifier extends Notifier<FieldSettings> {
   @override
@@ -125,8 +137,9 @@ class FieldSettingsNotifier extends Notifier<FieldSettings> {
 }
 
 /// Requests the first-run guide once saved preferences confirm it is unseen.
-final firstRunGuideProvider =
-    NotifierProvider<FirstRunGuide, bool>(FirstRunGuide.new);
+final firstRunGuideProvider = NotifierProvider<FirstRunGuide, bool>(
+  FirstRunGuide.new,
+);
 
 class FirstRunGuide extends Notifier<bool> {
   @override

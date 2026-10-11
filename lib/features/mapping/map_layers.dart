@@ -15,12 +15,13 @@ const maxCoverageCells = 5000;
 
 /// One measured 0.001° cell across saved sessions.
 class CoverageCell {
-  const CoverageCell(
-      {required this.row,
-      required this.column,
-      required this.bestRssi,
-      required this.latest,
-      required this.count});
+  const CoverageCell({
+    required this.row,
+    required this.column,
+    required this.bestRssi,
+    required this.latest,
+    required this.count,
+  });
   final int row, column, bestRssi, count;
   final DateTime latest;
   double get south => row * coverageCellDegrees;
@@ -33,8 +34,11 @@ class CoverageCell {
 ///
 /// Sessions recorded on another preset are skipped when [preset] is given;
 /// cells last measured before [since] are dropped when it is given.
-List<CoverageCell> coverageCells(Iterable<MappingSession> sessions,
-    {String? preset, DateTime? since}) {
+List<CoverageCell> coverageCells(
+  Iterable<MappingSession> sessions, {
+  String? preset,
+  DateTime? since,
+}) {
   final cells = <(int, int), CoverageCell>{};
   for (final session in sessions) {
     if (session.planned) continue;
@@ -44,21 +48,23 @@ List<CoverageCell> coverageCells(Iterable<MappingSession> sessions,
       final column = (o.point.longitude / coverageCellDegrees).floor();
       final previous = cells[(row, column)];
       cells[(row, column)] = CoverageCell(
-          row: row,
-          column: column,
-          bestRssi: previous == null || o.rssi > previous.bestRssi
-              ? o.rssi
-              : previous.bestRssi,
-          latest: previous == null || o.time.isAfter(previous.latest)
-              ? o.time
-              : previous.latest,
-          count: (previous?.count ?? 0) + 1);
+        row: row,
+        column: column,
+        bestRssi: previous == null || o.rssi > previous.bestRssi
+            ? o.rssi
+            : previous.bestRssi,
+        latest: previous == null || o.time.isAfter(previous.latest)
+            ? o.time
+            : previous.latest,
+        count: (previous?.count ?? 0) + 1,
+      );
     }
   }
-  final result = cells.values
-      .where((c) => since == null || !c.latest.isBefore(since))
-      .toList()
-    ..sort((a, b) => b.latest.compareTo(a.latest));
+  final result =
+      cells.values
+          .where((c) => since == null || !c.latest.isBefore(since))
+          .toList()
+        ..sort((a, b) => b.latest.compareTo(a.latest));
   return result.length > maxCoverageCells
       ? result.sublist(0, maxCoverageCells)
       : result;
@@ -74,8 +80,8 @@ final savedCoverageProvider = Provider<List<CoverageCell>>((ref) {
       : null;
   final since = settings.recentCoverageOnly
       ? ref
-          .read(mappingClockProvider)()
-          .subtract(Duration(days: settings.recentCoverageDays))
+            .read(mappingClockProvider)()
+            .subtract(Duration(days: settings.recentCoverageDays))
       : null;
   return coverageCells(sessions, preset: preset, since: since);
 });
@@ -91,14 +97,18 @@ class NodeGroup {
 /// Groups located nodes within about 11 m of each other. With [group] false
 /// every node gets its own marker.
 List<NodeGroup> groupNodes(Iterable<MeshContact> nodes, {bool group = true}) {
-  final located =
-      nodes.where((n) => n.latitude != null && n.longitude != null).toList();
-  if (!group) return [for (final n in located) NodeGroup([n])];
+  final located = nodes
+      .where((n) => n.latitude != null && n.longitude != null)
+      .toList();
+  if (!group)
+    return [
+      for (final n in located) NodeGroup([n]),
+    ];
   final groups = <(int, int), List<MeshContact>>{};
   for (final node in located) {
     final key = (
       (node.latitude! * 10000).round(),
-      (node.longitude! * 10000).round()
+      (node.longitude! * 10000).round(),
     );
     groups.putIfAbsent(key, () => []).add(node);
   }
@@ -115,16 +125,20 @@ Color advertColor(DateTime? lastAdvert, DateTime now) {
 }
 
 IconData nodeIcon(int type) => switch (type) {
-      2 => Icons.cell_tower,
-      3 => Icons.forum_outlined,
-      4 => Icons.sensors,
-      _ => Icons.person_outline,
-    };
+  2 => Icons.cell_tower,
+  3 => Icons.forum_outlined,
+  4 => Icons.sensors,
+  _ => Icons.person_outline,
+};
 
 /// Neutral-bodied node marker with a coloured edge and optional count badge.
 class NodeMarker extends StatelessWidget {
-  const NodeMarker(
-      {super.key, required this.group, required this.now, this.onTap});
+  const NodeMarker({
+    super.key,
+    required this.group,
+    required this.now,
+    this.onTap,
+  });
   final NodeGroup group;
   final DateTime now;
   final VoidCallback? onTap;
@@ -135,8 +149,7 @@ class NodeMarker extends StatelessWidget {
     final newest = group.nodes
         .map((n) => n.lastAdvert)
         .whereType<DateTime>()
-        .fold<DateTime?>(
-            null, (a, b) => a == null || b.isAfter(a) ? b : a);
+        .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
     final single = group.nodes.length == 1;
     final first = group.nodes.first;
     final label = single
@@ -150,38 +163,53 @@ class NodeMarker extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: Stack(clipBehavior: Clip.none, children: [
-            Center(
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
                     color: scheme.surface,
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: advertColor(newest, now), width: 3)),
-                child: Icon(single ? nodeIcon(first.type) : Icons.layers,
-                    size: 16, color: scheme.onSurface),
-              ),
-            ),
-            if (!single)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Text('${group.nodes.length}',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: scheme.onPrimary)),
+                      color: advertColor(newest, now),
+                      width: 3,
+                    ),
+                  ),
+                  child: Icon(
+                    single ? nodeIcon(first.type) : Icons.layers,
+                    size: 16,
+                    color: scheme.onSurface,
+                  ),
                 ),
               ),
-          ]),
+              if (!single)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${group.nodes.length}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

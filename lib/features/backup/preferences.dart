@@ -1,16 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
+
 import '../radio/ble_service.dart';
 import '../../common/mesh_data.dart';
 import '../messages/messages.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../offline/offline_maps.dart';
 import '../radio/radio_notifier.dart';
 import '../mapping/mapping_notifier.dart';
 import '../settings/field_settings.dart';
 
-final preferencesProvider =
-    NotifierProvider<ScoutPreferences, String?>(ScoutPreferences.new);
+final preferencesProvider = NotifierProvider<ScoutPreferences, String?>(
+  ScoutPreferences.new,
+);
 
 class ScoutPreferences extends Notifier<String?> {
   bool initialized = false;
@@ -31,8 +35,9 @@ class ScoutPreferences extends Notifier<String?> {
       return;
     }
     try {
-      final file =
-          File('${await ref.read(dataDirectoryProvider)()}/settings.json');
+      final file = File(
+        '${await ref.read(dataDirectoryProvider)()}/settings.json',
+      );
       if (file.existsSync()) {
         final data =
             jsonDecode(await file.readAsString()) as Map<String, dynamic>;
@@ -49,13 +54,15 @@ class ScoutPreferences extends Notifier<String?> {
             preferred['id'] is String &&
             preferred['name'] is String) {
           final cache = File(
-              '${await ref.read(dataDirectoryProvider)()}/contacts-cache.json');
+            '${await ref.read(dataDirectoryProvider)()}/contacts-cache.json',
+          );
           var contacts = <MeshContact>[];
           DateTime? synced;
           if (cache.existsSync()) {
             try {
-              final saved = jsonDecode(await cache.readAsString())
-                  as Map<String, dynamic>;
+              final saved = jsonDecode(
+                await cache.readAsString(),
+              ) as Map<String, dynamic>;
               if (saved['radio'] == preferred['id']) {
                 final frames = saved['frames'] as List;
                 if (frames.length > 5000) throw const FormatException();
@@ -68,15 +75,26 @@ class ScoutPreferences extends Notifier<String?> {
               state = 'Contact cache could not be loaded; refresh from radio.';
             }
           }
-          ref.read(radioProvider.notifier).restorePreferred(
-              RadioDevice(
-                  preferred['id'] as String, preferred['name'] as String, 0),
-              contacts,
-              synced);
+          ref
+              .read(radioProvider.notifier)
+              .restorePreferred(
+                RadioDevice(
+                  preferred['id'] as String,
+                  preferred['name'] as String,
+                  0,
+                ),
+                contacts,
+                synced,
+              );
         }
         if (data['field'] is Map) {
-          ref.read(fieldSettingsProvider.notifier).set(FieldSettings.fromJson(
-              Map<String, dynamic>.from(data['field'] as Map)));
+          ref
+              .read(fieldSettingsProvider.notifier)
+              .set(
+                FieldSettings.fromJson(
+                  Map<String, dynamic>.from(data['field'] as Map),
+                ),
+              );
         }
         if (data['backgroundGps'] is bool) {
           ref
@@ -91,7 +109,8 @@ class ScoutPreferences extends Notifier<String?> {
       final fileData = file.existsSync()
           ? jsonDecode(await file.readAsString()) as Map<String, dynamic>
           : <String, dynamic>{};
-      final shouldResume = fileData['resumeMonitoring'] == true &&
+      final shouldResume =
+          fileData['resumeMonitoring'] == true &&
           ref.read(radioProvider).autoReconnect;
       if (shouldResume) {
         await ref.read(radioProvider.notifier).connectPreferred();
@@ -116,7 +135,7 @@ class ScoutPreferences extends Notifier<String?> {
         'preferredRadio': {'id': device.id, 'name': device.name},
       'autoReconnect': ref.read(radioProvider).autoReconnect,
       'backgroundGps': ref.read(backgroundGpsProvider),
-      'field': ref.read(fieldSettingsProvider).toJson()
+      'field': ref.read(fieldSettingsProvider).toJson(),
     });
     final radio = ref.read(radioProvider);
     final preferred = ref.read(radioProvider.notifier).preferred;
@@ -125,7 +144,7 @@ class ScoutPreferences extends Notifier<String?> {
         : jsonEncode({
             'radio': preferred.id,
             'synced': radio.syncedAt!.toUtc().toIso8601String(),
-            'frames': radio.contacts.map((c) => c.frame).toList()
+            'frames': radio.contacts.map((c) => c.frame).toList(),
           });
     pending = pending.then((_) async {
       if (!ref.mounted) {

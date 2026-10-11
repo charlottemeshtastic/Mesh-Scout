@@ -1,24 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'inbox_journal.dart';
+
 import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../common/mesh_data.dart';
 import 'ble_service.dart';
 
-final bleServiceProvider =
-    Provider<BleService>((ref) => throw UnimplementedError());
-final reconnectDelayProvider = Provider<Duration Function(int)>(
-    (ref) => (attempt) => Duration(seconds: [3, 6, 12, 24, 30][attempt - 1]));
-final reconnectTimerProvider =
-    Provider<Timer Function(Duration, void Function())>(
-  (ref) => Timer.new,
+final bleServiceProvider = Provider<BleService>(
+  (ref) => throw UnimplementedError(),
 );
+final reconnectDelayProvider = Provider<Duration Function(int)>(
+  (ref) =>
+      (attempt) => Duration(seconds: [3, 6, 12, 24, 30][attempt - 1]),
+);
+final reconnectTimerProvider =
+    Provider<Timer Function(Duration, void Function())>((ref) => Timer.new);
 final radioTimerProvider = Provider<Timer Function(Duration, void Function())>(
   (ref) => Timer.new,
 );
-final radioProvider =
-    NotifierProvider<RadioNotifier, RadioState>(RadioNotifier.new);
+final radioProvider = NotifierProvider<RadioNotifier, RadioState>(
+  RadioNotifier.new,
+);
 
 class RadioChannel {
   const RadioChannel(this.index, this.name);
@@ -34,29 +40,30 @@ enum RadioPhase {
   identifying,
   ready,
   reconnecting,
-  failed
+  failed,
 }
 
 class RadioState {
-  const RadioState(
-      {this.phase = RadioPhase.idle,
-      this.devices = const [],
-      this.failure,
-      this.contacts = const [],
-      this.syncing = false,
-      this.contactMessage,
-      this.syncedAt,
-      this.lastRx,
-      this.autoReconnect = true,
-      this.retryAttempt = 0,
-      this.messagingBusy = false,
-      this.messageEvent,
-      this.channels = const [],
-      this.channelsLoading = false,
-      this.controlsBusy = false,
-      this.heard = const [],
-      this.remoteEvent,
-      this.preset});
+  const RadioState({
+    this.phase = RadioPhase.idle,
+    this.devices = const [],
+    this.failure,
+    this.contacts = const [],
+    this.syncing = false,
+    this.contactMessage,
+    this.syncedAt,
+    this.lastRx,
+    this.autoReconnect = true,
+    this.retryAttempt = 0,
+    this.messagingBusy = false,
+    this.messageEvent,
+    this.channels = const [],
+    this.channelsLoading = false,
+    this.controlsBusy = false,
+    this.heard = const [],
+    this.remoteEvent,
+    this.preset,
+  });
   final List<MeshContact> heard;
 
   /// Modem settings reported while identifying the connected radio.
@@ -78,43 +85,44 @@ class RadioState {
   final bool controlsBusy;
   final List<int>? messageEvent;
   bool get busy => phase != RadioPhase.idle && phase != RadioPhase.failed;
-  RadioState copyWith(
-          {List<MeshContact>? heard,
-          List<int>? remoteEvent,
-          RadioPhase? phase,
-          List<RadioDevice>? devices,
-          List<MeshContact>? contacts,
-          bool? syncing,
-          String? contactMessage,
-          DateTime? syncedAt,
-          RxObservation? lastRx,
-          bool? autoReconnect,
-          int? retryAttempt,
-          bool? messagingBusy,
-          List<int>? messageEvent,
-          List<RadioChannel>? channels,
-          bool? channelsLoading,
-          bool? controlsBusy,
-          RadioPreset? preset}) =>
-      RadioState(
-          preset: preset ?? this.preset,
-          heard: heard ?? this.heard,
-          remoteEvent: remoteEvent ?? this.remoteEvent,
-          phase: phase ?? this.phase,
-          devices: devices ?? this.devices,
-          failure: failure,
-          contacts: contacts ?? this.contacts,
-          syncing: syncing ?? this.syncing,
-          contactMessage: contactMessage,
-          syncedAt: syncedAt ?? this.syncedAt,
-          lastRx: lastRx ?? this.lastRx,
-          autoReconnect: autoReconnect ?? this.autoReconnect,
-          retryAttempt: retryAttempt ?? this.retryAttempt,
-          messagingBusy: messagingBusy ?? this.messagingBusy,
-          messageEvent: messageEvent ?? this.messageEvent,
-          channels: channels ?? this.channels,
-          channelsLoading: channelsLoading ?? this.channelsLoading,
-          controlsBusy: controlsBusy ?? this.controlsBusy);
+  RadioState copyWith({
+    List<MeshContact>? heard,
+    List<int>? remoteEvent,
+    RadioPhase? phase,
+    List<RadioDevice>? devices,
+    List<MeshContact>? contacts,
+    bool? syncing,
+    String? contactMessage,
+    DateTime? syncedAt,
+    RxObservation? lastRx,
+    bool? autoReconnect,
+    int? retryAttempt,
+    bool? messagingBusy,
+    List<int>? messageEvent,
+    List<RadioChannel>? channels,
+    bool? channelsLoading,
+    bool? controlsBusy,
+    RadioPreset? preset,
+  }) => RadioState(
+    preset: preset ?? this.preset,
+    heard: heard ?? this.heard,
+    remoteEvent: remoteEvent ?? this.remoteEvent,
+    phase: phase ?? this.phase,
+    devices: devices ?? this.devices,
+    failure: failure,
+    contacts: contacts ?? this.contacts,
+    syncing: syncing ?? this.syncing,
+    contactMessage: contactMessage,
+    syncedAt: syncedAt ?? this.syncedAt,
+    lastRx: lastRx ?? this.lastRx,
+    autoReconnect: autoReconnect ?? this.autoReconnect,
+    retryAttempt: retryAttempt ?? this.retryAttempt,
+    messagingBusy: messagingBusy ?? this.messagingBusy,
+    messageEvent: messageEvent ?? this.messageEvent,
+    channels: channels ?? this.channels,
+    channelsLoading: channelsLoading ?? this.channelsLoading,
+    controlsBusy: controlsBusy ?? this.controlsBusy,
+  );
 }
 
 class RadioNotifier extends Notifier<RadioState> {
@@ -144,13 +152,16 @@ class RadioNotifier extends Notifier<RadioState> {
   RadioDevice? preferred;
   bool resumeMonitoring = false;
   void restorePreferred(
-      RadioDevice device, List<MeshContact> contacts, DateTime? synced) {
+    RadioDevice device,
+    List<MeshContact> contacts,
+    DateTime? synced,
+  ) {
     preferred = device;
     state = state.copyWith(
-        contacts: List.unmodifiable(contacts),
-        syncedAt: synced,
-        contactMessage:
-            'Saved contacts for ${device.name}; refresh to verify.');
+      contacts: List.unmodifiable(contacts),
+      syncedAt: synced,
+      contactMessage: 'Saved contacts for ${device.name}; refresh to verify.',
+    );
   }
 
   Future<void> connectPreferred() async {
@@ -173,14 +184,16 @@ class RadioNotifier extends Notifier<RadioState> {
   }
 
   bool _current(int generation) => !_disposed && generation == _generation;
-  RadioState _empty(
-          {RadioPhase phase = RadioPhase.idle, RadioFailure? failure}) =>
-      RadioState(
-          phase: phase,
-          failure: failure,
-          autoReconnect: _autoReconnect,
-          contacts: state.contacts,
-          syncedAt: state.syncedAt);
+  RadioState _empty({
+    RadioPhase phase = RadioPhase.idle,
+    RadioFailure? failure,
+  }) => RadioState(
+    phase: phase,
+    failure: failure,
+    autoReconnect: _autoReconnect,
+    contacts: state.contacts,
+    syncedAt: state.syncedAt,
+  );
 
   @override
   RadioState build() {
@@ -205,12 +218,14 @@ class RadioNotifier extends Notifier<RadioState> {
         if (!_current(generation)) return;
         final devices = {
           for (final d in state.devices) d.id: d,
-          device.id: device
+          device.id: device,
         };
         state = state.copyWith(devices: List.unmodifiable(devices.values));
       }, onError: (Object e) => unawaited(_fail(generation, e)));
       _deadline = ref.read(radioTimerProvider)(
-          const Duration(seconds: 10), () => unawaited(stopScan()));
+        const Duration(seconds: 10),
+        () => unawaited(stopScan()),
+      );
     } catch (e) {
       await _fail(generation, e);
     }
@@ -260,22 +275,31 @@ class RadioNotifier extends Notifier<RadioState> {
 
   void _connectLink(int generation, String id) {
     _deadline = ref.read(radioTimerProvider)(
-        const Duration(seconds: 20),
-        () => unawaited(
-            _fail(generation, const RadioException(RadioFailure.transport))));
-    _link = _service.connect(id).listen((link) {
-      if (!_current(generation)) return;
-      if (link == RadioLink.connected && state.phase == RadioPhase.connecting) {
-        state = state.copyWith(phase: RadioPhase.identifying);
-        unawaited(_identify(generation, id));
-      } else if (link == RadioLink.disconnected) {
-        unawaited(
-            _fail(generation, const RadioException(RadioFailure.transport)));
-      }
-    },
-        onError: (Object e) => unawaited(_fail(generation, e)),
-        onDone: () => unawaited(
-            _fail(generation, const RadioException(RadioFailure.transport))));
+      const Duration(seconds: 20),
+      () => unawaited(
+        _fail(generation, const RadioException(RadioFailure.transport)),
+      ),
+    );
+    _link = _service
+        .connect(id)
+        .listen(
+          (link) {
+            if (!_current(generation)) return;
+            if (link == RadioLink.connected &&
+                state.phase == RadioPhase.connecting) {
+              state = state.copyWith(phase: RadioPhase.identifying);
+              unawaited(_identify(generation, id));
+            } else if (link == RadioLink.disconnected) {
+              unawaited(
+                _fail(generation, const RadioException(RadioFailure.transport)),
+              );
+            }
+          },
+          onError: (Object e) => unawaited(_fail(generation, e)),
+          onDone: () => unawaited(
+            _fail(generation, const RadioException(RadioFailure.transport)),
+          ),
+        );
   }
 
   Future<void> _identify(int generation, String id) async {
@@ -283,7 +307,9 @@ class RadioNotifier extends Notifier<RadioState> {
       await _withTimeout(_service.discover(id), const Duration(seconds: 5));
       if (!_current(generation)) return;
       _mtu = await _withTimeout(
-          _service.negotiateMtu(id), const Duration(seconds: 5));
+        _service.negotiateMtu(id),
+        const Duration(seconds: 5),
+      );
       if (!_current(generation)) return;
       if (_mtu < minimumIdentificationMtu) {
         throw const RadioException(RadioFailure.protocol);
@@ -315,14 +341,21 @@ class RadioNotifier extends Notifier<RadioState> {
       _attempt = 0;
       _syncFailed = false;
       state = state.copyWith(
-          phase: RadioPhase.ready, retryAttempt: 0, preset: preset);
+        phase: RadioPhase.ready,
+        retryAttempt: 0,
+        preset: preset,
+      );
     } catch (e) {
       await _fail(generation, e);
     }
   }
 
   Future<List<int>> _exchange(
-      int generation, String id, List<int> command, int expected) async {
+    int generation,
+    String id,
+    List<int> command,
+    int expected,
+  ) async {
     _expected = expected;
     final response = Completer<List<int>>();
     _response = response;
@@ -331,7 +364,9 @@ class RadioNotifier extends Notifier<RadioState> {
         throw const RadioException(RadioFailure.transport);
       }
       await _withTimeout(
-          _service.write(id, command), const Duration(seconds: 3));
+        _service.write(id, command),
+        const Duration(seconds: 3),
+      );
       try {
         return await _withTimeout(response.future, const Duration(seconds: 2));
       } on TimeoutException {
@@ -352,28 +387,33 @@ class RadioNotifier extends Notifier<RadioState> {
     }
     if (_syncFailed) {
       state = state.copyWith(
-          contactMessage: 'Reconnect before starting another contact sync.');
+        contactMessage: 'Reconnect before starting another contact sync.',
+      );
       return;
     }
     if (_mtu < 151) {
       state = state.copyWith(
-          contactMessage:
-              'Radio Bluetooth MTU is too small for contacts. Reconnect and retry.');
+        contactMessage: 'Radio Bluetooth MTU is too small for contacts. Reconnect and retry.',
+      );
       return;
     }
     final generation = _generation;
     _incoming = {};
     _contactCount = null;
     state = state.copyWith(syncing: true);
-    _contactDeadline =
-        ref.read(radioTimerProvider)(const Duration(seconds: 30), () {
-      if (_current(generation) && state.syncing) {
-        _syncError('Contact sync timed out. Reconnect before retrying.');
-      }
-    });
+    _contactDeadline = ref.read(radioTimerProvider)(
+      const Duration(seconds: 30),
+      () {
+        if (_current(generation) && state.syncing) {
+          _syncError('Contact sync timed out. Reconnect before retrying.');
+        }
+      },
+    );
     try {
       await _withTimeout(
-          _service.write(_target!.id, const [4]), const Duration(seconds: 3));
+        _service.write(_target!.id, const [4]),
+        const Duration(seconds: 3),
+      );
     } catch (_) {
       if (_current(generation)) {
         _syncError('Could not request contacts. Reconnect and retry.');
@@ -408,18 +448,23 @@ class RadioNotifier extends Notifier<RadioState> {
         if (!_current(generation)) {
           return;
         }
-        final reply =
-            await messageCommand([31, index], {18}, allowNotFound: true);
+        final reply = await messageCommand(
+          [31, index],
+          {18},
+          allowNotFound: true,
+        );
         if (reply.first == 1) {
           continue;
         }
         if (reply.length != 34 || reply[1] != index) {
           _syncFailed = true;
           throw const FormatException(
-              'Invalid channel index. Reconnect before retrying.');
+            'Invalid channel index. Reconnect before retrying.',
+          );
         }
-        final name =
-            utf8.decode(reply.sublist(2, 34).takeWhile((b) => b != 0).toList());
+        final name = utf8.decode(
+          reply.sublist(2, 34).takeWhile((b) => b != 0).toList(),
+        );
         // Empty names indicate unused slots; expose configured names only.
         if (name.isNotEmpty) {
           channels.add(RadioChannel(index, name));
@@ -427,21 +472,25 @@ class RadioNotifier extends Notifier<RadioState> {
       }
       if (_current(generation)) {
         state = state.copyWith(
-            channels: List.unmodifiable(channels),
-            contactMessage: channels.isEmpty
-                ? 'No named channels configured on the radio.'
-                : 'Channels loaded.');
+          channels: List.unmodifiable(channels),
+          contactMessage: channels.isEmpty
+              ? 'No named channels configured on the radio.'
+              : 'Channels loaded.',
+        );
       }
     } catch (_) {
       if (_current(generation)) {
         _syncFailed = true;
         state = state.copyWith(
-            contactMessage: 'Could not load channels. Reconnect and retry.');
+          contactMessage: 'Could not load channels. Reconnect and retry.',
+        );
       }
     } finally {
       if (_current(generation)) {
         state = state.copyWith(
-            channelsLoading: false, contactMessage: state.contactMessage);
+          channelsLoading: false,
+          contactMessage: state.contactMessage,
+        );
       }
     }
   }
@@ -465,8 +514,12 @@ class RadioNotifier extends Notifier<RadioState> {
     }
   }
 
-  Future<List<int>> messageCommand(List<int> command, Set<int> replies,
-      {bool allowNotFound = false, bool control = false}) async {
+  Future<List<int>> messageCommand(
+    List<int> command,
+    Set<int> replies, {
+    bool allowNotFound = false,
+    bool control = false,
+  }) async {
     if (state.phase != RadioPhase.ready ||
         state.syncing ||
         state.messagingBusy ||
@@ -475,7 +528,8 @@ class RadioNotifier extends Notifier<RadioState> {
         _target == null ||
         _syncFailed) {
       throw StateError(
-          'Connect or reconnect the radio and finish contact sync first.');
+        'Connect or reconnect the radio and finish contact sync first.',
+      );
     }
     final generation = _generation;
     final reply = Completer<List<int>>();
@@ -487,7 +541,9 @@ class RadioNotifier extends Notifier<RadioState> {
     unawaited(response.then<void>((_) {}, onError: (Object _) {}));
     try {
       await _withTimeout(
-          _service.write(_target!.id, command), const Duration(seconds: 3));
+        _service.write(_target!.id, command),
+        const Duration(seconds: 3),
+      );
       final bytes = await response;
       if (bytes.first == 1 &&
           allowNotFound &&
@@ -529,11 +585,14 @@ class RadioNotifier extends Notifier<RadioState> {
       try {
         final contact = MeshContact.parse(bytes);
         state = state.copyWith(
-            heard: List.unmodifiable([
-          contact,
-          ...state.heard.where((c) => c.key != contact.key).take(99)
-        ]));
-      } on FormatException {/* Ignore malformed discovery frames. */}
+          heard: List.unmodifiable([
+            contact,
+            ...state.heard.where((c) => c.key != contact.key).take(99),
+          ]),
+        );
+      } on FormatException {
+        /* Ignore malformed discovery frames. */
+      }
     }
     if ([0x85, 0x86, 0x87, 0x8b, 0x8d].contains(bytes.first)) {
       state = state.copyWith(remoteEvent: List<int>.unmodifiable(bytes));
@@ -550,7 +609,8 @@ class RadioNotifier extends Notifier<RadioState> {
         // GET_CHANNEL includes a secret after byte 33. Never publish that key.
         if (bytes.length != 50) {
           reply.completeError(
-              const FormatException('Invalid channel response.'));
+            const FormatException('Invalid channel response.'),
+          );
         } else {
           reply.complete(List<int>.unmodifiable(bytes.take(34)));
         }
@@ -565,16 +625,21 @@ class RadioNotifier extends Notifier<RadioState> {
         if ([7, 8, 16, 17, 27].contains(bytes.first)) {
           _messageTypes = {};
           final generation = _generation;
-          unawaited(ref
-              .read(inboxJournalProvider)
-              .write(bytes, _target!.id)
-              .then((_) {
-            if (_current(generation) && !reply.isCompleted) {
-              reply.complete(List<int>.unmodifiable(bytes));
-            }
-          }, onError: (Object error, StackTrace stack) {
-            if (!reply.isCompleted) reply.completeError(error, stack);
-          }));
+          unawaited(
+            ref
+                .read(inboxJournalProvider)
+                .write(bytes, _target!.id)
+                .then(
+                  (_) {
+                    if (_current(generation) && !reply.isCompleted) {
+                      reply.complete(List<int>.unmodifiable(bytes));
+                    }
+                  },
+                  onError: (Object error, StackTrace stack) {
+                    if (!reply.isCompleted) reply.completeError(error, stack);
+                  },
+                ),
+          );
         } else {
           reply.complete(List<int>.unmodifiable(bytes));
         }
@@ -611,14 +676,16 @@ class RadioNotifier extends Notifier<RadioState> {
         }
         final contacts = _incoming!.values.toList()
           ..sort(
-              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
         _contactDeadline?.cancel();
         _incoming = null;
         _contactCount = null;
         state = state.copyWith(
-            contacts: List.unmodifiable(contacts),
-            syncing: false,
-            syncedAt: DateTime.now());
+          contacts: List.unmodifiable(contacts),
+          syncing: false,
+          syncedAt: DateTime.now(),
+        );
       }
     } on FormatException {
       _syncError('Incomplete or invalid contact data. Reconnect and retry.');
@@ -646,23 +713,28 @@ class RadioNotifier extends Notifier<RadioState> {
       _cancelOperations.remove(cancel);
     }
 
-    operation.then((value) {
-      finish();
-      if (!result.isCompleted) result.complete(value);
-    }, onError: (Object error, StackTrace stack) {
-      finish();
-      if (!result.isCompleted) {
-        result.completeError(error, stack);
-      }
-    });
+    operation.then(
+      (value) {
+        finish();
+        if (!result.isCompleted) result.complete(value);
+      },
+      onError: (Object error, StackTrace stack) {
+        finish();
+        if (!result.isCompleted) {
+          result.completeError(error, stack);
+        }
+      },
+    );
     return result.future;
   }
 
   Future<void> _fail(int generation, Object error) async {
     if (!_current(generation)) return;
-    final failure =
-        error is RadioException ? error.failure : RadioFailure.transport;
-    final retry = failure == RadioFailure.transport &&
+    final failure = error is RadioException
+        ? error.failure
+        : RadioFailure.transport;
+    final retry =
+        failure == RadioFailure.transport &&
         _identifiedBefore &&
         _autoReconnect &&
         _target != null &&
@@ -673,47 +745,56 @@ class RadioNotifier extends Notifier<RadioState> {
     if (retry) {
       _attempt++;
       state = state.copyWith(
-          phase: RadioPhase.reconnecting,
-          controlsBusy: false,
-          syncing: false,
-          messagingBusy: false,
-          channels: const [],
-          channelsLoading: false,
-          retryAttempt: _attempt,
-          contactMessage:
-              'Radio disconnected; previously loaded contacts may be stale.');
+        phase: RadioPhase.reconnecting,
+        controlsBusy: false,
+        syncing: false,
+        messagingBusy: false,
+        channels: const [],
+        channelsLoading: false,
+        retryAttempt: _attempt,
+        contactMessage:
+            'Radio disconnected; previously loaded contacts may be stale.',
+      );
       _retry = ref.read(reconnectTimerProvider)(
-          ref.read(reconnectDelayProvider)(_attempt), () {
-        if (!_current(cleanupGeneration)) return;
-        state = state.copyWith(phase: RadioPhase.connecting);
-        try {
-          _connectLink(cleanupGeneration, _target!.id);
-        } catch (e) {
-          unawaited(_fail(cleanupGeneration, e));
-        }
-      });
+        ref.read(reconnectDelayProvider)(_attempt),
+        () {
+          if (!_current(cleanupGeneration)) return;
+          state = state.copyWith(phase: RadioPhase.connecting);
+          try {
+            _connectLink(cleanupGeneration, _target!.id);
+          } catch (e) {
+            unawaited(_fail(cleanupGeneration, e));
+          }
+        },
+      );
     } else {
       state = RadioState(
-          phase: RadioPhase.failed,
-          failure: failure,
-          autoReconnect: _autoReconnect,
-          contacts: state.contacts,
-          syncedAt: state.syncedAt,
-          contactMessage:
-              'Radio disconnected; previously loaded contacts may be stale.');
+        phase: RadioPhase.failed,
+        failure: failure,
+        autoReconnect: _autoReconnect,
+        contacts: state.contacts,
+        syncedAt: state.syncedAt,
+        contactMessage:
+            'Radio disconnected; previously loaded contacts may be stale.',
+      );
     }
   }
 
   /// Records modem settings read after the radio was identified.
   void updatePreset(RadioPreset? preset) {
     if (preset == null || state.phase != RadioPhase.ready) return;
-    state = state.copyWith(preset: preset, contactMessage: state.contactMessage);
+    state = state.copyWith(
+      preset: preset,
+      contactMessage: state.contactMessage,
+    );
   }
 
   Future<void> setAutoReconnect(bool enabled) async {
     _autoReconnect = enabled;
     state = state.copyWith(
-        autoReconnect: enabled, contactMessage: state.contactMessage);
+      autoReconnect: enabled,
+      contactMessage: state.contactMessage,
+    );
     if (!enabled && state.phase == RadioPhase.reconnecting) await disconnect();
   }
 
@@ -744,8 +825,9 @@ class RadioNotifier extends Notifier<RadioState> {
     final failure = await _cleanup();
     if (_current(generation)) {
       state = _empty(
-          failure: failure,
-          phase: failure == null ? RadioPhase.idle : RadioPhase.failed);
+        failure: failure,
+        phase: failure == null ? RadioPhase.idle : RadioPhase.failed,
+      );
     }
   }
 
@@ -774,7 +856,7 @@ class RadioNotifier extends Notifier<RadioState> {
     for (final subscription in <StreamSubscription<Object>?>[
       scan,
       notifications,
-      link
+      link,
     ]) {
       try {
         await subscription?.cancel();

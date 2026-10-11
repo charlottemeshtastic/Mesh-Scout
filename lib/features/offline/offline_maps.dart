@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,7 +14,8 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
       longitude < -125 ||
       longitude > -66) {
     throw const FormatException(
-        'Offline topo currently supports the contiguous U.S.');
+      'Offline topo currently supports the contiguous U.S.',
+    );
   }
   if (![4, 8, 12, 24, 48].contains(sideKm)) {
     throw const FormatException('Choose a 4, 8, 12, 24 or 48 km area.');
@@ -33,12 +35,16 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
   final tiles = <MapTile>[];
   for (var z = sideKm > 12 ? 10 : 12; z <= (sideKm > 12 ? 14 : 16); z++) {
     final n = 1 << z;
-    for (var col = x(longitude - lonDelta, n);
-        col <= x(longitude + lonDelta, n);
-        col++) {
-      for (var row = y(latitude + latDelta, n);
-          row <= y(latitude - latDelta, n);
-          row++) {
+    for (
+      var col = x(longitude - lonDelta, n);
+      col <= x(longitude + lonDelta, n);
+      col++
+    ) {
+      for (
+        var row = y(latitude + latDelta, n);
+        row <= y(latitude - latDelta, n);
+        row++
+      ) {
         tiles.add((z: z, x: col, y: row));
       }
     }
@@ -51,8 +57,16 @@ List<MapTile> areaTiles(double latitude, double longitude, {int sideKm = 4}) {
 
 class OfflineArea {
   const OfflineArea(
-      this.path, this.latitude, this.longitude, this.tiles, this.bytes,
-      {this.sideKm = 4, this.name, this.minZoom = 12, this.maxZoom = 16});
+    this.path,
+    this.latitude,
+    this.longitude,
+    this.tiles,
+    this.bytes, {
+    this.sideKm = 4,
+    this.name,
+    this.minZoom = 12,
+    this.maxZoom = 16,
+  });
   final int minZoom, maxZoom;
   final String path;
   final String? name;
@@ -60,31 +74,41 @@ class OfflineArea {
   final int tiles, bytes, sideKm;
 }
 
-final offlineDirectoryProvider = Provider<Future<String> Function()>((ref) =>
-    () async => (await const MethodChannel('org.meshscout/files')
-        .invokeMethod<String>('directory'))!);
+final offlineDirectoryProvider = Provider<Future<String> Function()>(
+  (ref) =>
+      () async =>
+          (await const MethodChannel('org.meshscout/files')
+              .invokeMethod<String>('directory'))!,
+);
 final dataDirectoryProvider = Provider<Future<String> Function()>(
-    (ref) => ref.read(offlineDirectoryProvider));
-final mapDirectoryProvider = Provider<Future<String> Function()>((ref) =>
-    () async => "${await ref.read(offlineDirectoryProvider)()}/offline");
-final offlineTileUrlProvider = Provider<
-    String Function(
-        MapTile)>((ref) => (tile) =>
-    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/${tile.z}/${tile.y}/${tile.x}');
-final offlineThrottleProvider =
-    Provider<Duration>((ref) => const Duration(milliseconds: 100));
-final offlineProvider =
-    NotifierProvider<OfflineMaps, OfflineState>(OfflineMaps.new);
+  (ref) => ref.read(offlineDirectoryProvider),
+);
+final mapDirectoryProvider = Provider<Future<String> Function()>(
+  (ref) =>
+      () async => "${await ref.read(offlineDirectoryProvider)()}/offline",
+);
+final offlineTileUrlProvider = Provider<String Function(MapTile)>(
+  (ref) =>
+      (tile) =>
+          'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/${tile.z}/${tile.y}/${tile.x}',
+);
+final offlineThrottleProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 100),
+);
+final offlineProvider = NotifierProvider<OfflineMaps, OfflineState>(
+  OfflineMaps.new,
+);
 
 class OfflineState {
-  const OfflineState(
-      {this.area,
-      this.areas = const [],
-      this.busy = false,
-      this.progress = 0,
-      this.total = 0,
-      this.enabled = false,
-      this.message});
+  const OfflineState({
+    this.area,
+    this.areas = const [],
+    this.busy = false,
+    this.progress = 0,
+    this.total = 0,
+    this.enabled = false,
+    this.message,
+  });
   final OfflineArea? area;
   final List<OfflineArea> areas;
   final bool busy, enabled;
@@ -113,10 +137,11 @@ class OfflineMaps extends Notifier<OfflineState> {
     final pending = Directory('${(await _root()).path}/pending');
     if (pending.existsSync()) await pending.delete(recursive: true);
     state = OfflineState(
-        area: state.area,
-        areas: state.areas,
-        enabled: state.enabled,
-        message: 'Paused download removed. Saved areas retained.');
+      area: state.area,
+      areas: state.areas,
+      enabled: state.enabled,
+      message: 'Paused download removed. Saved areas retained.',
+    );
   }
 
   Future<void> initialize() async {
@@ -141,7 +166,8 @@ class OfflineMaps extends Notifier<OfflineState> {
           if (!metadata.existsSync()) continue;
           final data =
               jsonDecode(await metadata.readAsString()) as Map<String, dynamic>;
-          areas.add(OfflineArea(
+          areas.add(
+            OfflineArea(
               entry.path,
               (data['lat'] as num).toDouble(),
               (data['lon'] as num).toDouble(),
@@ -150,7 +176,9 @@ class OfflineMaps extends Notifier<OfflineState> {
               sideKm: data['sideKm'] as int? ?? 4,
               name: data['name'] as String?,
               minZoom: data['minZoom'] as int? ?? 12,
-              maxZoom: data['maxZoom'] as int? ?? 16));
+              maxZoom: data['maxZoom'] as int? ?? 16,
+            ),
+          );
         }
       }
       areas.sort((a, b) => b.path.compareTo(a.path));
@@ -158,23 +186,26 @@ class OfflineMaps extends Notifier<OfflineState> {
         return;
       }
       state = OfflineState(
-          area: areas.isEmpty ? null : areas.first,
-          areas: List.unmodifiable(areas));
+        area: areas.isEmpty ? null : areas.first,
+        areas: List.unmodifiable(areas),
+      );
     } catch (_) {
       if (!ref.mounted) {
         return;
       }
       state = const OfflineState(
-          message: 'Could not load offline area. Download again.');
+        message: 'Could not load offline area. Download again.',
+      );
     }
   }
 
   void enable(bool value) {
     state = OfflineState(
-        area: state.area,
-        areas: state.areas,
-        enabled: value && state.area != null,
-        message: state.message);
+      area: state.area,
+      areas: state.areas,
+      enabled: value && state.area != null,
+      message: state.message,
+    );
   }
 
   void cancel() {
@@ -184,14 +215,19 @@ class OfflineMaps extends Notifier<OfflineState> {
     _generation++;
     _client?.close(force: true);
     state = OfflineState(
-        area: state.area,
-        areas: state.areas,
-        enabled: state.enabled,
-        message: 'Download paused. Resume to continue; saved areas retained.');
+      area: state.area,
+      areas: state.areas,
+      enabled: state.enabled,
+      message: 'Download paused. Resume to continue; saved areas retained.',
+    );
   }
 
-  Future<void> download(double lat, double lon,
-      {int sideKm = 4, String? name}) async {
+  Future<void> download(
+    double lat,
+    double lon, {
+    int sideKm = 4,
+    String? name,
+  }) async {
     if (_running || state.busy) {
       return;
     }
@@ -203,7 +239,8 @@ class OfflineMaps extends Notifier<OfflineState> {
     try {
       if (saved.length >= 5) {
         throw const FormatException(
-            'Keep up to five offline areas. Delete one first.');
+          'Keep up to five offline areas. Delete one first.',
+        );
       }
       if (name != null &&
           (name.trim().length > 60 || name.contains(RegExp(r'[\x00-\x1f]')))) {
@@ -211,7 +248,11 @@ class OfflineMaps extends Notifier<OfflineState> {
       }
       final tiles = areaTiles(lat, lon, sideKm: sideKm);
       state = OfflineState(
-          area: previous, areas: saved, busy: true, total: tiles.length);
+        area: previous,
+        areas: saved,
+        busy: true,
+        total: tiles.length,
+      );
       final root = await _root();
       if (generation != _generation) {
         return;
@@ -219,8 +260,12 @@ class OfflineMaps extends Notifier<OfflineState> {
       await root.create(recursive: true);
       staging = Directory('${root.path}/pending');
       final resume = File('${staging.path}/resume.json');
-      final identity =
-          jsonEncode({'lat': lat, 'lon': lon, 'sideKm': sideKm, 'name': name});
+      final identity = jsonEncode({
+        'lat': lat,
+        'lon': lon,
+        'sideKm': sideKm,
+        'name': name,
+      });
       if (staging.existsSync() &&
           (!resume.existsSync() || await resume.readAsString() != identity)) {
         await staging.delete(recursive: true);
@@ -236,8 +281,9 @@ class OfflineMaps extends Notifier<OfflineState> {
         if (generation != _generation) {
           return;
         }
-        final existing =
-            File('${staging.path}/${tile.z}/${tile.x}/${tile.y}.tile');
+        final existing = File(
+          '${staging.path}/${tile.z}/${tile.x}/${tile.y}.tile',
+        );
         if (existing.existsSync()) {
           final image = await existing.readAsBytes();
           if (image.length >= 8 &&
@@ -250,11 +296,12 @@ class OfflineMaps extends Notifier<OfflineState> {
               throw const FormatException('Download exceeds 150 MB.');
             }
             state = OfflineState(
-                area: previous,
-                areas: saved,
-                busy: true,
-                progress: count,
-                total: tiles.length);
+              area: previous,
+              areas: saved,
+              busy: true,
+              progress: count,
+              total: tiles.length,
+            );
             continue;
           }
           await existing.delete();
@@ -263,18 +310,23 @@ class OfflineMaps extends Notifier<OfflineState> {
             .getUrl(Uri.parse(ref.read(offlineTileUrlProvider)(tile)))
             .timeout(const Duration(seconds: 20));
         request.headers.set(
-            'User-Agent', 'MeshScout/0.9 (independent Android mapping app)');
-        final response =
-            await request.close().timeout(const Duration(seconds: 20));
+          'User-Agent',
+          'MeshScout/0.9 (independent Android mapping app)',
+        );
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+        );
         if (response.statusCode != 200 ||
             !(response.headers.contentType?.mimeType.startsWith('image/') ??
                 false)) {
           throw const FormatException(
-              'Map service did not return an image. Try later.');
+            'Map service did not return an image. Try later.',
+          );
         }
         final data = <int>[];
-        await for (final chunk
-            in response.timeout(const Duration(seconds: 20))) {
+        await for (final chunk in response.timeout(
+          const Duration(seconds: 20),
+        )) {
           data.addAll(chunk);
           if (data.length > 1024 * 1024 ||
               bytes + data.length > 150 * 1024 * 1024) {
@@ -295,49 +347,62 @@ class OfflineMaps extends Notifier<OfflineState> {
           return;
         }
         state = OfflineState(
-            area: previous,
-            areas: saved,
-            busy: true,
-            progress: count,
-            total: tiles.length);
+          area: previous,
+          areas: saved,
+          busy: true,
+          progress: count,
+          total: tiles.length,
+        );
         await Future<void>.delayed(ref.read(offlineThrottleProvider));
       }
       await File('${staging.path}/area.json').writeAsString(
-          jsonEncode({
-            'lat': lat,
-            'lon': lon,
-            'tiles': count,
-            'bytes': bytes,
-            'sideKm': sideKm,
-            'minZoom': sideKm > 12 ? 10 : 12,
-            'maxZoom': sideKm > 12 ? 14 : 16,
-            if (name != null && name.trim().isNotEmpty) 'name': name.trim()
-          }),
-          flush: true);
+        jsonEncode({
+          'lat': lat,
+          'lon': lon,
+          'tiles': count,
+          'bytes': bytes,
+          'sideKm': sideKm,
+          'minZoom': sideKm > 12 ? 10 : 12,
+          'maxZoom': sideKm > 12 ? 14 : 16,
+          if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        }),
+        flush: true,
+      );
       if (generation != _generation) {
         return;
       }
       await resume.delete();
       _committing = true;
       final active = Directory(
-          '${root.path}/area-${DateTime.now().microsecondsSinceEpoch}');
+        '${root.path}/area-${DateTime.now().microsecondsSinceEpoch}',
+      );
       await staging.rename(active.path);
       if (!ref.mounted) {
         return;
       }
-      final area = OfflineArea(active.path, lat, lon, count, bytes,
-          sideKm: sideKm,
-          name: name?.trim(),
-          minZoom: sideKm > 12 ? 10 : 12,
-          maxZoom: sideKm > 12 ? 14 : 16);
+      final area = OfflineArea(
+        active.path,
+        lat,
+        lon,
+        count,
+        bytes,
+        sideKm: sideKm,
+        name: name?.trim(),
+        minZoom: sideKm > 12 ? 10 : 12,
+        maxZoom: sideKm > 12 ? 14 : 16,
+      );
       state = OfflineState(
-          area: area,
-          areas: List.unmodifiable([area, ...saved]),
-          message: 'Area saved. Select an area and enable Offline map.');
+        area: area,
+        areas: List.unmodifiable([area, ...saved]),
+        message: 'Area saved. Select an area and enable Offline map.',
+      );
     } catch (e) {
       if (ref.mounted && generation == _generation) {
         state = OfflineState(
-            area: previous, areas: saved, message: 'Download failed: $e');
+          area: previous,
+          areas: saved,
+          message: 'Download failed: $e',
+        );
       }
     } finally {
       _running = false;
@@ -355,8 +420,11 @@ class OfflineMaps extends Notifier<OfflineState> {
     final data =
         jsonDecode(await metadata.readAsString()) as Map<String, dynamic>;
     await download(
-        (data['lat'] as num).toDouble(), (data['lon'] as num).toDouble(),
-        sideKm: data['sideKm'] as int, name: data['name'] as String?);
+      (data['lat'] as num).toDouble(),
+      (data['lon'] as num).toDouble(),
+      sideKm: data['sideKm'] as int,
+      name: data['name'] as String?,
+    );
   }
 
   Future<void> rename(String name) async {
@@ -385,8 +453,11 @@ class OfflineMaps extends Notifier<OfflineState> {
     if (_running || state.busy || !state.areas.contains(area)) {
       return;
     }
-    state =
-        OfflineState(area: area, areas: state.areas, enabled: state.enabled);
+    state = OfflineState(
+      area: area,
+      areas: state.areas,
+      enabled: state.enabled,
+    );
   }
 
   Future<void> delete() async {
@@ -400,9 +471,10 @@ class OfflineMaps extends Notifier<OfflineState> {
     }
     final areas = state.areas.where((a) => a.path != selected.path).toList();
     state = OfflineState(
-        area: areas.isEmpty ? null : areas.first,
-        areas: List.unmodifiable(areas),
-        enabled: state.enabled && areas.isNotEmpty,
-        message: 'Selected offline area deleted.');
+      area: areas.isEmpty ? null : areas.first,
+      areas: List.unmodifiable(areas),
+      enabled: state.enabled && areas.isNotEmpty,
+      message: 'Selected offline area deleted.',
+    );
   }
 }

@@ -2,14 +2,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 class MeshContact {
-  const MeshContact(
-      {required this.key,
-      required this.name,
-      required this.type,
-      required this.lastAdvert,
-      required this.latitude,
-      required this.longitude,
-      this.frame = const []});
+  const MeshContact({
+    required this.key,
+    required this.name,
+    required this.type,
+    required this.lastAdvert,
+    required this.latitude,
+    required this.longitude,
+    this.frame = const [],
+  });
   final List<int> frame;
   final String key;
   final String name;
@@ -18,12 +19,12 @@ class MeshContact {
   final double? latitude;
   final double? longitude;
   String get typeLabel => switch (type) {
-        1 => 'Chat node',
-        2 => 'Repeater',
-        3 => 'Room server',
-        4 => 'Sensor',
-        _ => 'Unknown type',
-      };
+    1 => 'Chat node',
+    2 => 'Repeater',
+    3 => 'Room server',
+    4 => 'Sensor',
+    _ => 'Unknown type',
+  };
   static MeshContact parse(List<int> bytes) {
     if (bytes.length < 148 || (bytes[0] != 3 && bytes[0] != 0x8a)) {
       throw const FormatException('Invalid contact frame');
@@ -36,19 +37,19 @@ class MeshContact {
         lat.abs() <= 90 && lon.abs() <= 180 && (lat != 0 || lon != 0);
     final timestamp = data.getUint32(132, Endian.little);
     return MeshContact(
-        key: bytes
-            .sublist(1, 33)
-            .map((b) => b.toRadixString(16).padLeft(2, '0'))
-            .join(),
-        name: utf8.decode(nameBytes, allowMalformed: true),
-        type: bytes[33],
-        lastAdvert: timestamp == 0
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000,
-                isUtc: true),
-        latitude: location ? lat : null,
-        longitude: location ? lon : null,
-        frame: List.unmodifiable(bytes.take(148)));
+      key: bytes
+          .sublist(1, 33)
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(),
+      name: utf8.decode(nameBytes, allowMalformed: true),
+      type: bytes[33],
+      lastAdvert: timestamp == 0
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000, isUtc: true),
+      latitude: location ? lat : null,
+      longitude: location ? lon : null,
+      frame: List.unmodifiable(bytes.take(148)),
+    );
   }
 }
 
@@ -70,11 +71,12 @@ class RxObservation {
 
 /// LoRa modem settings a companion reports in its SELF_INFO reply.
 class RadioPreset {
-  const RadioPreset(
-      {required this.frequencyKhz,
-      required this.bandwidthHz,
-      required this.sf,
-      required this.cr});
+  const RadioPreset({
+    required this.frequencyKhz,
+    required this.bandwidthHz,
+    required this.sf,
+    required this.cr,
+  });
   final int frequencyKhz, bandwidthHz, sf, cr;
 
   /// Reads frequency, bandwidth, SF and CR from a SELF_INFO frame, or null.
@@ -82,10 +84,11 @@ class RadioPreset {
     if (self.length < 58 || self.first != 5) return null;
     final data = ByteData.sublistView(Uint8List.fromList(self));
     final preset = RadioPreset(
-        frequencyKhz: data.getUint32(48, Endian.little),
-        bandwidthHz: data.getUint32(52, Endian.little),
-        sf: self[56],
-        cr: self[57]);
+      frequencyKhz: data.getUint32(48, Endian.little),
+      bandwidthHz: data.getUint32(52, Endian.little),
+      sf: self[56],
+      cr: self[57],
+    );
     return preset.valid ? preset : null;
   }
 
@@ -96,10 +99,11 @@ class RadioPreset {
       return null;
     }
     final preset = RadioPreset(
-        frequencyKhz: parts[0]!,
-        bandwidthHz: parts[1]!,
-        sf: parts[2]!,
-        cr: parts[3]!);
+      frequencyKhz: parts[0]!,
+      bandwidthHz: parts[1]!,
+      sf: parts[2]!,
+      cr: parts[3]!,
+    );
     return preset.valid ? preset : null;
   }
 

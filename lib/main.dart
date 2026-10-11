@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'features/offline/offline_maps.dart';
 import 'features/alerts/message_alerts.dart';
 import 'native/android_alert_service.dart';
 import 'features/alerts/link_alerts.dart';
 import 'native/android_link_alert_service.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/radio/radio_notifier.dart';
@@ -14,27 +16,27 @@ import 'native/android_mapping_service.dart';
 import 'features/mapping/mapping_notifier.dart';
 
 void main() => runApp(
-      ProviderScope(
-        overrides: [
-          mapDirectoryProvider.overrideWithValue(() async =>
-              (await const MethodChannel('org.meshscout/files')
-                  .invokeMethod<String>('mapDirectory'))!),
-          dataDirectoryProvider.overrideWithValue(() async =>
-              (await const MethodChannel('org.meshscout/files')
-                  .invokeMethod<String>('dataDirectory'))!),
-          alertServiceProvider.overrideWithValue(AndroidAlertService()),
-          linkAlertServiceProvider
-              .overrideWithValue(AndroidLinkAlertService()),
-          tripGuardIntervalProvider
-              .overrideWithValue(const Duration(seconds: 30)),
-          mappingServiceProvider.overrideWithValue(AndroidMappingService()),
-          bleServiceProvider.overrideWithValue(
-            AndroidBleService(),
-          ),
-        ],
-        child: const MeshScoutApp(),
+  ProviderScope(
+    overrides: [
+      mapDirectoryProvider.overrideWithValue(
+        () async =>
+            (await const MethodChannel('org.meshscout/files')
+                .invokeMethod<String>('mapDirectory'))!,
       ),
-    );
+      dataDirectoryProvider.overrideWithValue(
+        () async =>
+            (await const MethodChannel('org.meshscout/files')
+                .invokeMethod<String>('dataDirectory'))!,
+      ),
+      alertServiceProvider.overrideWithValue(AndroidAlertService()),
+      linkAlertServiceProvider.overrideWithValue(AndroidLinkAlertService()),
+      tripGuardIntervalProvider.overrideWithValue(const Duration(seconds: 30)),
+      mappingServiceProvider.overrideWithValue(AndroidMappingService()),
+      bleServiceProvider.overrideWithValue(AndroidBleService()),
+    ],
+    child: const MeshScoutApp(),
+  ),
+);
 
 class MeshScoutApp extends StatelessWidget {
   const MeshScoutApp({super.key, this.mapContent});
@@ -44,13 +46,13 @@ class MeshScoutApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'MeshScout',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.dark,
-          colorSchemeSeed: const Color(0xff55d4a2),
-        ),
-        home: MeshScoutShell(mapContent: mapContent),
-      );
+    title: 'MeshScout',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorSchemeSeed: const Color(0xff55d4a2),
+    ),
+    home: MeshScoutShell(mapContent: mapContent),
+  );
 }

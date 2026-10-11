@@ -14,7 +14,8 @@ double distanceMetres(GpsPoint a, GpsPoint b) {
   double rad(double degrees) => degrees * math.pi / 180;
   final dLat = rad(b.latitude - a.latitude);
   final dLon = rad(b.longitude - a.longitude);
-  final h = math.pow(math.sin(dLat / 2), 2) +
+  final h =
+      math.pow(math.sin(dLat / 2), 2) +
       math.cos(rad(a.latitude)) *
           math.cos(rad(b.latitude)) *
           math.pow(math.sin(dLon / 2), 2);
@@ -35,7 +36,9 @@ double? effectiveSpeed(GpsPoint point, GpsPoint? previous) {
 /// Whether [point] looks like a fix from an aircraft rather than the ground.
 bool isAirborne(GpsPoint point, GpsPoint? previous) {
   final altitude = point.altitude;
-  if (altitude != null && altitude.isFinite && altitude > aircraftAltitudeMetres) {
+  if (altitude != null &&
+      altitude.isFinite &&
+      altitude > aircraftAltitudeMetres) {
     return true;
   }
   final speed = effectiveSpeed(point, previous);
@@ -64,7 +67,8 @@ class ParkedTracker {
   /// Whether the phone has stayed put for at least [limit] as of [now].
   bool parked(DateTime now, Duration limit) {
     final since = _since;
-    return since != null && !now.difference(since).isNegative &&
+    return since != null &&
+        !now.difference(since).isNegative &&
         now.difference(since) >= limit;
   }
 

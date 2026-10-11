@@ -21,11 +21,11 @@ class SilentLinkAlerts implements LinkAlertService {
   Future<void> restored() async {}
 }
 
-final linkAlertServiceProvider =
-    Provider<LinkAlertService>((ref) => SilentLinkAlerts());
+final linkAlertServiceProvider = Provider<LinkAlertService>(
+  (ref) => SilentLinkAlerts(),
+);
 
-final linkAlertsProvider =
-    NotifierProvider<LinkAlerts, int>(LinkAlerts.new);
+final linkAlertsProvider = NotifierProvider<LinkAlerts, int>(LinkAlerts.new);
 
 /// Counts unexpected radio drops and raises an alert for each one.
 ///

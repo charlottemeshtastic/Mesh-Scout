@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../offline/offline_maps.dart';
 import '../radio/radio_notifier.dart';
 import '../radio/inbox_journal.dart';
@@ -17,7 +19,8 @@ List<int> directMessage(String key, String text, int timestamp, int mtu) {
       body.length + 16 > mtu ||
       RegExp(r'[\x00-\x1f]').hasMatch(text)) {
     throw const FormatException(
-        'Use 1–133 UTF-8 bytes, without control characters.');
+      'Use 1–133 UTF-8 bytes, without control characters.',
+    );
   }
   final stamp = ByteData(4)..setUint32(0, timestamp, Endian.little);
   return [
@@ -27,7 +30,7 @@ List<int> directMessage(String key, String text, int timestamp, int mtu) {
     ...stamp.buffer.asUint8List(),
     for (var i = 0; i < 12; i += 2)
       int.parse(key.substring(i, i + 2), radix: 16),
-    ...body
+    ...body,
   ];
 }
 
@@ -41,7 +44,8 @@ List<int> channelMessage(int channel, String text, int timestamp, int mtu) {
       body.length + 10 > mtu ||
       RegExp(r'[\x00-\x1f]').hasMatch(text)) {
     throw const FormatException(
-        'Channel text supports 1–99 UTF-8 bytes without control characters.');
+      'Channel text supports 1–99 UTF-8 bytes without control characters.',
+    );
   }
   final stamp = ByteData(4)..setUint32(0, timestamp, Endian.little);
   return [3, 0, channel, ...stamp.buffer.asUint8List(), ...body];
@@ -74,23 +78,24 @@ Map<String, dynamic> incomingMessage(List<int> bytes) {
     'peer': channel
         ? 'Channel ${bytes[prefix]}'
         : bytes
-            .sublist(prefix, prefix + 6)
-            .map((b) => b.toRadixString(16).padLeft(2, '0'))
-            .join(),
+              .sublist(prefix, prefix + 6)
+              .map((b) => b.toRadixString(16).padLeft(2, '0'))
+              .join(),
     'body': utf8.decode(bytes.sublist(offset)),
     'time': data.getUint32(typeOffset + 1, Endian.little),
     'status': type == 2
         ? 'Received forwarded message · origin unverified'
         : type == 1
-            ? 'Received repeater CLI response'
-            : 'Received',
-    'outgoing': false
+        ? 'Received repeater CLI response'
+        : 'Received',
+    'outgoing': false,
   };
 }
 
 final inboxTimerProvider =
     Provider<Timer Function(Duration, void Function(Timer))>(
-        (ref) => Timer.periodic);
+      (ref) => Timer.periodic,
+    );
 final autoInboxProvider = NotifierProvider<AutoInbox, bool>(AutoInbox.new);
 
 class AutoInbox extends Notifier<bool> {
@@ -108,7 +113,7 @@ Map<String, dynamic> recoveredMessage(List<int> bytes) {
       'body': bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' '),
       'time': DateTime.now().millisecondsSinceEpoch ~/ 1000,
       'status': 'Raw received frame · could not decode',
-      'outgoing': false
+      'outgoing': false,
     };
   }
 }
@@ -121,11 +126,12 @@ int unreadCount(Iterable<Map<String, dynamic>> messages) =>
 final messagesProvider = NotifierProvider<Messages, MessageState>(Messages.new);
 
 class MessageState {
-  const MessageState(
-      {this.items = const [],
-      this.busy = false,
-      this.loaded = false,
-      this.notice});
+  const MessageState({
+    this.items = const [],
+    this.busy = false,
+    this.loaded = false,
+    this.notice,
+  });
   final List<Map<String, dynamic>> items;
   final bool busy, loaded;
   final String? notice;
@@ -168,9 +174,10 @@ class Messages extends Notifier<MessageState> {
       }
       if (bytes.first == 0x83 && !state.busy) {
         state = MessageState(
-            items: state.items,
-            loaded: state.loaded,
-            notice: 'Messages waiting on radio. Tap Fetch messages.');
+          items: state.items,
+          loaded: state.loaded,
+          notice: 'Messages waiting on radio. Tap Fetch messages.',
+        );
       }
       // ACKs are handled only after an accepted send in this live process.
       if (bytes.first == 0x82 && bytes.length == 9) {
@@ -217,13 +224,15 @@ class Messages extends Notifier<MessageState> {
             : <Map<String, dynamic>>[];
       }
       if (items.length > 1000 ||
-          items.any((m) =>
-              m['body'] is! String ||
-              m['peer'] is! String ||
-              m['status'] is! String ||
-              m['radio'] is! String ||
-              m['time'] is! int ||
-              m['outgoing'] is! bool)) {
+          items.any(
+            (m) =>
+                m['body'] is! String ||
+                m['peer'] is! String ||
+                m['status'] is! String ||
+                m['radio'] is! String ||
+                m['time'] is! int ||
+                m['outgoing'] is! bool,
+          )) {
         throw const FormatException();
       }
       final checkpoint = await ref.read(inboxJournalProvider).read();
@@ -253,8 +262,8 @@ class Messages extends Notifier<MessageState> {
     } catch (_) {
       if (ref.mounted) {
         state = const MessageState(
-            notice:
-                'Could not load message history. Sending and fetching are blocked.');
+          notice: 'Could not load message history. Sending and fetching are blocked.',
+        );
       }
     }
   }
@@ -276,7 +285,7 @@ class Messages extends Notifier<MessageState> {
       return;
     }
     final updated = [
-      for (final m in state.items) {...m}
+      for (final m in state.items) {...m},
     ];
     var changed = false;
     for (final m in updated) {
@@ -284,8 +293,11 @@ class Messages extends Notifier<MessageState> {
       if (_live.contains(key) &&
           _acks.contains(key) &&
           updated
-                  .where((other) =>
-                      other['radio'] == m['radio'] && other['tag'] == m['tag'])
+                  .where(
+                    (other) =>
+                        other['radio'] == m['radio'] &&
+                        other['tag'] == m['tag'],
+                  )
                   .length ==
               1 &&
           m['status'] == 'Accepted by radio · delivery unconfirmed') {
@@ -302,14 +314,17 @@ class Messages extends Notifier<MessageState> {
     state = MessageState(items: state.items, loaded: true, busy: true);
     try {
       await _save(items);
-    } catch (_) {/* Retain pending data for explicit retry. */}
+    } catch (_) {
+      /* Retain pending data for explicit retry. */
+    }
     if (ref.mounted) {
       state = MessageState(
-          items: _unsaved ?? state.items,
-          loaded: true,
-          notice: _unsaved == null
-              ? null
-              : 'Save failed. Retry saving before fetching or sending.');
+        items: _unsaved ?? state.items,
+        loaded: true,
+        notice: _unsaved == null
+            ? null
+            : 'Save failed. Retry saving before fetching or sending.',
+      );
       _confirm();
     }
   }
@@ -329,7 +344,8 @@ class Messages extends Notifier<MessageState> {
       return;
     }
     await _persistChange(
-        state.items.where((m) => !identical(m, message)).toList());
+      state.items.where((m) => !identical(m, message)).toList(),
+    );
   }
 
   Future<void> markRead(String conversation) async {
@@ -338,7 +354,7 @@ class Messages extends Notifier<MessageState> {
     }
     await _persistChange([
       for (final m in state.items)
-        if (conversationKey(m) == conversation) {...m, 'unread': false} else m
+        if (conversationKey(m) == conversation) {...m, 'unread': false} else m,
     ]);
   }
 
@@ -385,8 +401,11 @@ class Messages extends Notifier<MessageState> {
     final contacts = ref.read(radioProvider).contacts;
     if (channel == null &&
         (contacts
-                    .where((c) => c.key.startsWith(
-                        key.length >= 12 ? key.substring(0, 12) : key))
+                    .where(
+                      (c) => c.key.startsWith(
+                        key.length >= 12 ? key.substring(0, 12) : key,
+                      ),
+                    )
                     .length !=
                 1 ||
             !contacts.any((c) => c.key == key && c.type == 1))) {
@@ -412,14 +431,16 @@ class Messages extends Notifier<MessageState> {
         'time': stamp,
         'radio': radio.companionId,
         'outgoing': true,
-        'status': 'Send outcome unknown · never automatically retried'
+        'status': 'Send outcome unknown · never automatically retried',
       };
       await _save([...state.items, record]);
       if (radio.sessionToken != token) {
         throw StateError('Radio changed before send.');
       }
-      final reply =
-          await radio.messageCommand(command, channel == null ? {6} : {0});
+      final reply = await radio.messageCommand(
+        command,
+        channel == null ? {6} : {0},
+      );
       if (channel != null) {
         if (reply.length != 1) {
           throw const FormatException('Invalid channel acceptance.');
@@ -428,8 +449,8 @@ class Messages extends Notifier<MessageState> {
           ...state.items.take(state.items.length - 1),
           {
             ...record,
-            'status': 'Accepted by radio · channel delivery unconfirmed'
-          }
+            'status': 'Accepted by radio · channel delivery unconfirmed',
+          },
         ]);
         return;
       }
@@ -446,25 +467,28 @@ class Messages extends Notifier<MessageState> {
         {
           ...record,
           'tag': tag,
-          'status': 'Accepted by radio · delivery unconfirmed'
-        }
+          'status': 'Accepted by radio · delivery unconfirmed',
+        },
       ]);
     } catch (e) {
       if (ref.mounted) {
         state = MessageState(
-            items: _unsaved ?? state.items,
-            loaded: true,
-            busy: true,
-            notice:
-                'Send incomplete: $e. Reconnect before retrying; do not resend blindly.');
+          items: _unsaved ?? state.items,
+          loaded: true,
+          busy: true,
+          notice:
+              'Send incomplete: $e. Reconnect before retrying; do not resend blindly.',
+        );
       }
     } finally {
       if (ref.mounted) {
         state = MessageState(
-            items: _unsaved ?? state.items,
-            loaded: true,
-            notice:
-                _unsaved != null ? 'Save failed. Retry saving.' : state.notice);
+          items: _unsaved ?? state.items,
+          loaded: true,
+          notice: _unsaved != null
+              ? 'Save failed. Retry saving.'
+              : state.notice,
+        );
         _confirm();
       }
     }
@@ -479,9 +503,10 @@ class Messages extends Notifier<MessageState> {
     final token = radio.sessionToken;
     if (radio.mtu < 175) {
       state = MessageState(
-          items: state.items,
-          loaded: true,
-          notice: 'Reconnect with a larger Bluetooth MTU before fetching.');
+        items: state.items,
+        loaded: true,
+        notice: 'Reconnect with a larger Bluetooth MTU before fetching.',
+      );
       return;
     }
     state = MessageState(items: state.items, loaded: true, busy: true);
@@ -511,20 +536,22 @@ class Messages extends Notifier<MessageState> {
       _autoPaused = true;
       if (ref.mounted) {
         state = MessageState(
-            items: _unsaved ?? state.items,
-            loaded: true,
-            busy: true,
-            notice:
-                'Fetch stopped: $e. Automatic retrieval is paused. Any inbox checkpoint is retained for recovery.');
+          items: _unsaved ?? state.items,
+          loaded: true,
+          busy: true,
+          notice:
+              'Fetch stopped: $e. Automatic retrieval is paused. Any inbox checkpoint is retained for recovery.',
+        );
       }
     } finally {
       if (ref.mounted) {
         state = MessageState(
-            items: _unsaved ?? state.items,
-            loaded: true,
-            notice: _unsaved != null
-                ? 'Save failed. Retry saving before fetching more.'
-                : state.notice);
+          items: _unsaved ?? state.items,
+          loaded: true,
+          notice: _unsaved != null
+              ? 'Save failed. Retry saving before fetching more.'
+              : state.notice,
+        );
         _confirm();
       }
     }
@@ -532,15 +559,19 @@ class Messages extends Notifier<MessageState> {
 }
 
 List<Map<String, dynamic>> filterMessages(
-        List<Map<String, dynamic>> items, String query, String direction) =>
-    items
-        .where((item) =>
-            (direction == 'all' ||
-                (direction == 'outgoing') == (item['outgoing'] == true)) &&
-            '${item['peer']} ${item['body']} ${item['status']} ${item['radio']}'
-                .toLowerCase()
-                .contains(query.toLowerCase()))
-        .toList();
+  List<Map<String, dynamic>> items,
+  String query,
+  String direction,
+) => items
+    .where(
+      (item) =>
+          (direction == 'all' ||
+              (direction == 'outgoing') == (item['outgoing'] == true)) &&
+          '${item['peer']} ${item['body']} ${item['status']} ${item['radio']}'
+              .toLowerCase()
+              .contains(query.toLowerCase()),
+    )
+    .toList();
 
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
@@ -583,9 +614,11 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       ..sort();
     final visible = filterMessages(state.items, _query, _direction)
         .where(
-            (m) => _conversation == null || conversationKey(m) == _conversation)
+          (m) => _conversation == null || conversationKey(m) == _conversation,
+        )
         .toList();
-    final ready = !_exporting &&
+    final ready =
+        !_exporting &&
         radio.phase == RadioPhase.ready &&
         !radio.syncing &&
         !radio.messagingBusy &&
@@ -593,273 +626,346 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         !radio.channelsLoading &&
         actions.available;
     return Scaffold(
-        appBar: AppBar(title: const Text('Messages')),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
+      appBar: AppBar(title: const Text('Messages')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
           const Text(
-              'Direct and configured-channel messages. Fetch removes messages from the radio queue and saves them privately on this phone. Received frames are checkpointed before decoding and history saving. Power loss before that checkpoint can still lose a message. History is limited to 1,000 messages.'),
+            'Direct and configured-channel messages. Fetch removes messages from the radio queue and saves them privately on this phone. Received frames are checkpointed before decoding and history saving. Power loss before that checkpoint can still lose a message. History is limited to 1,000 messages.',
+          ),
           if (state.busy || _exporting) const LinearProgressIndicator(),
           OutlinedButton.icon(
-              onPressed: !state.loaded ||
-                      state.busy ||
-                      _exporting ||
-                      state.items.isEmpty
-                  ? null
-                  : () => _export(state.items),
-              icon: const Icon(Icons.ios_share),
-              label: const Text('Export message history')),
+            onPressed:
+                !state.loaded || state.busy || _exporting || state.items.isEmpty
+                ? null
+                : () => _export(state.items),
+            icon: const Icon(Icons.ios_share),
+            label: const Text('Export message history'),
+          ),
           if (state.notice != null) Text(state.notice!),
           if (state.items.length >= 1000)
             const Text('History is full. Clear history before fetching more.'),
           TextButton(
-              onPressed: !state.loaded || state.busy || _exporting
-                  ? null
-                  : () async {
-                      final yes = await showDialog<bool>(
-                          context: context,
-                          builder: (c) => AlertDialog(
-                                  title: const Text('Clear message history?'),
-                                  content: const Text(
-                                      'This deletes all messages saved on this phone.'),
-                                  actions: [
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(c, false),
-                                        child: const Text('Cancel')),
-                                    FilledButton(
-                                        onPressed: () => Navigator.pop(c, true),
-                                        child: const Text('Clear'))
-                                  ]));
-                      if (yes == true) {
-                        await actions.clearHistory();
-                      }
-                    },
-              child: const Text('Clear history')),
+            onPressed: !state.loaded || state.busy || _exporting
+                ? null
+                : () async {
+                    final yes = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Clear message history?'),
+                        content: const Text(
+                          'This deletes all messages saved on this phone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(c, true),
+                            child: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (yes == true) {
+                      await actions.clearHistory();
+                    }
+                  },
+            child: const Text('Clear history'),
+          ),
           OutlinedButton(
-              onPressed: state.busy ? null : actions.retrySave,
-              child: const Text('Retry saving')),
+            onPressed: state.busy ? null : actions.retrySave,
+            child: const Text('Retry saving'),
+          ),
           FilledButton(
-              onPressed: ready ? actions.fetch : null,
-              child: const Text('Fetch messages')),
+            onPressed: ready ? actions.fetch : null,
+            child: const Text('Fetch messages'),
+          ),
           SwitchListTile(
-              title: const Text('Send to a channel'),
-              value: _channelMode,
-              onChanged: state.busy
-                  ? null
-                  : (value) => setState(() => _channelMode = value)),
+            title: const Text('Send to a channel'),
+            value: _channelMode,
+            onChanged: state.busy
+                ? null
+                : (value) => setState(() => _channelMode = value),
+          ),
           if (_channelMode) ...[
             OutlinedButton(
-                onPressed: radio.phase == RadioPhase.ready &&
-                        !state.busy &&
-                        !radio.syncing &&
-                        !radio.messagingBusy &&
-                        !radio.controlsBusy &&
-                        !radio.channelsLoading
-                    ? ref.read(radioProvider.notifier).refreshChannels
-                    : null,
-                child: Text(radio.channelsLoading
+              onPressed:
+                  radio.phase == RadioPhase.ready &&
+                      !state.busy &&
+                      !radio.syncing &&
+                      !radio.messagingBusy &&
+                      !radio.controlsBusy &&
+                      !radio.channelsLoading
+                  ? ref.read(radioProvider.notifier).refreshChannels
+                  : null,
+              child: Text(
+                radio.channelsLoading
                     ? 'Loading channels…'
-                    : 'Load configured channels')),
+                    : 'Load configured channels',
+              ),
+            ),
             if (radio.contactMessage != null) Text(radio.contactMessage!),
             DropdownButtonFormField<int>(
-                key: ValueKey(radio.channels),
-                initialValue: radio.channels.any((c) => c.index == _channel)
-                    ? _channel
-                    : null,
-                isExpanded: true,
-                decoration:
-                    const InputDecoration(labelText: 'Configured channel'),
-                items: [
-                  for (final c in radio.channels)
-                    DropdownMenuItem(
-                        value: c.index,
-                        child: Text('${c.name} · ${c.index}',
-                            overflow: TextOverflow.ellipsis))
-                ],
-                onChanged: (value) => setState(() => _channel = value)),
+              key: ValueKey(radio.channels),
+              initialValue: radio.channels.any((c) => c.index == _channel)
+                  ? _channel
+                  : null,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Configured channel',
+              ),
+              items: [
+                for (final c in radio.channels)
+                  DropdownMenuItem(
+                    value: c.index,
+                    child: Text(
+                      '${c.name} · ${c.index}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _channel = value),
+            ),
             const Text(
-                'Channel sends have no delivery acknowledgement. Limit: 99 UTF-8 bytes.'),
+              'Channel sends have no delivery acknowledgement. Limit: 99 UTF-8 bytes.',
+            ),
           ],
           if (!_channelMode)
             DropdownButtonFormField<String>(
-                key: ValueKey(radio.contacts),
-                initialValue: contacts.any((c) => c.key == _key) ? _key : null,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Chat contact'),
-                items: [
-                  for (final c in contacts)
-                    DropdownMenuItem(
-                        value: c.key,
-                        child: Text(
-                            c.name.isEmpty ? c.key.substring(0, 12) : c.name,
-                            overflow: TextOverflow.ellipsis))
-                ],
-                onChanged: (value) => setState(() => _key = value)),
+              key: ValueKey(radio.contacts),
+              initialValue: contacts.any((c) => c.key == _key) ? _key : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Chat contact'),
+              items: [
+                for (final c in contacts)
+                  DropdownMenuItem(
+                    value: c.key,
+                    child: Text(
+                      c.name.isEmpty ? c.key.substring(0, 12) : c.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _key = value),
+            ),
           TextField(
-              controller: _text,
-              maxLength: _channelMode ? 99 : 133,
-              decoration: InputDecoration(
-                  labelText: _channelMode
-                      ? 'Channel message (up to 99 UTF-8 bytes)'
-                      : 'Direct message (up to 133 UTF-8 bytes)')),
+            controller: _text,
+            maxLength: _channelMode ? 99 : 133,
+            decoration: InputDecoration(
+              labelText: _channelMode
+                  ? 'Channel message (up to 99 UTF-8 bytes)'
+                  : 'Direct message (up to 133 UTF-8 bytes)',
+            ),
+          ),
           FilledButton(
-              onPressed: ready &&
-                      (_channelMode
-                          ? radio.channels.any((c) => c.index == _channel)
-                          : contacts.any((c) => c.key == _key))
-                  ? () async {
-                      final body = _text.text;
-                      final before = state.items.length;
-                      await actions.send(_key ?? '', body,
-                          channel: _channelMode ? _channel : null);
-                      if (!context.mounted) {
-                        return;
-                      }
-                      final latest = ref.read(messagesProvider);
-                      final accepted = latest.items.length > before &&
-                          latest.items.last['body'] == body &&
-                          (latest.items.last['status'] ==
-                                  'Delivery confirmed' ||
-                              (latest.items.last['status'] as String)
-                                  .startsWith('Accepted by radio'));
-                      if (accepted && _text.text == body) {
-                        _text.clear();
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(accepted
-                              ? 'Radio accepted the message. Check delivery status below.'
-                              : latest.notice ??
-                                  'Message was not accepted. Check connection and recipient.')));
+            onPressed:
+                ready &&
+                    (_channelMode
+                        ? radio.channels.any((c) => c.index == _channel)
+                        : contacts.any((c) => c.key == _key))
+                ? () async {
+                    final body = _text.text;
+                    final before = state.items.length;
+                    await actions.send(
+                      _key ?? '',
+                      body,
+                      channel: _channelMode ? _channel : null,
+                    );
+                    if (!context.mounted) {
+                      return;
                     }
-                  : null,
-              child: Text(_channelMode
-                  ? 'Send channel message'
-                  : 'Send direct message')),
+                    final latest = ref.read(messagesProvider);
+                    final accepted =
+                        latest.items.length > before &&
+                        latest.items.last['body'] == body &&
+                        (latest.items.last['status'] == 'Delivery confirmed' ||
+                            (latest.items.last['status'] as String).startsWith(
+                              'Accepted by radio',
+                            ));
+                    if (accepted && _text.text == body) {
+                      _text.clear();
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          accepted
+                              ? 'Radio accepted the message. Check delivery status below.'
+                              : latest.notice ?? 'Message was not accepted. Check connection and recipient.',
+                        ),
+                      ),
+                    );
+                  }
+                : null,
+            child: Text(
+              _channelMode ? 'Send channel message' : 'Send direct message',
+            ),
+          ),
           SwitchListTile(
-              title: const Text('Automatic inbox retrieval'),
-              subtitle: const Text(
-                  'Check every 30 seconds while connected. Stops on errors or a full history. Never sends messages automatically.'),
-              value: ref.watch(autoInboxProvider),
-              onChanged: (value) =>
-                  ref.read(autoInboxProvider.notifier).set(value)),
+            title: const Text('Automatic inbox retrieval'),
+            subtitle: const Text(
+              'Check every 30 seconds while connected. Stops on errors or a full history. Never sends messages automatically.',
+            ),
+            value: ref.watch(autoInboxProvider),
+            onChanged: (value) =>
+                ref.read(autoInboxProvider.notifier).set(value),
+          ),
           Text('${unreadCount(state.items)} unread messages'),
           DropdownButtonFormField<String>(
-              key: ValueKey(
-                  'conversation-$_conversation-${conversations.length}'),
-              initialValue:
-                  conversations.contains(_conversation) ? _conversation : null,
-              decoration: const InputDecoration(labelText: 'Conversation'),
-              isExpanded: true,
-              items: [
-                for (final key in conversations)
-                  DropdownMenuItem(
-                      value: key,
-                      child: Text(
-                          '$key · ${unreadCount(state.items.where((m) => conversationKey(m) == key))} unread',
-                          overflow: TextOverflow.ellipsis))
-              ],
-              onChanged: (value) => setState(() => _conversation = value)),
-          Wrap(spacing: 8, runSpacing: 4, children: [
-            TextButton(
+            key: ValueKey(
+              'conversation-$_conversation-${conversations.length}',
+            ),
+            initialValue: conversations.contains(_conversation)
+                ? _conversation
+                : null,
+            decoration: const InputDecoration(labelText: 'Conversation'),
+            isExpanded: true,
+            items: [
+              for (final key in conversations)
+                DropdownMenuItem(
+                  value: key,
+                  child: Text(
+                    '$key · ${unreadCount(state.items.where((m) => conversationKey(m) == key))} unread',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (value) => setState(() => _conversation = value),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton(
                 onPressed: () => setState(() => _conversation = null),
-                child: const Text('All conversations')),
-            TextButton(
+                child: const Text('All conversations'),
+              ),
+              TextButton(
                 onPressed: _conversation == null || state.busy
                     ? null
                     : () => actions.markRead(_conversation!),
-                child: const Text('Mark read'))
-          ]),
+                child: const Text('Mark read'),
+              ),
+            ],
+          ),
           TextField(
-              decoration:
-                  const InputDecoration(labelText: 'Search message history'),
-              onChanged: (value) => setState(() => _query = value)),
+            decoration: const InputDecoration(
+              labelText: 'Search message history',
+            ),
+            onChanged: (value) => setState(() => _query = value),
+          ),
           DropdownButtonFormField<String>(
-              initialValue: 'all',
-              decoration: const InputDecoration(labelText: 'Show messages'),
-              items: const [
-                DropdownMenuItem(value: 'all', child: Text('All messages')),
-                DropdownMenuItem(
-                    value: 'incoming', child: Text('Incoming only')),
-                DropdownMenuItem(
-                    value: 'outgoing', child: Text('Outgoing only'))
-              ],
-              onChanged: (value) =>
-                  setState(() => _direction = value ?? 'all')),
+            initialValue: 'all',
+            decoration: const InputDecoration(labelText: 'Show messages'),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All messages')),
+              DropdownMenuItem(value: 'incoming', child: Text('Incoming only')),
+              DropdownMenuItem(value: 'outgoing', child: Text('Outgoing only')),
+            ],
+            onChanged: (value) => setState(() => _direction = value ?? 'all'),
+          ),
           Text(
-              '${visible.length} of ${state.items.length} messages · export includes all local history'),
+            '${visible.length} of ${state.items.length} messages · export includes all local history',
+          ),
           if (visible.isEmpty) const Text('No matching messages.'),
           for (final item in visible.reversed)
             ListTile(
-                leading: item['unread'] == true
-                    ? const Icon(Icons.mark_email_unread_outlined)
-                    : null,
-                trailing: IconButton(
-                    tooltip: 'Delete message',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: state.busy || actions.hasUnsaved
-                        ? null
-                        : () async {
-                            final yes = await showDialog<bool>(
-                                context: context,
-                                builder: (c) => AlertDialog(
-                                        title:
-                                            const Text('Delete this message?'),
-                                        content: Text(item['body'] as String),
-                                        actions: [
-                                          TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(c, false),
-                                              child: const Text('Cancel')),
-                                          TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(c, true),
-                                              child: const Text('Delete'))
-                                        ]));
-                            if (yes == true) {
-                              await actions.deleteMessage(item);
-                            }
-                          }),
-                title: Text(item['body'] as String),
-                subtitle: Text(
-                    '${item['outgoing'] == true ? 'Outgoing' : 'Incoming'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}')),
-        ]));
+              leading: item['unread'] == true
+                  ? const Icon(Icons.mark_email_unread_outlined)
+                  : null,
+              trailing: IconButton(
+                tooltip: 'Delete message',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: state.busy || actions.hasUnsaved
+                    ? null
+                    : () async {
+                        final yes = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: const Text('Delete this message?'),
+                            content: Text(item['body'] as String),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(c, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(c, true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (yes == true) {
+                          await actions.deleteMessage(item);
+                        }
+                      },
+              ),
+              title: Text(item['body'] as String),
+              subtitle: Text(
+                '${item['outgoing'] == true ? 'Outgoing' : 'Incoming'} · ${DateTime.fromMillisecondsSinceEpoch((item['time'] as int) * 1000).toLocal().toString().split('.').first}\n${item['peer']} · ${item['status']}',
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _export(List<Map<String, dynamic>> items) async {
     setState(() => _exporting = true);
     try {
-      final choice =
-          await showDialog<({MessageExportFormat format, bool share})>(
-              context: context,
-              builder: (c) => SimpleDialog(
-                      title: const Text('Export message history'),
-                      children: [
-                        const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text(
-                                'Includes all local message text (including any pending save), times, radio identifiers, recipients and delivery status. Choose where to save or share it. JSON preserves original text; CSV makes formula-like text safe for spreadsheets. Export does not delete history and cannot yet be imported into MeshScout.')),
-                        for (final format in MessageExportFormat.values)
-                          for (final share in [false, true])
-                            SimpleDialogOption(
-                                onPressed: () => Navigator.pop(
-                                    c, (format: format, share: share)),
-                                child: Text(
-                                    '${share ? "Share" : "Save"} ${format.name.toUpperCase()}')),
-                      ]));
+      final choice = await showDialog<({MessageExportFormat format, bool share})>(
+        context: context,
+        builder: (c) => SimpleDialog(
+          title: const Text('Export message history'),
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Includes all local message text (including any pending save), times, radio identifiers, recipients and delivery status. Choose where to save or share it. JSON preserves original text; CSV makes formula-like text safe for spreadsheets. Export does not delete history and cannot yet be imported into MeshScout.',
+              ),
+            ),
+            for (final format in MessageExportFormat.values)
+              for (final share in [false, true])
+                SimpleDialogOption(
+                  onPressed: () =>
+                      Navigator.pop(c, (format: format, share: share)),
+                  child: Text(
+                    '${share ? "Share" : "Save"} ${format.name.toUpperCase()}',
+                  ),
+                ),
+          ],
+        ),
+      );
       if (choice == null) {
         return;
       }
-      final done = await MessageExportService()
-          .send(items, choice.format, share: choice.share);
+      final done = await MessageExportService().send(
+        items,
+        choice.format,
+        share: choice.share,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(done
-                ? (choice.share ? 'Share menu opened' : 'Message history saved')
-                : 'Save cancelled')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              done
+                  ? (choice.share
+                        ? 'Share menu opened'
+                        : 'Message history saved')
+                  : 'Save cancelled',
+            ),
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Message export failed. Try another destination.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message export failed. Try another destination.'),
+          ),
+        );
       }
     } finally {
       if (mounted) {

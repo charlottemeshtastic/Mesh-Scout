@@ -15,7 +15,7 @@ enum RadioFailure {
   permanentlyDenied,
   unavailable,
   transport,
-  protocol
+  protocol,
 }
 
 class RadioException implements Exception {
@@ -57,7 +57,7 @@ const appStart = [
   99,
   111,
   117,
-  116
+  116,
 ];
 const deviceQuery = [0x16, 3];
 
