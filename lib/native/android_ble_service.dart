@@ -69,10 +69,10 @@ class AndroidBleService implements BleService {
     if (matches.length != 1) {
       throw const RadioException(RadioFailure.protocol);
     }
-    // SELF_INFO can include a 32-byte node name (90 bytes total).
-    // DEVICE_INFO is currently 82 bytes. ATT adds three bytes of overhead.
+    // RF log frames can reach MAX_FRAME_SIZE (176 bytes). Require the full
+    // frame plus three ATT bytes; truncated notifications are not observations.
     final mtu = await _ble.requestMtu(deviceId: id, mtu: 512);
-    if (mtu < 93) {
+    if (mtu < 179) {
       throw const RadioException(RadioFailure.protocol);
     }
     final characteristics = matches.single.characteristics;
