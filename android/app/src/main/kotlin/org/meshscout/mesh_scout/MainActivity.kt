@@ -17,6 +17,7 @@ import org.json.JSONArray
 
 class MainActivity : FlutterActivity() {
     private val messageAlerts by lazy { MessageAlerts(this) }
+    private val linkAlerts by lazy { LinkAlerts(this) }
     private val scoutFiles by lazy { ScoutFiles(this) }
     private var listener: LocationListener? = null
     private val locations by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
@@ -27,6 +28,8 @@ class MainActivity : FlutterActivity() {
         runCatching { GpsRecordingService.recover(this) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/message_alerts")
             .setMethodCallHandler { call, result -> messageAlerts.handle(call, result) }
+        MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/link_alerts")
+            .setMethodCallHandler { call, result -> linkAlerts.handle(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/files")
             .setMethodCallHandler { call, result -> scoutFiles.handle(call, result) }
         MethodChannel(engine.dartExecutor.binaryMessenger, "org.meshscout/radio_session")
@@ -100,8 +103,7 @@ class MainActivity : FlutterActivity() {
                     }
                     val newListener = object : LocationListener {
                         override fun onLocationChanged(location: Location) {
-                            sink.success(mapOf("lat" to location.latitude, "lon" to location.longitude,
-                                "accuracy" to location.accuracy.toDouble(), "time" to location.time))
+                            sink.success(locationEvent(location))
                         }
                         override fun onProviderDisabled(provider: String) {
                             sink.error("gps_off", "GPS/location services were turned off", null)

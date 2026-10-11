@@ -56,11 +56,48 @@ jobs:
         id: format
         run: |
           dart format lib test
-          git diff --exit-code -- lib test
-      - run: flutter analyze --fatal-infos
+          if ! git diff --quiet -- lib test; then
+            for f in $(git diff --name-only -- lib test); do
+              body=$(git diff -U0 -- "$f" | tail -n +5 | head -c 3500 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+              echo "::error file=$f,title=dart format::$body"
+            done
+            exit 1
+          fi
+      - name: Run flutter analyze --fatal-infos
         if: ${{ !cancelled() }}
-      - run: flutter test --coverage --timeout 2m
+        run: |
+          if ! flutter analyze --fatal-infos; then
+            dart analyze --format=machine lib test 2>&1 | awk -F'|' 'NF>=8 {printf "::error file=%s,line=%s,col=%s,title=%s %s::%s\n", $4, $5, $6, $1, $3, $8}' | sed "s#file=$PWD/#file=#"
+            exit 1
+          fi
+      - run: flutter test --coverage --timeout 2m --file-reporter json:test-results.json
         if: ${{ !cancelled() }}
+      - name: Annotate failing tests
+        if: ${{ failure() }}
+        run: |
+          [ -f test-results.json ] || exit 0
+          python3 - <<'PY'
+          import json
+          tests, errors, prints = {}, {}, {}
+          for line in open('test-results.json'):
+              try:
+                  e = json.loads(line)
+              except ValueError:
+                  continue
+              if e.get('type') == 'testStart':
+                  tests[e['test']['id']] = e['test']
+              elif e.get('type') == 'error':
+                  errors.setdefault(e['testID'], []).append(e['error'] + '\n' + e.get('stackTrace', ''))
+              elif e.get('type') == 'print':
+                  m = e.get('message', '')
+                  prints.setdefault(e['testID'], []).append(m[:700] if 'warnIfMissed' in m else m)
+          for tid, errs in errors.items():
+              t = tests.get(tid, {})
+              msg = ('\n'.join(prints.get(tid, [])[-6:] + errs))[:9000].replace('%', '%25').replace('\r', '').replace('\n', '%0A')
+              url = (t.get('root_url') or t.get('url') or '').replace('file://', '')
+              path = url.split('/test/', 1)[-1] if '/test/' in url else ''
+              print(f"::error file=test/{path},line={t.get('root_line') or t.get('line') or 1},title={t.get('name','')[:120].replace(',', ';')}::{msg}")
+          PY
       - name: Build optimized APK candidate with persistent test signing
         env:
           MESHSCOUT_TEST_KEYSTORE_BASE64: ${{ secrets.MESHSCOUT_TEST_KEYSTORE_BASE64 }}

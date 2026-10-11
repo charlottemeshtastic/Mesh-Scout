@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mesh_scout/features/messages/messages.dart';
 import 'package:mesh_scout/features/offline/offline_maps.dart';
 import 'package:mesh_scout/features/radio/radio_notifier.dart';
 import 'package:mesh_scout/features/radio/ble_service.dart';
+
 import 'radio_test.dart' show FakeBle;
 
 class MessageBle extends FakeBle {
@@ -24,28 +26,31 @@ class MessageBle extends FakeBle {
       if (bytes[1] == 1 || missingChannel) {
         packets.add([1, 2]);
       } else {
-        packets.add(malformedChannel
-            ? [18, 0]
-            : [
-                18,
-                0,
-                80,
-                117,
-                98,
-                108,
-                105,
-                99,
-                ...List.filled(26, 0),
-                ...List.filled(16, 254)
-              ]);
+        packets.add(
+          malformedChannel
+              ? [18, 0]
+              : [
+                  18,
+                  0,
+                  80,
+                  117,
+                  98,
+                  108,
+                  105,
+                  99,
+                  ...List.filled(26, 0),
+                  ...List.filled(16, 254),
+                ],
+        );
       }
     } else if (bytes.first == 3) {
       writes.add(bytes);
       packets.add([0]);
     } else if (bytes.first == 2) {
       writes.add(bytes);
-      packets
-          .add(malformedAcceptance ? [6] : [6, 0, 42, 0, 0, 0, 100, 0, 0, 0]);
+      packets.add(
+        malformedAcceptance ? [6] : [6, 0, 42, 0, 0, 0, 100, 0, 0, 0],
+      );
       if (immediateAck) {
         packets.add([0x82, 42, 0, 0, 0, 1, 0, 0, 0]);
       }
@@ -53,7 +58,8 @@ class MessageBle extends FakeBle {
       writes.add(bytes);
       fetches++;
       packets.add(
-          fetches == 1 ? [7, 1, 2, 3, 4, 5, 6, 0, 0, 1, 0, 0, 0, 65] : [10]);
+        fetches == 1 ? [7, 1, 2, 3, 4, 5, 6, 0, 0, 1, 0, 0, 0, 65] : [10],
+      );
     } else {
       await super.write(id, bytes);
     }
@@ -72,17 +78,19 @@ void main() {
     directory = await Directory.systemTemp.createTemp('meshscout-messages-');
     ble = MessageBle();
     inboxTick = null;
-    container = ProviderContainer(overrides: [
-      bleServiceProvider.overrideWithValue(ble),
-      inboxTimerProvider.overrideWithValue((duration, tick) {
-        final timer = Timer(const Duration(days: 1), () {});
-        inboxTick = () {
-          if (timer.isActive) tick(timer);
-        };
-        return timer;
-      }),
-      offlineDirectoryProvider.overrideWithValue(() async => directory.path)
-    ]);
+    container = ProviderContainer(
+      overrides: [
+        bleServiceProvider.overrideWithValue(ble),
+        inboxTimerProvider.overrideWithValue((duration, tick) {
+          final timer = Timer(const Duration(days: 1), () {});
+          inboxTick = () {
+            if (timer.isActive) tick(timer);
+          };
+          return timer;
+        }),
+        offlineDirectoryProvider.overrideWithValue(() async => directory.path),
+      ],
+    );
     radio = container.read(radioProvider.notifier);
     await radio.scan();
     const device = RadioDevice('radio', 'MeshCore', -60);
@@ -114,24 +122,25 @@ void main() {
     await directory.delete(recursive: true);
   });
   test(
-      'automatic inbox is opt-in, retrieves while idle, and stops when disabled',
-      () async {
-    expect(inboxTick, isNull);
-    container.read(autoInboxProvider.notifier).set(true);
-    inboxTick!();
-    for (var i = 0;
-        i < 200 && (ble.fetches < 2 || container.read(messagesProvider).busy);
-        i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    expect(ble.fetches, 2);
-    expect(container.read(messagesProvider).items.single['body'], 'A');
-    expect(ble.writes.where((b) => b.first == 2 || b.first == 3), isEmpty);
-    container.read(autoInboxProvider.notifier).set(false);
-    inboxTick!();
-    await Future<void>.delayed(Duration.zero);
-    expect(ble.fetches, 2);
-  });
+    'automatic inbox is opt-in, retrieves while idle, and stops when disabled',
+    () async {
+      expect(inboxTick, isNull);
+      container.read(autoInboxProvider.notifier).set(true);
+      inboxTick!();
+      for (var i = 0;
+          i < 200 && (ble.fetches < 2 || container.read(messagesProvider).busy);
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(ble.fetches, 2);
+      expect(container.read(messagesProvider).items.single['body'], 'A');
+      expect(ble.writes.where((b) => b.first == 2 || b.first == 3), isEmpty);
+      container.read(autoInboxProvider.notifier).set(false);
+      inboxTick!();
+      await Future<void>.delayed(Duration.zero);
+      expect(ble.fetches, 2);
+    },
+  );
   test('configured channel names omit keys and unused slots', () async {
     await radio.refreshChannels();
     expect(container.read(radioProvider).channels.single.name, 'Public');
@@ -140,61 +149,83 @@ void main() {
     expect(reply.length, 34);
     expect(reply, isNot(contains(254)));
   });
-  test('channel acceptance stays unconfirmed even after a direct ACK',
-      () async {
-    await radio.refreshChannels();
-    await messages.send('', 'hello channel', channel: 0);
-    ble.packets.add([0x82, 42, 0, 0, 0, 1, 0, 0, 0]);
-    expect(container.read(messagesProvider).items.single['status'],
-        contains('channel delivery unconfirmed'));
-    expect(ble.writes.where((b) => b.first == 3).length, 1);
-    expect(await File('${directory.path}/messages.json').readAsString(),
-        isNot(contains('secret')));
-  });
+  test(
+    'channel acceptance stays unconfirmed even after a direct ACK',
+    () async {
+      await radio.refreshChannels();
+      await messages.send('', 'hello channel', channel: 0);
+      ble.packets.add([0x82, 42, 0, 0, 0, 1, 0, 0, 0]);
+      expect(
+        container.read(messagesProvider).items.single['status'],
+        contains('channel delivery unconfirmed'),
+      );
+      expect(ble.writes.where((b) => b.first == 3).length, 1);
+      expect(
+        await File('${directory.path}/messages.json').readAsString(),
+        isNot(contains('secret')),
+      );
+    },
+  );
   test('missing channel slots do not poison later message commands', () async {
     ble.missingChannel = true;
     await radio.refreshChannels();
     expect(container.read(radioProvider).channels, isEmpty);
     await messages.send(key, 'direct still works');
-    expect(container.read(messagesProvider).items.single['status'],
-        contains('unconfirmed'));
+    expect(
+      container.read(messagesProvider).items.single['status'],
+      contains('unconfirmed'),
+    );
   });
-  test('malformed channel response blocks another command until reconnect',
-      () async {
-    ble.malformedChannel = true;
-    await radio.refreshChannels();
-    expect(container.read(radioProvider).channels, isEmpty);
-    await expectLater(radio.messageCommand([10], {10}), throwsStateError);
-  });
-  test('accepted send remains unconfirmed without ACK and is persisted',
-      () async {
-    await messages.send(key, 'hello');
-    expect(container.read(messagesProvider).items.single['status'],
-        contains('unconfirmed'));
-    expect(ble.writes.where((b) => b.first == 2).length, 1);
-    expect(await File('${directory.path}/messages.json').readAsString(),
-        contains('hello'));
-  });
-  test('ACK during write is retained until acceptance and storage complete',
-      () async {
-    ble.immediateAck = true;
-    await messages.send(key, 'hello');
-    for (var i = 0;
-        i < 200 &&
-            container.read(messagesProvider).items.single['status'] !=
-                'Delivery confirmed';
-        i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    expect(container.read(messagesProvider).items.single['status'],
-        'Delivery confirmed');
-  });
+  test(
+    'malformed channel response blocks another command until reconnect',
+    () async {
+      ble.malformedChannel = true;
+      await radio.refreshChannels();
+      expect(container.read(radioProvider).channels, isEmpty);
+      await expectLater(radio.messageCommand([10], {10}), throwsStateError);
+    },
+  );
+  test(
+    'accepted send remains unconfirmed without ACK and is persisted',
+    () async {
+      await messages.send(key, 'hello');
+      expect(
+        container.read(messagesProvider).items.single['status'],
+        contains('unconfirmed'),
+      );
+      expect(ble.writes.where((b) => b.first == 2).length, 1);
+      expect(
+        await File('${directory.path}/messages.json').readAsString(),
+        contains('hello'),
+      );
+    },
+  );
+  test(
+    'ACK during write is retained until acceptance and storage complete',
+    () async {
+      ble.immediateAck = true;
+      await messages.send(key, 'hello');
+      for (var i = 0;
+          i < 200 &&
+              container.read(messagesProvider).items.single['status'] !=
+                  'Delivery confirmed';
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(
+        container.read(messagesProvider).items.single['status'],
+        'Delivery confirmed',
+      );
+    },
+  );
   test('fetch persists each message before requesting the next', () async {
     await messages.fetch();
     expect(ble.fetches, 2);
     expect(container.read(messagesProvider).items.single['body'], 'A');
-    expect(await File('${directory.path}/messages.json').readAsString(),
-        contains('Received'));
+    expect(
+      await File('${directory.path}/messages.json').readAsString(),
+      contains('Received'),
+    );
   });
   test(
       'failed persistence stops retrieval and explicit retry preserves popped data',
@@ -213,16 +244,22 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(container.read(messagesProvider).items.single['body'], 'A');
-    expect(await File('${directory.path}/messages.json').readAsString(),
-        contains('Received'));
+    expect(
+      await File('${directory.path}/messages.json').readAsString(),
+      contains('Received'),
+    );
   });
-  test('malformed acceptance is never retried and blocks another command',
-      () async {
-    ble.malformedAcceptance = true;
-    await messages.send(key, 'hello');
-    expect(ble.writes.where((b) => b.first == 2).length, 1);
-    expect(container.read(messagesProvider).items.single['status'],
-        contains('unknown'));
-    await expectLater(radio.messageCommand([10], {10}), throwsStateError);
-  });
+  test(
+    'malformed acceptance is never retried and blocks another command',
+    () async {
+      ble.malformedAcceptance = true;
+      await messages.send(key, 'hello');
+      expect(ble.writes.where((b) => b.first == 2).length, 1);
+      expect(
+        container.read(messagesProvider).items.single['status'],
+        contains('unknown'),
+      );
+      await expectLater(radio.messageCommand([10], {10}), throwsStateError);
+    },
+  );
 }

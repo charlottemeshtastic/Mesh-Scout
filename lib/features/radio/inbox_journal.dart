@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../offline/offline_maps.dart';
 
 final inboxJournalProvider = Provider<InboxJournal>(
-    (ref) => InboxJournal(ref.read(dataDirectoryProvider)));
+  (ref) => InboxJournal(ref.read(dataDirectoryProvider)),
+);
 
 /// A durable single-message inbox checkpoint, written before retrieval completes.
 class InboxJournal {
@@ -16,16 +19,18 @@ class InboxJournal {
     final target = await file;
     if (target.existsSync()) {
       throw StateError(
-          'Recover the pending inbox message before fetching more.');
+        'Recover the pending inbox message before fetching more.',
+      );
     }
     final temp = File('${target.path}.tmp');
     await temp.writeAsString(
-        jsonEncode({
-          'radio': radio,
-          'frame': bytes,
-          'id': DateTime.now().microsecondsSinceEpoch.toString()
-        }),
-        flush: true);
+      jsonEncode({
+        'radio': radio,
+        'frame': bytes,
+        'id': DateTime.now().microsecondsSinceEpoch.toString(),
+      }),
+      flush: true,
+    );
     await temp.rename(target.path);
   }
 

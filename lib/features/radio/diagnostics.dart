@@ -14,10 +14,12 @@ String pathDescription(List<int> bytes) {
     }
     final hops = <String>[];
     for (var i = 0; i < count; i++) {
-      hops.add(bytes
-          .sublist(offset, offset + width)
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join());
+      hops.add(
+        bytes
+            .sublist(offset, offset + width)
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join(),
+      );
       offset += width;
     }
     return '$direction: ${count == 0 ? "direct" : hops.join(" → ")} ($count hops; $width-byte repeater hashes, not unique identities)';
@@ -58,7 +60,7 @@ String telemetryDescription(List<int> payload) {
     121: 2,
     128: 2,
     134: 6,
-    136: 9
+    136: 9,
   };
   while (offset < payload.length) {
     if (offset + 2 > payload.length) {
@@ -69,7 +71,8 @@ String telemetryDescription(List<int> payload) {
         length = lengths[type];
     if (length == null) {
       values.add(
-          'Channel $channel: unsupported type $type; remaining raw ${payload.skip(offset).map((b) => b.toRadixString(16).padLeft(2, "0")).join(" ")}');
+        'Channel $channel: unsupported type $type; remaining raw ${payload.skip(offset).map((b) => b.toRadixString(16).padLeft(2, "0")).join(" ")}',
+      );
       break;
     }
     if (offset + length > payload.length) {
@@ -90,7 +93,7 @@ String telemetryDescription(List<int> payload) {
       115 => 'Pressure ${data.getUint16(offset) / 10} hPa',
       136 =>
         'GPS ${signed24(offset) / 10000}, ${signed24(offset + 3) / 10000}, altitude ${signed24(offset + 6) / 100} m',
-      _ => 'Type $type: ${payload.sublist(offset, offset + length).join(", ")}'
+      _ => 'Type $type: ${payload.sublist(offset, offset + length).join(", ")}',
     };
     values.add('Channel $channel: $value');
     offset += length;

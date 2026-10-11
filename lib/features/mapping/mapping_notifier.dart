@@ -1,10 +1,16 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'mapping_service.dart';
-import '../../common/mesh_data.dart';
 
-final backgroundGpsProvider =
-    NotifierProvider<BackgroundGps, bool>(BackgroundGps.new);
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'mapping_service.dart';
+import 'trip_guard.dart';
+import '../../common/mesh_data.dart';
+import '../radio/radio_notifier.dart';
+import '../settings/field_settings.dart';
+
+final backgroundGpsProvider = NotifierProvider<BackgroundGps, bool>(
+  BackgroundGps.new,
+);
 
 class BackgroundGps extends Notifier<bool> {
   @override
@@ -12,21 +18,33 @@ class BackgroundGps extends Notifier<bool> {
   void set(bool value) => state = value;
 }
 
-final mappingServiceProvider =
-    Provider<MappingService>((ref) => throw UnimplementedError());
-final mappingProvider =
-    NotifierProvider<MappingNotifier, MappingState>(MappingNotifier.new);
+final mappingServiceProvider = Provider<MappingService>(
+  (ref) => throw UnimplementedError(),
+);
+
+/// How often a recording checks whether the phone is parked; null disables
+/// the periodic check (fixes and receptions still trigger it).
+final tripGuardIntervalProvider = Provider<Duration?>((ref) => null);
+
+/// Wall clock for parked detection; replaced in tests.
+final mappingClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);
+final mappingProvider = NotifierProvider<MappingNotifier, MappingState>(
+  MappingNotifier.new,
+);
 
 class MappingState {
-  const MappingState(
-      {this.loading = true,
-      this.recording = false,
-      this.busy = false,
-      this.points = const [],
-      this.sessions = const [],
-      this.selected,
-      this.observations = const [],
-      this.message});
+  const MappingState({
+    this.loading = true,
+    this.recording = false,
+    this.busy = false,
+    this.points = const [],
+    this.sessions = const [],
+    this.selected,
+    this.observations = const [],
+    this.message,
+  });
   final bool loading;
   final bool recording;
   final bool busy;
@@ -54,6 +72,10 @@ class MappingNotifier extends Notifier<MappingState> {
   MappingSession? _latestCheckpoint;
   bool _checkpointRunning = false;
   bool _keepBackground = false;
+  final _parked = ParkedTracker(radiusMetres: FieldSettings.parkedRadiusMetres);
+  Timer? _parkedTimer;
+  int _airborneFixes = 0;
+  String? _preset;
   MappingService get _service => ref.read(mappingServiceProvider);
 
   @override
@@ -61,6 +83,7 @@ class MappingNotifier extends Notifier<MappingState> {
     ref.onDispose(() {
       _disposed = true;
       _generation++;
+      _parkedTimer?.cancel();
       unawaited(_positions?.cancel());
     });
     return const MappingState();
@@ -76,17 +99,20 @@ class MappingNotifier extends Notifier<MappingState> {
         return;
       }
       _loadFailed = false;
-      state =
-          MappingState(loading: false, sessions: List.unmodifiable(sessions));
+      state = MappingState(
+        loading: false,
+        sessions: List.unmodifiable(sessions),
+      );
     } catch (_) {
       if (_disposed) {
         return;
       }
       _loadFailed = true;
       state = const MappingState(
-          loading: false,
-          message:
-              'Saved sessions could not be loaded. Restart the app to retry.');
+        loading: false,
+        message:
+            'Saved sessions could not be loaded. Restart the app to retry.',
+      );
     }
   }
 
@@ -105,9 +131,10 @@ class MappingNotifier extends Notifier<MappingState> {
     await _service.save(encodeSessions(sessions));
     if (ref.mounted) {
       state = MappingState(
-          loading: false,
-          sessions: List.unmodifiable(sessions),
-          selected: session);
+        loading: false,
+        sessions: List.unmodifiable(sessions),
+        selected: session,
+      );
     }
   }
 
@@ -123,10 +150,11 @@ class MappingNotifier extends Notifier<MappingState> {
     }
     if (state.sessions.length >= 1000) {
       state = MappingState(
-          loading: false,
-          sessions: state.sessions,
-          message:
-              'Session storage is full. Back up and remove older sessions before recording.');
+        loading: false,
+        sessions: state.sessions,
+        message:
+            'Session storage is full. Back up and remove older sessions before recording.',
+      );
       return;
     }
     final generation = ++_generation;
@@ -142,8 +170,10 @@ class MappingNotifier extends Notifier<MappingState> {
       _keepBackground = background;
       final service = _service;
       if (service is BackgroundMappingService) {
-        await (service as BackgroundMappingService)
-            .configureRecording(background, _started!);
+        await (service as BackgroundMappingService).configureRecording(
+          background,
+          _started!,
+        );
       } else if (background) {
         throw StateError('Background GPS is unavailable on this platform.');
       }
@@ -151,49 +181,84 @@ class MappingNotifier extends Notifier<MappingState> {
         return;
       }
       _starting = false;
+      _parked.reset();
+      _airborneFixes = 0;
+      _preset = ref.read(radioProvider).preset?.key;
+      _parkedTimer?.cancel();
+      final interval = ref.read(tripGuardIntervalProvider);
+      if (interval != null) {
+        _parkedTimer = Timer.periodic(interval, (_) => _checkParked());
+      }
       state = MappingState(
-          loading: false,
-          recording: true,
-          sessions: state.sessions,
-          message: 'Waiting for a GPS fix…');
-      _positions = _service.positions().listen((point) {
-        if (_disposed || generation != _generation || !state.recording) {
-          return;
-        }
-        if (!point.valid ||
-            point.time
-                .isBefore(_started!.subtract(const Duration(seconds: 5)))) {
-          return;
-        }
-        if (state.points.isNotEmpty &&
-            !point.time.isAfter(state.points.last.time)) {
-          return;
-        }
-        if (state.points.length >= 10000) {
-          unawaited(stop(reason: 'Route limit reached; session saved.'));
-          return;
-        }
-        state = MappingState(
+        loading: false,
+        recording: true,
+        sessions: state.sessions,
+        message: 'Waiting for a GPS fix…',
+      );
+      _positions = _service.positions().listen(
+        (point) {
+          if (_disposed || generation != _generation || !state.recording) {
+            return;
+          }
+          if (!point.valid ||
+              point.time.isBefore(
+                _started!.subtract(const Duration(seconds: 5)),
+              )) {
+            return;
+          }
+          if (state.points.isNotEmpty &&
+              !point.time.isAfter(state.points.last.time)) {
+            return;
+          }
+          if (state.points.length >= 10000) {
+            unawaited(stop(reason: 'Route limit reached; session saved.'));
+            return;
+          }
+          final previous = state.points.isEmpty ? null : state.points.last;
+          if (ref.read(fieldSettingsProvider).aircraftGuard &&
+              isAirborne(point, previous)) {
+            // Airborne fixes are never recorded; two in a row end the session.
+            if (++_airborneFixes >= 2) {
+              unawaited(
+                stop(
+                  reason:
+                      'Recording stopped: altitude above 6,000 m or speed above 250 km/h looks like a flight. Earlier route saved.',
+                ),
+              );
+            }
+            return;
+          }
+          _airborneFixes = 0;
+          state = MappingState(
             loading: false,
             recording: true,
             sessions: state.sessions,
             observations: state.observations,
-            points: List.unmodifiable([...state.points, point]));
-        _checkpoint();
-      }, onError: (Object error) {
-        unawaited(stop(reason: 'GPS stopped. ${error.toString()}'));
-      }, onDone: () {
-        if (!_disposed && generation == _generation && state.recording) {
-          unawaited(stop(reason: 'GPS stream ended; recording stopped.'));
-        }
-      });
+            points: List.unmodifiable([...state.points, point]),
+          );
+          _parked.add(point);
+          _checkpoint();
+          _checkParked();
+        },
+        onError: (Object error) {
+          unawaited(stop(reason: 'GPS stopped. ${error.toString()}'));
+        },
+        onDone: () {
+          if (!_disposed && generation == _generation && state.recording) {
+            unawaited(stop(reason: 'GPS stream ended; recording stopped.'));
+          }
+        },
+      );
     } catch (error) {
       _starting = false;
       if (_disposed || generation != _generation) {
         return;
       }
       state = MappingState(
-          loading: false, sessions: state.sessions, message: error.toString());
+        loading: false,
+        sessions: state.sessions,
+        message: error.toString(),
+      );
     }
   }
 
@@ -205,15 +270,18 @@ class MappingNotifier extends Notifier<MappingState> {
       return;
     }
     ++_generation;
+    _parkedTimer?.cancel();
+    _parkedTimer = null;
     final points = state.points;
     final observations = state.observations;
     final sessions = state.sessions;
     state = MappingState(
-        loading: false,
-        busy: true,
-        points: points,
-        observations: observations,
-        sessions: sessions);
+      loading: false,
+      busy: true,
+      points: points,
+      observations: observations,
+      sessions: sessions,
+    );
     try {
       final subscription = _positions;
       _positions = null;
@@ -222,40 +290,45 @@ class MappingNotifier extends Notifier<MappingState> {
       if (points.isEmpty) {
         if (!_disposed) {
           state = MappingState(
-              loading: false,
-              sessions: sessions,
-              message: reason ?? 'No GPS fixes received; no session saved.');
+            loading: false,
+            sessions: sessions,
+            message: reason ?? 'No GPS fixes received; no session saved.',
+          );
         }
         return;
       }
       final started = _started!;
       final session = MappingSession(
-          id: started.microsecondsSinceEpoch.toString(),
-          started: started,
-          ended: DateTime.now(),
-          points: points,
-          observations: observations);
+        id: started.microsecondsSinceEpoch.toString(),
+        started: started,
+        ended: DateTime.now(),
+        points: points,
+        observations: observations,
+        preset: _preset,
+      );
       final updated = [session, ...sessions];
       await _service.save(encodeSessions(updated));
       if (_disposed) {
         return;
       }
       state = MappingState(
-          loading: false,
-          sessions: List.unmodifiable(updated),
-          selected: session,
-          message: reason ?? 'Session saved on this phone.');
+        loading: false,
+        sessions: List.unmodifiable(updated),
+        selected: session,
+        message: reason ?? 'Session saved on this phone.',
+      );
     } catch (_) {
       if (_disposed) {
         return;
       }
       state = MappingState(
-          loading: false,
-          sessions: sessions,
-          points: points,
-          observations: observations,
-          message:
-              'Could not save this route. Tap Retry save before starting another.');
+        loading: false,
+        sessions: sessions,
+        points: points,
+        observations: observations,
+        message:
+            'Could not save this route. Tap Retry save before starting another.',
+      );
     }
   }
 
@@ -270,26 +343,51 @@ class MappingNotifier extends Notifier<MappingState> {
     if (age.isNegative || age > const Duration(seconds: 15)) {
       return;
     }
+    _preset ??= ref.read(radioProvider).preset?.key;
     final observation = CoverageObservation(
-        point: point, rssi: rx.rssi, snr: rx.snr, time: rx.time);
+      point: point,
+      rssi: rx.rssi,
+      snr: rx.snr,
+      time: rx.time,
+    );
     state = MappingState(
-        loading: false,
-        recording: true,
-        points: state.points,
-        sessions: state.sessions,
-        observations: List.unmodifiable([...state.observations, observation]));
+      loading: false,
+      recording: true,
+      points: state.points,
+      sessions: state.sessions,
+      observations: List.unmodifiable([...state.observations, observation]),
+    );
     _checkpoint();
+    _checkParked();
+  }
+
+  /// Stops and saves the route once the phone has stayed put long enough.
+  void _checkParked() {
+    if (!state.recording || state.busy || state.points.isEmpty) return;
+    final settings = ref.read(fieldSettingsProvider);
+    if (!settings.autoStopParked) return;
+    final limit = Duration(minutes: settings.parkedMinutes);
+    if (_parked.parked(ref.read(mappingClockProvider)(), limit)) {
+      unawaited(
+        stop(
+          reason:
+              'Stopped and saved: no movement for ${settings.parkedMinutes} min. Change this in Settings → Recording.',
+        ),
+      );
+    }
   }
 
   void _checkpoint() {
     final service = _service;
     if (service is! CheckpointMappingService || _started == null) return;
     final session = MappingSession(
-        id: _started!.microsecondsSinceEpoch.toString(),
-        started: _started!,
-        ended: DateTime.now(),
-        points: state.points,
-        observations: state.observations);
+      id: _started!.microsecondsSinceEpoch.toString(),
+      started: _started!,
+      ended: DateTime.now(),
+      points: state.points,
+      observations: state.observations,
+      preset: _preset,
+    );
     // Keep only the latest waiting snapshot when storage is slower than GPS/RX.
     // Stop waits for this drain, including updates received during a write.
     _latestCheckpoint = session;
@@ -308,12 +406,14 @@ class MappingNotifier extends Notifier<MappingState> {
         } catch (_) {
           if (ref.mounted && state.recording) {
             state = MappingState(
-                loading: false,
-                recording: true,
-                points: state.points,
-                observations: state.observations,
-                sessions: state.sessions,
-                message: 'Recovery checkpoint failed. Stop and save this route now.');
+              loading: false,
+              recording: true,
+              points: state.points,
+              observations: state.observations,
+              sessions: state.sessions,
+              message:
+                  'Recovery checkpoint failed. Stop and save this route now.',
+            );
           }
         }
       }
@@ -328,13 +428,15 @@ class MappingNotifier extends Notifier<MappingState> {
       _starting = false;
       ++_generation;
       state = MappingState(
-          loading: false,
-          sessions: state.sessions,
-          message: 'Recording start cancelled when leaving the app.');
+        loading: false,
+        sessions: state.sessions,
+        message: 'Recording start cancelled when leaving the app.',
+      );
     } else if (state.recording && !_keepBackground) {
       await stop(
-          reason:
-              'Saved when leaving the app. Tap Start Mapping to record again.');
+        reason:
+            'Saved when leaving the app. Tap Start Mapping to record again.',
+      );
     }
   }
 
@@ -343,7 +445,10 @@ class MappingNotifier extends Notifier<MappingState> {
       return;
     }
     state = MappingState(
-        loading: false, sessions: state.sessions, selected: session);
+      loading: false,
+      sessions: state.sessions,
+      selected: session,
+    );
   }
 
   Future<void> rename(MappingSession session, String input) async {
@@ -356,11 +461,12 @@ class MappingNotifier extends Notifier<MappingState> {
     final value = input.trim();
     if (value.length > 80 || value.contains(RegExp(r'[\x00-\x1f]'))) {
       state = MappingState(
-          loading: false,
-          sessions: state.sessions,
-          selected: state.selected,
-          message:
-              'Use a name of up to 80 characters without control characters.');
+        loading: false,
+        sessions: state.sessions,
+        selected: state.selected,
+        message:
+            'Use a name of up to 80 characters without control characters.',
+      );
       return;
     }
     if (!state.sessions.any((s) => s.id == session.id)) {
@@ -368,35 +474,40 @@ class MappingNotifier extends Notifier<MappingState> {
     }
     final previous = state;
     final updated = previous.sessions
-        .map((s) =>
-            s.id == session.id ? s.renamed(value.isEmpty ? null : value) : s)
+        .map(
+          (s) =>
+              s.id == session.id ? s.renamed(value.isEmpty ? null : value) : s,
+        )
         .toList();
     state = MappingState(
-        loading: false,
-        busy: true,
-        sessions: previous.sessions,
-        selected: previous.selected);
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+      selected: previous.selected,
+    );
     try {
       await _service.save(encodeSessions(updated));
       if (_disposed) {
         return;
       }
       state = MappingState(
-          loading: false,
-          sessions: List.unmodifiable(updated),
-          selected: previous.selected?.id == session.id
-              ? updated.firstWhere((s) => s.id == session.id)
-              : previous.selected,
-          message: 'Session name saved.');
+        loading: false,
+        sessions: List.unmodifiable(updated),
+        selected: previous.selected?.id == session.id
+            ? updated.firstWhere((s) => s.id == session.id)
+            : previous.selected,
+        message: 'Session name saved.',
+      );
     } catch (_) {
       if (_disposed) {
         return;
       }
       state = MappingState(
-          loading: false,
-          sessions: previous.sessions,
-          selected: previous.selected,
-          message: 'Could not rename the session. Try again.');
+        loading: false,
+        sessions: previous.sessions,
+        selected: previous.selected,
+        message: 'Could not rename the session. Try again.',
+      );
     }
   }
 
@@ -411,26 +522,31 @@ class MappingNotifier extends Notifier<MappingState> {
     }
     final previous = state;
     final updated = previous.sessions.take(20).toList();
-    state =
-        MappingState(loading: false, busy: true, sessions: previous.sessions);
+    state = MappingState(
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+    );
     try {
       await _service.save(encodeSessions(updated));
       if (ref.mounted) {
         state = MappingState(
-            loading: false,
-            sessions: updated,
-            selected: updated.any((s) => s.id == previous.selected?.id)
-                ? previous.selected
-                : null,
-            message: 'Kept the 20 most recent sessions.');
+          loading: false,
+          sessions: updated,
+          selected: updated.any((s) => s.id == previous.selected?.id)
+              ? previous.selected
+              : null,
+          message: 'Kept the 20 most recent sessions.',
+        );
       }
     } catch (_) {
       if (ref.mounted) {
         state = MappingState(
-            loading: false,
-            sessions: previous.sessions,
-            selected: previous.selected,
-            message: 'Storage cleanup failed; sessions retained.');
+          loading: false,
+          sessions: previous.sessions,
+          selected: previous.selected,
+          message: 'Storage cleanup failed; sessions retained.',
+        );
       }
     }
   }
@@ -444,10 +560,11 @@ class MappingNotifier extends Notifier<MappingState> {
     }
     final previous = state;
     state = MappingState(
-        loading: false,
-        busy: true,
-        sessions: previous.sessions,
-        selected: previous.selected);
+      loading: false,
+      busy: true,
+      sessions: previous.sessions,
+      selected: previous.selected,
+    );
     try {
       final updated =
           previous.sessions.where((s) => s.id != session.id).toList();
@@ -456,17 +573,19 @@ class MappingNotifier extends Notifier<MappingState> {
         return;
       }
       state = MappingState(
-          loading: false,
-          sessions: List.unmodifiable(updated),
-          selected:
-              previous.selected?.id == session.id ? null : previous.selected);
+        loading: false,
+        sessions: List.unmodifiable(updated),
+        selected:
+            previous.selected?.id == session.id ? null : previous.selected,
+      );
     } catch (_) {
       if (!_disposed) {
         state = MappingState(
-            loading: false,
-            sessions: previous.sessions,
-            selected: previous.selected,
-            message: 'Could not delete the session. Try again.');
+          loading: false,
+          sessions: previous.sessions,
+          selected: previous.selected,
+          message: 'Could not delete the session. Try again.',
+        );
       }
     }
   }

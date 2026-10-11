@@ -1,8 +1,11 @@
 import 'preferences.dart';
+
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'backup.dart';
 import '../mapping/mapping_notifier.dart';
 import '../mapping/field_tools.dart';
@@ -14,7 +17,7 @@ ScoutBackup mergeBackups(ScoutBackup current, ScoutBackup incoming) {
   final ids = current.sessions.map((s) => s.id).toSet();
   final sessions = [
     ...current.sessions,
-    ...incoming.sessions.where((s) => ids.add(s.id))
+    ...incoming.sessions.where((s) => ids.add(s.id)),
   ];
   String identity(Map<String, dynamic> m) =>
       jsonEncode([m['radio'], m['peer'], m['time'], m['outgoing'], m['body']]);
@@ -82,8 +85,11 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
     ref.read(maintenanceProvider.notifier).set(true);
     try {
       await ref.read(preferencesProvider.notifier).pending;
-      final result = await files.invokeMethod<dynamic>(
-          method, {'password': secret, 'maps': maps, 'enabled': true});
+      final result = await files.invokeMethod<dynamic>(method, {
+        'password': secret,
+        'maps': maps,
+        'enabled': true,
+      });
       secret = '';
       if (result == null) {
         notice = 'Cancelled.';
@@ -96,33 +102,43 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
           return;
         }
         final mode = await showDialog<String>(
-            context: context,
-            builder: (c) => AlertDialog(
-                    title: const Text('Restore full backup'),
-                    content: Text(
-                        '${incoming.sessions.length} routes · ${incoming.messages.length} messages · ${preview['waypoints']} waypoints · maps ${preview['maps'] == true ? "included" : "not included"}.\nMerge keeps existing session/waypoint IDs and settings, adds new messages, and retains map areas (maximum five). Replace restores included history/settings/maps. Save a current backup first.'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(c),
-                          child: const Text('Cancel')),
-                      TextButton(
-                          onPressed: () => Navigator.pop(c, 'merge'),
-                          child: const Text('Merge')),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(c, 'replace'),
-                          child: const Text('Replace'))
-                    ]));
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('Restore full backup'),
+            content: Text(
+              '${incoming.sessions.length} routes · ${incoming.messages.length} messages · ${preview['waypoints']} waypoints · maps ${preview['maps'] == true ? "included" : "not included"}.\nMerge keeps existing session/waypoint IDs and settings, adds new messages, and retains map areas (maximum five). Replace restores included history/settings/maps. Save a current backup first.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(c, 'merge'),
+                child: const Text('Merge'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(c, 'replace'),
+                child: const Text('Replace'),
+              ),
+            ],
+          ),
+        );
         if (mode == null) {
           return;
         }
         final data = mode == 'merge'
             ? mergeBackups(
                 ScoutBackup.decode(
-                    (await files.invokeMethod<String>('readBackup'))!),
-                incoming)
+                  (await files.invokeMethod<String>('readBackup'))!,
+                ),
+                incoming,
+              )
             : incoming;
-        await files.invokeMethod<bool>(
-            'restoreBundle', {'data': data.encode(), 'merge': mode == 'merge'});
+        await files.invokeMethod<bool>('restoreBundle', {
+          'data': data.encode(),
+          'merge': mode == 'merge',
+        });
         ref.invalidate(mappingProvider);
         ref.invalidate(messagesProvider);
         ref.invalidate(fieldNotesProvider);
@@ -179,50 +195,69 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
     ref.watch(messagesProvider);
     ref.watch(radioProvider);
     ref.watch(offlineProvider);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Divider(),
-      const Text('Full backup, merge and cloud document'),
-      const Text(
-          'Includes history, waypoints, notes and reconnect and background-GPS preferences; optionally saved raster maps. Radio passwords, channel keys, provider permissions and in-progress recordings are excluded. Stop recording/downloads and disconnect first. Maximum 500 MB of maps and five map areas.'),
-      SwitchListTile(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(),
+        const Text('Full backup, merge and cloud document'),
+        const Text(
+          'Includes history, waypoints, notes and reconnect and background-GPS preferences; optionally saved raster maps. Radio passwords, channel keys, provider permissions and in-progress recordings are excluded. Stop recording/downloads and disconnect first. Maximum 500 MB of maps and five map areas.',
+        ),
+        SwitchListTile(
           title: const Text('Include offline maps'),
           value: maps,
-          onChanged: busy ? null : (v) => setState(() => maps = v)),
-      SwitchListTile(
+          onChanged: busy ? null : (v) => setState(() => maps = v),
+        ),
+        SwitchListTile(
           title: const Text('Encrypt with passphrase'),
           subtitle: const Text(
-              'Keep the passphrase: it cannot be recovered. Restore can open an unencrypted backup with an empty passphrase.'),
+            'Keep the passphrase: it cannot be recovered. Restore can open an unencrypted backup with an empty passphrase.',
+          ),
           value: encrypted,
-          onChanged: busy ? null : (v) => setState(() => encrypted = v)),
-      Wrap(children: [
+          onChanged: busy ? null : (v) => setState(() => encrypted = v),
+        ),
+        Wrap(
+          children: [
+            OutlinedButton(
+              onPressed:
+                  available && !busy ? () => perform('saveBundle') : null,
+              child: const Text('Save full backup'),
+            ),
+            OutlinedButton(
+              onPressed:
+                  available && !busy ? () => perform('openBundle') : null,
+              child: const Text('Open / merge / restore'),
+            ),
+          ],
+        ),
         OutlinedButton(
-            onPressed: available && !busy ? () => perform('saveBundle') : null,
-            child: const Text('Save full backup')),
-        OutlinedButton(
-            onPressed: available && !busy ? () => perform('openBundle') : null,
-            child: const Text('Open / merge / restore'))
-      ]),
-      OutlinedButton(
           onPressed: available && !busy ? () => perform('cloudTarget') : null,
-          child: const Text('Choose dedicated backup document')),
-      const Text(
-          'Choose a cloud provider in Android’s picker if available, or a local document. Upload overwrites that dedicated document; provider interruption may leave it incomplete. Keep a separate local backup. Cloud restore always previews changes; automatic two-way sync is not enabled.'),
-      Wrap(children: [
-        OutlinedButton(
-            onPressed: available && !busy && status['target'] != null
-                ? () => perform('cloudBackup')
-                : null,
-            child: const Text('Upload backup')),
-        OutlinedButton(
-            onPressed: available && !busy && status['target'] != null
-                ? () => perform('cloudRestore')
-                : null,
-            child: const Text('Download / restore'))
-      ]),
-      SwitchListTile(
+          child: const Text('Choose dedicated backup document'),
+        ),
+        const Text(
+          'Choose a cloud provider in Android’s picker if available, or a local document. Upload overwrites that dedicated document; provider interruption may leave it incomplete. Keep a separate local backup. Cloud restore always previews changes; automatic two-way sync is not enabled.',
+        ),
+        Wrap(
+          children: [
+            OutlinedButton(
+              onPressed: available && !busy && status['target'] != null
+                  ? () => perform('cloudBackup')
+                  : null,
+              child: const Text('Upload backup'),
+            ),
+            OutlinedButton(
+              onPressed: available && !busy && status['target'] != null
+                  ? () => perform('cloudRestore')
+                  : null,
+              child: const Text('Download / restore'),
+            ),
+          ],
+        ),
+        SwitchListTile(
           title: const Text('Daily encrypted backup'),
           subtitle: const Text(
-              'While charging and online; best effort. The passphrase is protected by Android Keystore on this phone. Overwrites the chosen document. Completed saved data only; GPS recording defers the job.'),
+            'While charging and online; best effort. The passphrase is protected by Android Keystore on this phone. Overwrites the chosen document. Completed saved data only; GPS recording defers the job.',
+          ),
           value: scheduled,
           onChanged: !available || busy || status['target'] == null
               ? null
@@ -230,18 +265,21 @@ class _FullBackupState extends ConsumerState<FullBackupControls> {
                   if (v) {
                     await perform('scheduleBackup');
                   } else {
-                    await files.invokeMethod<bool>(
-                        'scheduleBackup', {'enabled': false});
+                    await files.invokeMethod<bool>('scheduleBackup', {
+                      'enabled': false,
+                    });
                     await refresh();
                     if (mounted) {
                       setState(() {});
                     }
                   }
-                }),
-      if (status['status'] != null) Text(status['status'] as String),
-      if (busy) const LinearProgressIndicator(),
-      if (notice.isNotEmpty) Text(notice),
-    ]);
+                },
+        ),
+        if (status['status'] != null) Text(status['status'] as String),
+        if (busy) const LinearProgressIndicator(),
+        if (notice.isNotEmpty) Text(notice),
+      ],
+    );
   }
 }
 
@@ -262,21 +300,25 @@ class _PassphraseState extends State<_Passphrase> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-          title: const Text('Backup passphrase'),
-          content: TextField(
-              controller: text,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: const InputDecoration(
-                  labelText:
-                      '12+ characters to encrypt; empty for plain restore')),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () => Navigator.pop(context, text.text),
-                child: const Text('Continue'))
-          ]);
+        title: const Text('Backup passphrase'),
+        content: TextField(
+          controller: text,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: const InputDecoration(
+            labelText: '12+ characters to encrypt; empty for plain restore',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, text.text),
+            child: const Text('Continue'),
+          ),
+        ],
+      );
 }

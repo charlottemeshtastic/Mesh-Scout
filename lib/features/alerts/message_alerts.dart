@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../radio/radio_notifier.dart';
 
 abstract interface class AlertService {
@@ -24,8 +26,9 @@ class SilentAlerts implements AlertService {
 }
 
 final alertServiceProvider = Provider<AlertService>((ref) => SilentAlerts());
-final messageAlertsProvider =
-    NotifierProvider<MessageAlerts, AlertState>(MessageAlerts.new);
+final messageAlertsProvider = NotifierProvider<MessageAlerts, AlertState>(
+  MessageAlerts.new,
+);
 
 class AlertState {
   const AlertState({this.enabled = false, this.busy = false, this.notice});
@@ -64,10 +67,11 @@ class MessageAlerts extends Notifier<AlertState> {
       } catch (_) {
         if (ref.mounted) {
           state = AlertState(
-              enabled: state.enabled,
-              busy: state.busy,
-              notice:
-                  'Message alerts could not be updated. Check Android notification settings.');
+            enabled: state.enabled,
+            busy: state.busy,
+            notice:
+                'Message alerts could not be updated. Check Android notification settings.',
+          );
         }
       }
     });
@@ -86,8 +90,9 @@ class MessageAlerts extends Notifier<AlertState> {
       }
     } catch (_) {
       if (ref.mounted) {
-        state =
-            const AlertState(notice: 'Could not load message alert settings.');
+        state = const AlertState(
+          notice: 'Could not load message alert settings.',
+        );
       }
     }
   }
@@ -106,16 +111,18 @@ class MessageAlerts extends Notifier<AlertState> {
       final allowed = await ref.read(alertServiceProvider).configure(enabled);
       if (ref.mounted) {
         state = AlertState(
-            enabled: allowed,
-            notice: enabled && !allowed
-                ? 'Notifications are blocked. Allow MeshScout messages in Android notification settings.'
-                : null);
+          enabled: allowed,
+          notice: enabled && !allowed
+              ? 'Notifications are blocked. Allow MeshScout messages in Android notification settings.'
+              : null,
+        );
       }
     } catch (_) {
       if (ref.mounted) {
         state = AlertState(
-            enabled: previous,
-            notice: 'Could not save message alert settings. Try again.');
+          enabled: previous,
+          notice: 'Could not save message alert settings. Try again.',
+        );
       }
     }
   }

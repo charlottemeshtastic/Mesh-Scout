@@ -1,9 +1,11 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mesh_scout/features/radio/radio_controls.dart';
 import 'package:mesh_scout/features/radio/radio_notifier.dart';
 import 'package:mesh_scout/features/radio/ble_service.dart';
+
 import 'radio_test.dart' show FakeBle;
 
 class ControlBle extends FakeBle {
@@ -42,7 +44,8 @@ void main() {
   setUp(() async {
     ble = ControlBle();
     container = ProviderContainer(
-        overrides: [bleServiceProvider.overrideWithValue(ble)]);
+      overrides: [bleServiceProvider.overrideWithValue(ble)],
+    );
     radio = container.read(radioProvider.notifier);
     await radio.scan();
     const device = RadioDevice('radio', 'MeshCore', -50);

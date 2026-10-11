@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mesh_scout/common/mesh_data.dart';
@@ -8,6 +9,7 @@ import 'package:mesh_scout/features/radio/ble_service.dart';
 import 'package:mesh_scout/features/radio/radio_notifier.dart';
 import 'package:mesh_scout/features/mapping/mapping_notifier.dart';
 import 'package:mesh_scout/features/mapping/mapping_service.dart';
+
 import 'radio_test.dart' show FakeBle;
 import 'mapping_test.dart' show FakeMapping;
 
@@ -90,14 +92,16 @@ void main() {
   setUp(() {
     ble = FeatureBle();
     retryTimers = [];
-    container = ProviderContainer(overrides: [
-      bleServiceProvider.overrideWithValue(ble),
-      reconnectTimerProvider.overrideWithValue((duration, callback) {
-        final timer = ManualTimer(callback);
-        retryTimers.add(timer);
-        return timer;
-      })
-    ]);
+    container = ProviderContainer(
+      overrides: [
+        bleServiceProvider.overrideWithValue(ble),
+        reconnectTimerProvider.overrideWithValue((duration, callback) {
+          final timer = ManualTimer(callback);
+          retryTimers.add(timer);
+          return timer;
+        }),
+      ],
+    );
     actions = container.read(radioProvider.notifier);
   });
   tearDown(() async {
@@ -138,20 +142,24 @@ void main() {
     expect(state.contacts.first.name, 'Alpha');
     expect(state.syncedAt, isNotNull);
   });
-  test('incomplete contact stream is rejected and retry requires reconnect',
-      () async {
-    await ready();
-    await actions.refreshContacts();
-    ble.packets.add(countFrame(2, 2));
-    ble.packets.add(contactFrame());
-    ble.packets.add(countFrame(4, 0));
-    expect(container.read(radioProvider).contacts, isEmpty);
-    expect(
-        container.read(radioProvider).contactMessage, contains('Incomplete'));
-    final writes = ble.writes.length;
-    await actions.refreshContacts();
-    expect(ble.writes.length, writes);
-  });
+  test(
+    'incomplete contact stream is rejected and retry requires reconnect',
+    () async {
+      await ready();
+      await actions.refreshContacts();
+      ble.packets.add(countFrame(2, 2));
+      ble.packets.add(contactFrame());
+      ble.packets.add(countFrame(4, 0));
+      expect(container.read(radioProvider).contacts, isEmpty);
+      expect(
+        container.read(radioProvider).contactMessage,
+        contains('Incomplete'),
+      );
+      final writes = ble.writes.length;
+      await actions.refreshContacts();
+      expect(ble.writes.length, writes);
+    },
+  );
   test('contact refresh requires a large enough negotiated MTU', () async {
     ble.mtu = 100;
     await ready();
@@ -161,37 +169,40 @@ void main() {
     expect(ble.writes.where((b) => b.first == 4), isEmpty);
   });
   test(
-      'empty contact list is valid; unsolicited RX data never becomes a contact',
-      () async {
-    await ready();
-    await actions.refreshContacts();
-    ble.packets.add([0x88, 0xf8, 0x9c, 0x11]);
-    ble.packets.add(countFrame(2, 0));
-    ble.packets.add(countFrame(4, 0));
-    expect(container.read(radioProvider).contacts, isEmpty);
-    expect(container.read(radioProvider).syncedAt, isNotNull);
-    expect(container.read(radioProvider).lastRx?.rssi, -100);
-    expect(container.read(radioProvider).lastRx?.snr, -2);
-  });
-  test('identified link retries, re-identifies, and retains the radio service',
-      () async {
-    await ready();
-    expect(actions.beginControls(), isTrue);
-    ble.links.add(RadioLink.disconnected);
-    await flush();
-    expect(container.read(radioProvider).phase, RadioPhase.reconnecting);
-    expect(ble.ended, 0);
-    expect(container.read(radioProvider).controlsBusy, isFalse);
-    retryTimers.last.fire();
-    await flush();
-    expect(ble.connections, 2);
-    ble.links.add(RadioLink.connected);
-    await flush();
-    expect(container.read(radioProvider).phase, RadioPhase.ready);
-    expect(actions.beginControls(), isTrue);
-    actions.endControls(actions.sessionToken);
-    expect(ble.writes.where((b) => b.first == 1).length, 2);
-  });
+    'empty contact list is valid; unsolicited RX data never becomes a contact',
+    () async {
+      await ready();
+      await actions.refreshContacts();
+      ble.packets.add([0x88, 0xf8, 0x9c, 0x11]);
+      ble.packets.add(countFrame(2, 0));
+      ble.packets.add(countFrame(4, 0));
+      expect(container.read(radioProvider).contacts, isEmpty);
+      expect(container.read(radioProvider).syncedAt, isNotNull);
+      expect(container.read(radioProvider).lastRx?.rssi, -100);
+      expect(container.read(radioProvider).lastRx?.snr, -2);
+    },
+  );
+  test(
+    'identified link retries, re-identifies, and retains the radio service',
+    () async {
+      await ready();
+      expect(actions.beginControls(), isTrue);
+      ble.links.add(RadioLink.disconnected);
+      await flush();
+      expect(container.read(radioProvider).phase, RadioPhase.reconnecting);
+      expect(ble.ended, 0);
+      expect(container.read(radioProvider).controlsBusy, isFalse);
+      retryTimers.last.fire();
+      await flush();
+      expect(ble.connections, 2);
+      ble.links.add(RadioLink.connected);
+      await flush();
+      expect(container.read(radioProvider).phase, RadioPhase.ready);
+      expect(actions.beginControls(), isTrue);
+      actions.endControls(actions.sessionToken);
+      expect(ble.writes.where((b) => b.first == 1).length, 2);
+    },
+  );
   test('manual disconnect cancels reconnect and releases service', () async {
     await ready();
     ble.links.add(RadioLink.disconnected);
@@ -203,17 +214,19 @@ void main() {
     expect(ble.ended, 1);
     expect(container.read(radioProvider).phase, RadioPhase.idle);
   });
-  test('turning off auto reconnect leaves link loss as a manual recovery',
-      () async {
-    await ready();
-    await actions.setAutoReconnect(false);
-    ble.links.add(RadioLink.disconnected);
-    await flush();
-    expect(retryTimers, isEmpty);
-    expect(ble.connections, 1);
-    expect(ble.ended, 1);
-    expect(container.read(radioProvider).phase, RadioPhase.failed);
-  });
+  test(
+    'turning off auto reconnect leaves link loss as a manual recovery',
+    () async {
+      await ready();
+      await actions.setAutoReconnect(false);
+      ble.links.add(RadioLink.disconnected);
+      await flush();
+      expect(retryTimers, isEmpty);
+      expect(ble.connections, 1);
+      expect(ble.ended, 1);
+      expect(container.read(radioProvider).phase, RadioPhase.failed);
+    },
+  );
   test('reconnect stops after five unsuccessful attempts', () async {
     await ready();
     ble.links.add(RadioLink.disconnected);
@@ -235,32 +248,37 @@ void main() {
     expect(RxObservation.parse([0x88, 1], now), isNull);
     expect(RxObservation.parse([0x83, 0xfc, 0x88, 1], now), isNull);
   });
-  test('coverage requires recording and recent GPS; saves and reopens metrics',
-      () async {
-    final gps = FakeMapping();
-    final mapping = ProviderContainer(
-        overrides: [mappingServiceProvider.overrideWithValue(gps)]);
-    final actions = mapping.read(mappingProvider.notifier);
-    await actions.initialize();
-    final now = DateTime.now();
-    actions.capture(RxObservation(-100, 3, now));
-    expect(mapping.read(mappingProvider).observations, isEmpty);
-    await actions.start();
-    gps.updates.add(GpsPoint(35.2, -80.8, 5, now));
-    actions
-        .capture(RxObservation(-100, 3, now.add(const Duration(seconds: 16))));
-    expect(mapping.read(mappingProvider).observations, isEmpty);
-    actions.capture(
-        RxObservation(-105, -1.5, now.add(const Duration(seconds: 1))));
-    expect(mapping.read(mappingProvider).observations.length, 1);
-    await actions.stop();
-    final saved = decodeSessions(gps.stored).single;
-    expect(saved.observations.single.rssi, -105);
-    expect(saved.observations.single.snr, -1.5);
-    expect(saved.observations.single.point.latitude, 35.2);
-    mapping.dispose();
-    await gps.updates.close();
-  });
+  test(
+    'coverage requires recording and recent GPS; saves and reopens metrics',
+    () async {
+      final gps = FakeMapping();
+      final mapping = ProviderContainer(
+        overrides: [mappingServiceProvider.overrideWithValue(gps)],
+      );
+      final actions = mapping.read(mappingProvider.notifier);
+      await actions.initialize();
+      final now = DateTime.now();
+      actions.capture(RxObservation(-100, 3, now));
+      expect(mapping.read(mappingProvider).observations, isEmpty);
+      await actions.start();
+      gps.updates.add(GpsPoint(35.2, -80.8, 5, now));
+      actions.capture(
+        RxObservation(-100, 3, now.add(const Duration(seconds: 16))),
+      );
+      expect(mapping.read(mappingProvider).observations, isEmpty);
+      actions.capture(
+        RxObservation(-105, -1.5, now.add(const Duration(seconds: 1))),
+      );
+      expect(mapping.read(mappingProvider).observations.length, 1);
+      await actions.stop();
+      final saved = decodeSessions(gps.stored).single;
+      expect(saved.observations.single.rssi, -105);
+      expect(saved.observations.single.snr, -1.5);
+      expect(saved.observations.single.point.latitude, 35.2);
+      mapping.dispose();
+      await gps.updates.close();
+    },
+  );
   test('old GPS-only sessions load without an observations field', () {
     final json =
         '[{"id":"old","started":"2026-10-10T00:00:00Z","ended":"2026-10-10T00:01:00Z","points":[]}]';

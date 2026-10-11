@@ -1,4 +1,4 @@
-# MeshScout 1.2
+# MeshScout 1.3
 
 Independent Android MeshCore field-mapping app. MeshScout has no BackCountrySignal integration, shared data, account or application code. Android APKs are test builds; real-device acceptance remains necessary.
 
@@ -25,6 +25,19 @@ GPS recording, completed sessions, names, GeoJSON/CSV export and fresh GPS-assoc
 Coverage → Summaries, comparisons, waypoints and route import provides side-by-side summaries of two sessions, route distance, mean/range RSSI, mean SNR and sample counts. Measured signal bars group observations in 0.001° cells; cell size varies with latitude. Cells without observations have no inferred coverage. Raw LoRa metrics are last-hop reception, not verified sender identity or proof of two-way coverage.
 
 Waypoints and notes persist privately, appear as cyan flags on Map and can be deleted with confirmation. Up to 1,000 waypoints; names up to 80 characters, notes up to 2,000. GeoJSON route import accepts a WGS84 LineString or exactly one LineString in a FeatureCollection, 2–10,000 points. Imported geometry is labeled as a planned route with no reception observations; imported timestamps/accuracy are unknown. Exports mark planned points explicitly and omit their measurement timestamps/accuracy. GPX import is not included.
+
+## Field safety and map tools (1.3)
+
+- **Auto-stop when parked:** a recording stops and saves after the phone stays within 30 m of one spot for 10 minutes (5/10/15/30 configurable, on by default). The check runs on each fix, each reception and every 30 seconds.
+- **Flight check:** fixes above 6,000 m altitude or faster than 250 km/h (reported speed, or derived from fixes at least 10 s apart) are never recorded; two in a row end the session so airborne receptions do not mix with ground coverage.
+- **Altitude:** GPS points keep altitude and speed when Android reports them. CSV and GeoJSON exports add `altitude_m`.
+- **Disconnect alert:** when an identified radio drops (ready → reconnecting/failed) MeshScout posts a high-priority notification whose channel sound follows silent mode and Do Not Disturb. Manual disconnects never alert. Without notification permission a tone plays only in normal ringer mode. Reconnecting clears it.
+- **Radio presets:** frequency, bandwidth, SF and CR are read while identifying the companion (and after a status refresh) and saved with each new session. Settings → Map → Match the connected radio preset filters History and saved coverage to that preset.
+- **Saved coverage and gaps:** Map → All saved coverage draws measured 0.001° cells from every saved session (strongest RSSI colour). "Last N days only" hides older cells so areas that need mapping again stand out.
+- **Node markers:** neutral markers with an edge colour by advert age (green ≤24 h, amber ≤7 d, grey older). Nodes within ~11 m share one marker with a count; tapping zooms in, and tapping again lists them by full public key.
+- **Quick guide and settings folders:** a 12-page guide appears once after preferences load and reopens from Settings → About and support. Settings are grouped into Radio and alerts, Recording, Map, Backup and storage, and About and support.
+
+Not included because MeshScout has no server or iOS build: active pings, server sessions/keepalives, Anonymous Mode, Custom API forwarding, regional CARpeater lists, server device catalog, Flood Off regions, administrator site info, Siri, CarPlay, Live Activities and Apple Watch.
 
 ## Offline maps
 
